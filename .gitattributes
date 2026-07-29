@@ -1,0 +1,35 @@
+# Auto-detect text files and normalize line endings on commit.
+# Ensures shell scripts always commit as LF (Windows Git clients won't
+# silently introduce CRLF into hooks or .sh files). Force LF on:
+#   - all shell scripts
+#   - git hook scripts (executable bit is set by setup_hooks.ps1 / .sh)
+# All other text files are normalized on commit.
+
+* text=auto
+
+# Shell scripts MUST stay LF or Git Bash cannot execute them on Windows.
+*.sh        text eol=lf
+*.bash      text eol=lf
+
+# Git hooks always LF.
+.git/hooks/*      text eol=lf
+.git/hooks/**/*   text eol=lf
+
+# PowerShell scripts are conventionally CRLF on Windows.
+*.ps1       text eol=crlf
+
+# Common source files — let clients normalize.
+*.py        text eol=lf
+*.md        text eol=lf
+*.toml      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+
+# Binary — no transformation.
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.pdf       binary
