@@ -15,12 +15,24 @@
 
 ---
 
-## Trạng thái hiện tại
+## Module của Member 2 (3 modules)
+
+| Module | Mô tả | Tuần |
+|--------|-------|------|
+| **M2-FE-01** | Setup + Design System (Vite + React + TS + Tailwind + VinUni Red) | Tuần 2 ✅ |
+| **M2-FE-02** | Auth + Chat Pages (Login/Register + Home + Chat + WebSocket client) | Tuần 3 |
+| **M2-FE-03** | Search + Recommendation + Copilot Pages (polish + Demo script) | Tuần 4 / Tuần 5 |
+
+---
+
+## Trạng thái hiện tại (cập nhật 03/08/2026)
 
 - ✅ Đã đọc spec + plan.
 - ✅ Setup Node.js 20 + npm.
-- 🟡 Đang vào tuần 2 — GATE 1.
-- ⬜ `frontend/` folder chưa tạo.
+- ✅ **GATE 1 đã nộp 02/08** (Chủ nhật tuần 2).
+- ✅ M2-FE-01 (Vite scaffold + Design System VinUni Red) xong.
+- 🟡 **Đang vào tuần 3** — M2-FE-02 (Auth + Chat Pages).
+- ⬜ M2-FE-03 đang pending.
 
 ---
 
@@ -35,170 +47,105 @@
 
 ---
 
-## Tuần 2 (30/07 – 05/08) 🟡 — GATE 1
+## Tuần 2 (30/07 – 02/08) ✅ — GATE 1
 
-> **Mốc:** 05/08 demo Frontend chạy được trên browser.
+### Module M2-FE-01: Setup + Design System ✅
 
-### T2 (30/07)
-- [ ] TASK-FE-01: Tạo `frontend/` folder, init Vite + React + TS
-- [ ] TASK-FE-01: Verify `npm run dev` lên `http://localhost:5173`
+- [x] **Setup:** Tạo `frontend/` folder, init Vite + React + TS, verify `npm run dev`
+- [x] TailwindCSS + ESLint + Prettier + VinUni Red color tokens (`tailwind.config.js`)
+- [x] React Router v6 + Zustand + Axios client + TanStack Query
+- [x] Folder structure: `src/api/`, `src/pages/`, `src/components/`, `src/theme/`
+- [x] **Components:** `<Button>`, `<Input>`, `<Card>`, `<Avatar>`, `<Badge>`
+- [x] Theme tokens: `src/theme/colors.ts` (VinUni Red), `typography.ts`
 
-### T3 (31/07)
-- [ ] TASK-FE-01: Cài TailwindCSS + cấu hình
-- [ ] TASK-FE-01: Setup VinUni Red color tokens (`tailwind.config.js`)
-
-### T4 (01/08)
-- [ ] TASK-FE-01: Setup ESLint + Prettier
-- [ ] TASK-FE-01: Cài React Router v6 + Zustand
-
-### T5 (02/08)
-- [ ] TASK-FE-01: Setup Axios client + TanStack Query
-- [ ] TASK-FE-01: Tạo folder structure (`src/api/`, `src/pages/`, `src/components/`)
-
-### T6 (03/08)
-- [ ] TASK-FE-02: `src/theme/colors.ts` (VinUni Red tokens)
-- [ ] TASK-FE-02: `src/theme/typography.ts`
-- [ ] TASK-FE-02: Component `<Button>` (Primary, Secondary, Ghost)
-
-### CN (04/08) — optional
-- [ ] TASK-FE-02: Component `<Input>`, `<Card>`, `<Avatar>`, `<Badge>`
-- [ ] Help Member 1 test API từ Frontend
-
-### T2 (05/08) 🚨 **GATE 1**
-- [ ] **Demo trên browser:** Trang chủ hiển thị + VinUni Red render đúng
-- [ ] Verify: `http://localhost:5173/` → thấy landing page mockup
-- [ ] Cập nhật `timeline.md` tuần 2
+### 🚨 GATE 1 (02/08 CN) ✅
+- [x] **Demo trên browser:** Landing page render đúng VinUni Red
+- [x] Test gọi Contact API từ Frontend thành công
+- [x] Nộp GATE 1 ngày **02/08 (Chủ nhật)**
 
 ---
 
-## Tuần 3 (06/08 – 12/08) ⬜
+## Tuần 3 (03/08 – 09/08) 🟡
 
-### T2 (06/08)
-- [ ] TASK-FE-03: Page `<Login>` (form + submit)
-- [ ] TASK-FE-03: Page `<Register>` (form + submit)
+### Module M2-FE-02: Auth + Chat Pages
 
-### T3 (07/08)
-- [ ] TASK-FE-03: Auth API integration (`src/api/auth.ts`)
-- [ ] TASK-FE-03: Lưu JWT vào localStorage + Zustand
+- [ ] **Auth API:** `src/api/auth.ts` — register + login + logout
+- [ ] Lưu JWT vào localStorage + Zustand store
+- [ ] **Page `<Login>`:** Form email/password + submit + error handling
+- [ ] **Page `<Register>`:** Form email/password/confirm + submit
+- [ ] **Axios interceptor:** auto-attach Bearer token + 401 → redirect Login
+- [ ] **Protected route wrapper `<RequireAuth>`**
+- [ ] **Page `<Home>`:** Conversation list (mockup hoặc gọi API)
+- [ ] **Page `<Chat>`:** Message list + input + typing indicator
+- [ ] **Components:** `<ContextCard>`, `<MessageBubble>` (user / contact / ai)
+- [ ] **Hook `useWebSocket`** — auto-reconnect on disconnect
 
-### T4 (08/08)
-- [ ] TASK-FE-03: Axios interceptor (auto-attach Bearer token)
-- [ ] TASK-FE-03: Protected route wrapper `<RequireAuth>`
-
-### T5 (09/08)
-- [ ] TASK-FE-04: Page `<Home>` (Conversation List mockup)
-- [ ] TASK-FE-04: Page `<Chat>` (Message List + Input mockup)
-
-### T6 (10/08)
-- [ ] TASK-FE-04: Component `<ContextCard>` (mockup)
-- [ ] TASK-FE-04: Component `<MessageBubble>` (user / contact / ai)
-
-### CN (11/08) — optional
-- [ ] TASK-FE-04: WebSocket client hook `useWebSocket`
-- [ ] TASK-FE-04: Auto-reconnect on disconnect
-
-### T2 (12/08) 🎯 **MVP**
-- [ ] **Demo:** Login → Home → Chat UI render đúng (có thể chưa kết nối WS thật)
+### 🎯 MVP (09/08 CN)
+- [ ] **Demo Frontend:** Login → Home → Chat UI render đúng + WebSocket gửi/nhận message
 - [ ] Member 3 có API + WS sẵn sàng tích hợp
-- [ ] Cập nhật `timeline.md` tuần 3
+- [ ] Verify: 2 browser tab chat realtime thành công
 
 ---
 
-## Tuần 4 (13/08 – 19/08) ⬜
+## Tuần 4 (10/08 – 16/08) ⬜
 
-### T2 (13/08)
-- [ ] TASK-FE-04: WebSocket integration (gửi/nhận Message thật)
-- [ ] TASK-FE-04: Typing indicator + AI streaming response UI
+### Module M2-FE-03 (phần 1): Search + Recommendation + Copilot Pages
 
-### T3 (14/08)
-- [ ] TASK-FE-04: Component `<MemoryTimeline>`
-- [ ] TASK-FE-04: Component `<TagBadge>` + `<InsightList>`
+- [ ] **Component `<MemoryTimeline>`** + `<TagBadge>` + `<InsightList>`
+- [ ] **Page `<ContactProfile>`** (Memory + Timeline + Insight tabs)
+- [ ] **Page `<Search>`** (search bar + result list + explanation card)
+- [ ] **Page `<RecommendationCenter>`** (list + Accept/Reject buttons)
+- [ ] **Component `<RecommendationItem>`** + `<AIReplySuggestion>`
+- [ ] **Page `<Copilot>`** (AI chat UI + streaming response animation)
+- [ ] **Page `<Notifications>`** + `<Settings>`
 
-### T4 (15/08)
-- [ ] TASK-FE-04: Page `<ContactProfile>` (Memory + Timeline + Insight)
-
-### T5 (16/08)
-- [ ] TASK-FE-05: Page `<Search>` (search bar + result list + explanation)
-
-### T6 (17/08)
-- [ ] TASK-FE-05: Page `<RecommendationCenter>` (list + Accept/Reject)
-- [ ] TASK-FE-05: Component `<RecommendationItem>`
-
-### CN (18/08) — optional
-- [ ] TASK-FE-05: Component `<AIReplySuggestion>` (Share to Conversation)
-
-### T2 (19/08) 🚨 **GATE 2**
+### 🚨 GATE 2 (16/08 CN)
 - [ ] **Demo:** Search → Copilot → Recommendation → Notification pages tất cả render được
-- [ ] WebSocket chat realtime với 2 client
-- [ ] VinUni Red primary color hiển thị đúng
+- [ ] VinUni Red primary color hiển thị đúng + responsive mobile/desktop
+- [ ] Verify: Lighthouse score > 80
 
 ---
 
-## Tuần 5 (20/08 – 26/08) ⬜
+## Tuần 5 (17/08 – 23/08) ⬜
 
-### T2 (20/08)
-- [ ] TASK-FE-05: Page `<Copilot>` (AI chat UI + streaming)
-- [ ] TASK-FE-05: Page `<Notifications>` + `<Settings>`
+### Module M2-FE-03 (phần 2): Polish + Demo Material
 
-### T3 (21/08)
-- [ ] TASK-FE-05: Responsive mobile-first (test Chrome + Safari + Mobile view)
-- [ ] TASK-FE-05: Polish UI (loading states, empty states, error states)
-
-### T4 (22/08)
-- [ ] Demo Script (5 phút) — phân cảnh: Login → Add Contact → Chat → Memory → Search → Copilot
-- [ ] Test chạy Demo Script 3 lần
-
-### T5 (23/08)
-- [ ] Frontend manual test checklist (theo WS-08)
-- [ ] Fix bug nếu phát hiện trong manual test
-
-### T6 (24/08)
-- [ ] TASK-FE-05: Build production (`npm run build`)
-- [ ] Optimize bundle size + Lighthouse score > 80
-
-### CN (25/08) — optional
-- [ ] Final polish UI + animation
-
-### T2 (26/08) — **Nộp hồ sơ Demo Day**
+- [ ] Responsive mobile-first (test Chrome + Safari + Mobile view)
+- [ ] Polish UI (loading states, empty states, error states, animations)
+- [ ] Build production (`npm run build`) + optimize bundle size
+- [ ] **Demo Script (5 phút)** — phân cảnh:
+  1. (30s) Login + Landing page giới thiệu MemoryChat
+  2. (1m) Add Contact + mở Chat + nhắn 2-3 messages
+  3. (1m) Xem ContactProfile → Memory Timeline + Insight
+  4. (1m) Search "người thích lập trình Python" → top-5
+  5. (1m) Copilot hỏi "Tôi nên nhắn gì với Nam?" → AI trả suggestion
+  6. (30s) Recommendation Center → Accept 1 cái → Share to Conversation
+- [ ] Test chạy Demo Script 3 lần + ghi nhận thời gian
 - [ ] Final commit `v1.0-mvp` tag
-- [ ] Test build production serve qua backend
 
 ---
 
-## Tuần 6 (27/08 – 01/09) ⬜
+## Tuần 6 (24/08 – 01/09) ⬜
 
-### T2 (27/08)
-- [ ] Rehearsal lần 1 (toàn nhóm) — 5 phút demo
-- [ ] Ghi nhận feedback
-
-### T4 (29/08)
-- [ ] Rehearsal lần 2 — target chạy trơn tru 5 phút
-
-### T5 (30/08)
-- [ ] Rehearsal lần 3 — target chạy trơn tru 5 phút
-
-### T6 (31/08)
-- [ ] Final rehearsal + Backup data
-- [ ] Chuẩn bị: laptop + demo script in sẵn
-
-### T2 (01/09) 🏆 **DEMO DAY**
-- [ ] Setup trước 30 phút
-- [ ] Demo 5 phút (chủ yếu thao tác trên Frontend)
-- [ ] Q&A với BGK
+- [ ] **T2 (25/08):** Rehearsal lần 1 (5 phút demo) — ghi nhận feedback
+- [ ] **T4 (27/08):** Rehearsal lần 2 — target chạy trơn tru 5 phút
+- [ ] **T5 (28/08):** Rehearsal lần 3 — target chạy trơn tru 5 phút
+- [ ] **T6 (29/08):** Final rehearsal + backup build + chuẩn bị laptop
+- [ ] **T2 (01/09) 🏆 DEMO DAY:** Demo 5 phút (chủ yếu thao tác trên Frontend) + Q&A
 
 ---
 
-## ✅ Checklist cuối cùng
+## ✅ Checklist cuối cùng (Tuần 6)
 
 ```
-Tất cả TASK-FE-* (5 tasks)          → STATUS
-npm run dev                          → OK
-npm run build                        → OK
-WebSocket realtime                   → OK
-Responsive mobile + desktop          → OK
-VinUni Red primary color             → OK
-Lighthouse score > 80                → OK
-Demo Script (5 phút)                 → OK
+✅ M2-FE-01 → M2-FE-03 (3 modules)              → DONE
+✅ npm run dev                                  → OK
+✅ npm run build                                → OK
+✅ WebSocket realtime                           → OK
+✅ Responsive mobile + desktop                  → OK
+✅ VinUni Red primary color                     → OK
+✅ Lighthouse score > 80                        → OK
+✅ Demo Script 5 phút (đã chạy 3 lần)          → OK
 ```
 
 ---

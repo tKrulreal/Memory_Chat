@@ -15,13 +15,25 @@
 
 ---
 
-## Trạng thái hiện tại
+## Module của Member 3 (3 modules)
+
+| Module | Mô tả | Tuần |
+|--------|-------|------|
+| **M3-CHAT-01** | Schemas + Contact API (Pydantic + CRUD Contact) | Tuần 2 ✅ |
+| **M3-CHAT-02** | Chat API + WebSocket + EventBus (Conversation + Message + WS + EventBus) | Tuần 3 |
+| **M3-MEM-01** | Memory Agent + Embedding + Vector Store (ChromaDB + Memory Worker) | Tuần 3 / Tuần 4 |
+
+---
+
+## Trạng thái hiện tại (cập nhật 03/08/2026)
 
 - ✅ Đã đọc spec + plan.
 - ✅ Setup Python 3.11 + venv.
-- ✅ Test OpenAI API thành công.
-- 🟡 Đang vào tuần 2 — GATE 1.
-- ⬜ WS-02 chưa bắt đầu code.
+- ✅ Test OpenAI API + Embeddings thành công.
+- ✅ **GATE 1 đã nộp 02/08** (Chủ nhật tuần 2).
+- ✅ M3-CHAT-01 (Schemas + Contact API) xong.
+- 🟡 **Đang vào tuần 3** — M3-CHAT-02 (Chat API + WebSocket + EventBus).
+- ⬜ M3-MEM-01 đang pending.
 
 ---
 
@@ -32,180 +44,112 @@
 - [x] Cài Python 3.11, venv, pip
 - [x] Test OpenAI API thành công (`gpt-4o-mini`)
 - [x] Test OpenAI Embeddings thành công (`text-embedding-3-small`)
-- [x] Test LangChain import (TextLoader, OpenAIChat)
+- [x] Test LangChain import + ChromaDB local
 
 ---
 
-## Tuần 2 (30/07 – 05/08) 🟡 — GATE 1
+## Tuần 2 (30/07 – 02/08) ✅ — GATE 1
 
-> **Mốc:** 05/08 demo Chat gửi/nhận qua WS.
+### Module M3-CHAT-01: Schemas + Contact API ✅
 
-### T2 (30/07)
-- [ ] TASK-CHAT-01: Pydantic schemas `ContactBase/Create/Update/Response`
-- [ ] TASK-CHAT-01: Pydantic schemas `ConversationBase/Create/Response`
+- [x] Pydantic schemas: `ContactBase/Create/Update/Response` + `ConversationBase/Create/Response` + `MessageBase/Create/Response`
+- [x] Enums: `MessageRole` (USER / CONTACT / AI), `ConversationStatus` (OPEN / CLOSED / ARCHIVED)
+- [x] **API Contact:** `GET /contacts`, `POST /contacts`, `GET /contacts/{id}`, `PUT /contacts/{id}`, `DELETE /contacts/{id}`
+- [x] Pagination `?page=1&limit=20` + Filter `?search=keyword`
+- [x] Swagger docs đầy đủ
 
-### T3 (31/07)
-- [ ] TASK-CHAT-01: Pydantic schemas `MessageBase/Create/Response`
-- [ ] TASK-CHAT-01: Enum `MessageRole` (USER / CONTACT / AI)
-- [ ] TASK-CHAT-01: Enum `ConversationStatus` (OPEN / CLOSED / ARCHIVED)
-- [ ] TASK-CHAT-02: API `GET /contacts` + `POST /contacts` (thêm swagger docs)
+### 🚨 GATE 1 (02/08 CN) ✅
+- [x] **Demo:** Test CRUD Contact qua Swagger OK
+- [x] Member 2 (FE) dùng Contact API để render danh sách
+- [x] Nộp GATE 1 ngày **02/08 (Chủ nhật)**
 
-### T4 (01/08)
-- [ ] TASK-CHAT-02: API `GET /contacts/{id}` + `PUT /contacts/{id}` + `DELETE /contacts/{id}`
-- [ ] TASK-CHAT-02: Pagination `?page=1&limit=20` + Filter `?search=keyword`
-- [ ] TASK-CHAT-03: API `GET /conversations` + `POST /conversations`
+---
 
-### T5 (02/08)
-- [ ] TASK-CHAT-03: API `GET /conversations/{id}` + `PATCH /conversations/{id}`
-- [ ] TASK-CHAT-03: Sinh Event `OPEN_CHAT` khi tạo conversation
-- [ ] TASK-CHAT-04: API `GET /conversations/{id}/messages`
+## Tuần 3 (03/08 – 09/08) 🟡
 
-### T6 (03/08)
-- [ ] TASK-CHAT-04: API `POST /conversations/{id}/messages`
-- [ ] TASK-CHAT-04: Sinh Event `SEND_MESSAGE` qua EventBus
-- [ ] TASK-CHAT-09: WebSocket endpoint `/ws/chat/{conversation_id}` (skeleton)
+### Module M3-CHAT-02: Chat API + WebSocket + EventBus
 
-### CN (04/08) — optional
-- [ ] TASK-CHAT-05: ConnectionManager class (in-memory dict)
-- [ ] TASK-CHAT-05: Broadcast message tới các client cùng conversation
+- [ ] **API Conversation:** `GET /conversations`, `POST /conversations`, `GET /conversations/{id}`, `PATCH /conversations/{id}`
+- [ ] **API Message:** `GET /conversations/{id}/messages`, `POST /conversations/{id}/messages`
+- [ ] **WebSocket:** endpoint `/ws/chat/{conversation_id}` + Connection Manager (in-memory dict)
+- [ ] Broadcast message tới các client cùng conversation
+- [ ] **EventBus:** `src/events/bus.py` (asyncio.Queue + publish/subscribe)
+- [ ] Background task `dispatcher_loop()` trong lifespan
+- [ ] Sinh event `OPEN_CHAT` / `SEND_MESSAGE` → ghi vào `EventLog`
 
-### T2 (05/08) 🚨 **GATE 1**
-- [ ] **Demo:** Mở 2 client WebSocket → gửi message từ client 1 → client 2 nhận realtime
+### Module M3-MEM-01 (phần 1): Embedding + Vector Store
+
+- [ ] **EmbeddingService** (`embed_text` + `embed_batch` với retry + log)
+- [ ] **VectorStoreService** (ChromaDB client + collection `contact_memory_embedding`)
+- [ ] Method `upsert(memory_id, text, embedding, metadata)` + `query(query_embedding, top_k=10)`
+- [ ] Test: embed 1 message → query → top match
+
+### 🎯 MVP (09/08 CN)
+- [ ] **Demo:** Mở 2 client WebSocket → nhắn message realtime
 - [ ] Verify: Event `SEND_MESSAGE` có trong `EventLog`
-- [ ] Cập nhật `timeline.md` tuần 2
+- [ ] Member 4 dùng VectorStoreService cho Search
 
 ---
 
-## Tuần 3 (06/08 – 12/08) ⬜
+## Tuần 4 (10/08 – 16/08) ⬜
 
-### T2 (06/08)
-- [ ] TASK-CHAT-06: `src/events/bus.py` (EventBus singleton + asyncio.Queue)
-- [ ] TASK-CHAT-06: Method `publish(event_type, payload)` + `subscribe(event_type, handler)`
+### Module M3-MEM-01 (phần 2): Memory Agent + Worker + API
 
-### T3 (07/08)
-- [ ] TASK-CHAT-06: Background task `dispatcher_loop()` trong lifespan
-- [ ] TASK-CHAT-06: Mỗi event ghi vào `EventLog`
-- [ ] TASK-MEM-01: EmbeddingService (`embed_text` + `embed_batch`)
-
-### T4 (08/08)
-- [ ] TASK-MEM-01: EmbeddingService retry + cache + log
-- [ ] TASK-MEM-02: VectorStoreService (ChromaDB client + collection `contact_memory_embedding`)
-
-### T5 (09/08)
-- [ ] TASK-MEM-02: Method `upsert(memory_id, text, embedding, metadata)`
-- [ ] TASK-MEM-02: Method `query(query_embedding, top_k=10)`
-
-### T6 (10/08)
-- [ ] TASK-MEM-03: Memory Agent (`summarize` + `extract_entities` + `calculate_relationship_score`)
-- [ ] TASK-MEM-03: Chunking utility (token-aware, ~500 token/chunk)
-
-### CN (11/08) — optional
-- [ ] TASK-MEM-03: Test Memory Agent với 5 conversation mẫu
-- [ ] Help Member 1 với test repository
-
-### T2 (12/08) 🎯 **MVP**
-- [ ] **Demo:** Conversation mới → gửi 5 messages → đợi 5 phút → ContactMemory tự động sinh
-- [ ] Verify: ChromaDB collection `contact_memory_embedding` có embeddings
-- [ ] Cập nhật `timeline.md` tuần 3
-
----
-
-## Tuần 4 (13/08 – 19/08) ⬜
-
-### T2 (13/08)
-- [ ] TASK-MEM-04: MemoryWorker subscribe EventBus
-- [ ] TASK-MEM-04: Trigger refresh khi conversation idle > 5 phút
-
-### T3 (14/08)
-- [ ] TASK-MEM-04: Trigger refresh khi `CLOSE_CHAT` event
-- [ ] TASK-MEM-04: Trigger refresh khi `OPEN_AI` event (manual button)
-
-### T4 (15/08)
-- [ ] TASK-MEM-05: API `GET /memory/{contact_id}` (full JSON)
-- [ ] TASK-MEM-05: API `POST /memory/{contact_id}/refresh`
-
-### T5 (16/08)
-- [ ] TASK-MEM-05: API `PATCH /memory/{contact_id}` (user edit)
-- [ ] TASK-MEM-05: API `GET /memory/{contact_id}/timeline`
-
-### T6 (17/08)
-- [ ] TASK-MEM-21: Test Memory Agent end-to-end
-- [ ] TASK-MEM-20: Test ChromaDB upsert + query
-
-### CN (18/08) — optional
+- [ ] **Memory Agent** (`summarize` + `extract_entities` + `calculate_relationship_score`)
+- [ ] Chunking utility (token-aware, ~500 token/chunk)
+- [ ] **MemoryWorker** subscribe EventBus
+  - Trigger refresh khi conversation idle > 5 phút
+  - Trigger refresh khi `CLOSE_CHAT` event
+  - Trigger refresh khi manual `OPEN_AI` event
+- [ ] **API Memory:** `GET /memory/{contact_id}`, `POST /memory/{contact_id}/refresh`
+- [ ] `PATCH /memory/{contact_id}` (user edit) + `GET /memory/{contact_id}/timeline`
 - [ ] Integration test: gửi message qua WS → trigger Memory refresh → verify DB
+- [ ] Test Memory Agent với 5 conversation mẫu (precision > 80%)
 
-### T2 (19/08) 🚨 **GATE 2**
+### 🚨 GATE 2 (16/08 CN)
 - [ ] **Demo:** Memory Agent sinh summary + ChromaDB có embeddings + API trả JSON đúng
 - [ ] Member 4 dùng Memory cho Search + Recommendation
-- [ ] Cập nhật `timeline.md` tuần 4
+- [ ] Verify: Conversation idle 5 phút → auto refresh ContactMemory
 
 ---
 
-## Tuần 5 (20/08 – 26/08) ⬜
+## Tuần 5 (17/08 – 23/08) ⬜
 
-### T2 (20/08)
-- [ ] TASK-TEST-02: Test Memory Agent với 5 conversation mẫu (precision > 80%)
-- [ ] TASK-TEST-01: Test MessageService + WebSocket
+### Mở rộng `scripts/seed.py` (hỗ trợ Member 1)
 
-### T3 (21/08)
-- [ ] TASK-TEST-01: Test API Contact/Conversation/Message endpoints
-- [ ] TASK-TEST-01: Test API Memory endpoint
-
-### T4 (22/08)
-- [ ] TASK-TEST-07: Mở rộng `scripts/seed.py` — tạo 5 Contact + 10-20 messages + Memory mẫu
-- [ ] TASK-TEST-07: Verify seed data trong DB
-
-### T5 (23/08)
-- [ ] Manual test checklist (theo WS-08-T30 → T39)
+- [ ] Seed 5 Contact mẫu + 10-20 messages + Memory đã generate sẵn
+- [ ] Verify seed data trong DB + ChromaDB
+- [ ] Test MessageService + WebSocket end-to-end
+- [ ] Test API Contact/Conversation/Message/Memory endpoints
+- [ ] Manual test checklist (theo WS-08 T30 → T39)
 - [ ] Fix bug nếu phát hiện
 
-### T6 (24/08)
-- [ ] Help Member 1 với Integration test
-- [ ] Help Member 2 với WebSocket client integration
-
-### CN (25/08) — optional
-- [ ] Buffer / fix bug
-
-### T2 (26/08) — **Nộp hồ sơ Demo Day**
+### Nộp Demo Day (23/08 CN)
 - [ ] Final commit `v1.0-mvp` tag
-- [ ] Verify Memory + Chat end-to-end
 
 ---
 
-## Tuần 6 (27/08 – 01/09) ⬜
+## Tuần 6 (24/08 – 01/09) ⬜
 
-### T2 (27/08)
-- [ ] Rehearsal lần 1 (toàn nhóm) — 5 phút demo
-- [ ] Ghi nhận feedback
-
-### T4 (29/08)
-- [ ] Rehearsal lần 2 — target chạy trơn tru 5 phút
-
-### T5 (30/08)
-- [ ] Rehearsal lần 3 — target chạy trơn tru 5 phút
-
-### T6 (31/08)
-- [ ] Final rehearsal + Backup data
-- [ ] Chuẩn bị: laptop + demo script in sẵn
-
-### T2 (01/09) 🏆 **DEMO DAY**
-- [ ] Demo phần Chat + Memory (2 phút trong tổng 5 phút)
-- [ ] Q&A với BGK
+- [ ] **T2 (25/08):** Rehearsal lần 1 (5 phút demo) — ghi nhận feedback
+- [ ] **T4 (27/08):** Rehearsal lần 2 — target chạy trơn tru 5 phút
+- [ ] **T5 (28/08):** Rehearsal lần 3 — target chạy trơn tru 5 phút
+- [ ] **T6 (29/08):** Final rehearsal + backup data
+- [ ] **T2 (01/09) 🏆 DEMO DAY:** Demo phần Chat + Memory (2 phút trong tổng 5 phút) + Q&A
 
 ---
 
-## ✅ Checklist cuối cùng
+## ✅ Checklist cuối cùng (Tuần 6)
 
 ```
-Tất cả TASK-CHAT-* (6 tasks)        → STATUS
-Tất cả TASK-MEM-* (5 tasks)         → STATUS
-WebSocket realtime                   → OK
-Memory Agent                         → OK
-ChromaDB upsert + query              → OK
-EventBus + Worker                    → OK
-Test E2E Memory flow                 → OK
-Seed data                            → OK
+✅ M3-CHAT-01 → M3-MEM-01 (3 modules)           → DONE
+✅ Contact + Conversation + Message API         → OK
+✅ WebSocket realtime                           → OK
+✅ EventBus + Worker                            → OK
+✅ Memory Agent (summarize + entities + score)  → OK
+✅ ChromaDB upsert + query                      → OK
+✅ Test E2E Memory flow                         → OK
+✅ Seed data (5 Contact + 10-20 messages)       → OK
 ```
 
 ---

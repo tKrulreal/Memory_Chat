@@ -15,12 +15,28 @@
 
 ---
 
-## Trạng thái hiện tại
+## Module của Member 1 (6 modules)
+
+| Module | Mô tả | Tuần |
+|--------|-------|------|
+| **M1-BE-01** | DB Schema + Migration (11 models + Alembic) | Tuần 2 ✅ |
+| **M1-BE-02** | Repository + Service Layer (8 repos + 5 services) | Tuần 2 ✅ / Tuần 3 |
+| **M1-BE-03** | Auth (JWT) + LLM Gateway (retry + log + embed) | Tuần 3 |
+| **M1-BE-04** | API Skeleton (routers + middleware + Tests) | Tuần 3 / Tuần 4 |
+| **M1-BE-05** | Docker (Dockerfile + Compose) + Scripts (backup, seed) | Tuần 4 |
+| **M1-BE-06** | Demo Material (Slide + Health + Logging) | Tuần 5 |
+
+---
+
+## Trạng thái hiện tại (cập nhật 03/08/2026)
 
 - ✅ Đã đọc spec + plan.
 - ✅ Setup môi trường Python 3.11 + Docker + OpenAI key.
-- 🟡 Đang vào tuần 2 — GATE 1.
-- ⬜ WS-01 chưa bắt đầu code models.
+- ✅ **GATE 1 đã nộp 02/08** (Chủ nhật tuần 2).
+- ✅ M1-BE-01 (DB Schema + Migration) xong.
+- ✅ M1-BE-02 (Repo+Service skeleton) xong.
+- 🟡 **Đang vào tuần 3** — M1-BE-03 (Auth + LLM Gateway).
+- ⬜ M1-BE-04 → M1-BE-06 đang pending.
 
 ---
 
@@ -37,177 +53,119 @@
 
 ---
 
-## Tuần 2 (30/07 – 05/08) 🟡 — GATE 1
+## Tuần 2 (30/07 – 02/08) ✅ — GATE 1
 
-> **Mốc:** 05/08 demo Backend chạy được trên Swagger.
+### Module M1-BE-01: DB Schema + Migration ✅
+- [x] 11 models (User, Contact, Conversation, Message, ContactMemory, Recommendation, Tag, ContactTag, SearchHistory, Notification, Setting, EventLog)
+- [x] `alembic init` + migration đầu tiên
+- [x] `alembic upgrade head` chạy thành công trên SQLite
+- [x] Verify 11 bảng đã tạo (`sqlite3 data/app.db ".tables"`)
 
-### T2 (30/07)
-- [ ] TASK-BE-01: Model `User` (id, email, password_hash, created_at)
-- [ ] TASK-BE-01: Model `Contact` (id, user_id, name, avatar_url, relationship_score)
-- [ ] TASK-BE-01: Model `Conversation` (id, contact_id, user_id, title, last_message_at, status)
+### Module M1-BE-02 (phần 1): Repository + Service skeleton ✅
+- [x] `BaseRepository` (CRUD generic)
+- [x] ConversationRepository, MessageRepository, ContactRepository
+- [x] ContactService, ConversationService, MessageService skeleton
 
-### T3 (31/07)
-- [ ] TASK-BE-01: Model `Message` (id, conversation_id, sender, content, role, created_at)
-- [ ] TASK-BE-01: Model `ContactMemory` (id, contact_id, summary, timeline JSON, company, profession, skills, interests, relationship_score)
-- [ ] TASK-BE-01: Model `Recommendation` (id, contact_id, type, reason, status)
-
-### T4 (01/08)
-- [ ] TASK-BE-01: Model `Tag` + `ContactTag`
-- [ ] TASK-BE-01: Model `SearchHistory` + `Notification` + `Setting`
-- [ ] TASK-BE-01: Model `EventLog`
-- [ ] TASK-BE-02: `alembic init alembic`
-
-### T5 (02/08)
-- [ ] TASK-BE-02: Cấu hình `alembic/env.py` trỏ tới `src.models.Base.metadata`
-- [ ] TASK-BE-02: Tạo migration đầu tiên `alembic revision --autogenerate -m "init schema"`
-- [ ] TASK-BE-02: Test `alembic upgrade head` chạy thành công
-- [ ] TASK-BE-03: Tạo `src/repositories/base.py` (BaseRepository skeleton)
-
-### T6 (03/08)
-- [ ] TASK-BE-03: ConversationRepository (CRUD + list_by_user)
-- [ ] TASK-BE-03: MessageRepository (CRUD + list_by_conversation)
-- [ ] TASK-BE-03: ContactRepository (CRUD + get_by_user)
-
-### CN (04/08) — optional
-- [ ] Buffer: fix bug, review code
-- [ ] Help Member 3 nếu cần
-
-### T2 (05/08) 🚨 **GATE 1**
-- [ ] **Demo trên Swagger:** 11 bảng đã migrate → User có thể insert qua ORM
-- [ ] Verify: `sqlite3 data/app.db ".tables"` → 11 bảng
-- [ ] Cập nhật `timeline.md` tuần 2
+### 🚨 GATE 1 (02/08 CN) ✅
+- [x] **Demo trên Swagger:** 11 bảng migrate → CRUD qua ORM
+- [x] Frontend Member 2 + Member 3 test API Contact thành công
+- [x] Nộp GATE 1 ngày **02/08 (Chủ nhật)**
 
 ---
 
-## Tuần 3 (06/08 – 12/08) ⬜
+## Tuần 3 (03/08 – 09/08) 🟡
 
-### T2 (06/08)
-- [ ] TASK-BE-03: MemoryRepository + RecommendationRepository
-- [ ] TASK-BE-03: EventLogRepository + UserRepository
+### Module M1-BE-03: Auth + LLM Gateway
 
-### T3 (07/08)
-- [ ] TASK-BE-04: ContactService + ConversationService
-- [ ] TASK-BE-04: MessageService + MemoryService
+- [ ] **AuthService** (register, login, verify_token — hash password bằng bcrypt)
+- [ ] Middleware `get_current_user` (FastAPI Depends)
+- [ ] API `POST /api/v1/auth/register` + `POST /api/v1/auth/login`
+- [ ] JWT với `python-jose`, secret từ env `JWT_SECRET`, expire 60 phút
+- [ ] **LLMGateway** class với retry + exponential backoff (max 3 lần)
+- [ ] Method `complete()`, `chat()`, `embed()`
+- [ ] Log prompt + response vào `.ai-log/` (JSON Lines)
+- [ ] Timeout config từ env: `LLM_TIMEOUT=30`
 
-### T4 (08/08)
-- [ ] TASK-BE-05: LLMGateway class với retry + log
-- [ ] TASK-BE-05: Test `complete()`, `chat()`, `embed()`
+### Module M1-BE-04 (phần 1): API Skeleton
 
-### T5 (09/08)
-- [ ] TASK-BE-06: AuthService (register, login, verify_token)
-- [ ] TASK-BE-06: Middleware `get_current_user`
+- [ ] Tạo skeleton routers: contacts, conversations, messages, memory, recommendations, search, copilot
+- [ ] Include tất cả router trong `main.py` với prefix `/api/v1`
+- [ ] CORS middleware (cho Frontend `localhost:5173`)
+- [ ] Global exception handler + Request logging middleware
+- [ ] Settings (Pydantic BaseSettings) + `.env.example` đầy đủ
 
-### T6 (10/08)
-- [ ] TASK-BE-06: API `POST /auth/register` + `POST /auth/login`
-- [ ] TASK-BE-07: Settings (Pydantic BaseSettings)
-
-### CN (11/08) — optional
-- [ ] TASK-BE-08: Tạo skeleton routers cho tất cả module
-- [ ] TASK-BE-08: Include routers trong `main.py`
-
-### T2 (12/08) 🎯 **MVP**
-- [ ] **Demo:** Backend có đầy đủ CRUD + Auth + LLM Gateway + Swagger docs
+### 🎯 MVP (09/08 CN)
+- [ ] **Demo Backend:** Auth + LLM + full Swagger hiển thị endpoints
 - [ ] Member 3 + 4 có thể tích hợp Memory Agent + ChromaDB
-- [ ] Cập nhật `timeline.md` tuần 3
+- [ ] Verify: `make run` + `curl /docs` + register/login flow OK
 
 ---
 
-## Tuần 4 (13/08 – 19/08) ⬜
+## Tuần 4 (10/08 – 16/08) ⬜
 
-### T2 (13/08)
-- [ ] TASK-BE-09: Unit test Repository + Service (test_basic_crud)
-- [ ] TASK-BE-09: pytest-cov config
+### Module M1-BE-04 (phần 2): Tests
 
-### T3 (14/08)
-- [ ] TASK-BE-09: Test MessageService + MemoryService (mock LLM)
-- [ ] TASK-BE-10: Unit test Auth (register, login, JWT)
+- [ ] Setup `tests/` folder + `conftest.py` (fixture DB in-memory SQLite)
+- [ ] Unit test cho tất cả Repository + Service layer (mock LLM)
+- [ ] Unit test Auth (register, login, JWT, password sai → 401)
+- [ ] pytest-cov config + target coverage > 70%
 
-### T4 (15/08)
-- [ ] TASK-BE-11: Cập nhật `.env.example` đầy đủ
-- [ ] TASK-BE-11: Document env vars trong README
+### Module M1-BE-05: Docker + Scripts
 
-### T5 (16/08)
-- [ ] TASK-OPS-01: Review Dockerfile + multi-stage build
-- [ ] TASK-OPS-01: Non-root user + pinned Python 3.11
+- [ ] **Dockerfile** (multi-stage build, Python 3.11 pinned, non-root user)
+- [ ] **docker-compose.yml** (mount volumes cho data/ + .ai-log/, health check)
+- [ ] **Makefile** targets: `setup`, `run`, `test`, `migrate`, `seed`, `backup`, `restore`, `logs`, `shell`
+- [ ] `scripts/backup.sh` + `scripts/restore.sh` (zip data/ → backup/)
+- [ ] `scripts/seed.py` (1 user + 5 Contact mẫu)
 
-### T6 (17/08)
-- [ ] TASK-OPS-02: Review `docker-compose.yml` + mount volumes
-- [ ] TASK-OPS-02: Health check trong compose
-
-### CN (18/08) — optional
-- [ ] Buffer
-
-### T2 (19/08) 🚨 **GATE 2**
+### 🚨 GATE 2 (16/08 CN)
 - [ ] **Demo:** Backend chạy trong Docker + Makefile `make run` + `make test` pass
 - [ ] Member 4 có Copilot + Search + Recommendation hoạt động end-to-end
+- [ ] Verify `docker compose up` → app chạy port 8000 OK
 
 ---
 
-## Tuần 5 (20/08 – 26/08) ⬜
+## Tuần 5 (17/08 – 23/08) ⬜
 
-### T2 (20/08)
-- [ ] TASK-OPS-03: Makefile targets (backup, restore, logs, shell, seed, migrate)
-- [ ] TASK-OPS-04: `scripts/backup.sh` + `scripts/restore.sh`
+### Module M1-BE-06: Demo Material
 
-### T3 (21/08)
-- [ ] TASK-OPS-04: `scripts/seed.py` (1 user + 5 Contact mẫu)
-- [ ] TASK-OPS-04: Verify seed data trong `data/app.db`
-
-### T4 (22/08)
-- [ ] TASK-OPS-05: Endpoint `GET /health` + JSON response
-- [ ] TASK-OPS-05: Structlog JSON config
-
-### T5 (23/08)
-- [ ] TASK-OPS-05: Request ID middleware + log AI prompt
-- [ ] TASK-TEST-01: Hoàn thiện test suite (target coverage > 70%)
-
-### T6 (24/08)
-- [ ] Slide (slides 1-5): Tên dự án, Vấn đề, Giải pháp, Tech Stack, Architecture
-- [ ] Slide (slides 6-8): Database schema, AI Workflow, Backend API
-
-### CN (25/08) — optional
-- [ ] Slide (slides 9-13): Frontend, Use cases, Roadmap, Team, Q&A
-
-### T2 (26/08) — **Nộp hồ sơ Demo Day**
-- [ ] Final commit `v1.0-mvp` tag
-- [ ] Verify slide + video
+- [ ] Endpoint `GET /health` (return JSON: status, version, db, chroma)
+- [ ] Structlog JSON config + Request ID middleware
+- [ ] Log AI prompt/response ra `.ai-log/YYYY-MM-DD.jsonl`
+- [ ] **Slide (13 slides):**
+  - Slide 1: Tên dự án MemoryChat
+  - Slide 2: Vấn đề (mất context khi reconnect)
+  - Slide 3: Giải pháp (AI Memory + Relationship Intelligence)
+  - Slide 4: Tech Stack (FastAPI + LangGraph + OpenAI + SQLite + ChromaDB)
+  - Slide 5: Architecture diagram
+  - Slide 6: Database schema (11 bảng)
+  - Slide 7: AI Workflow (Memory → Search → Recommendation)
+  - Slide 8: Backend API overview (Swagger screenshot)
+- [ ] Final commit `v1.0-mvp` tag + Nộp slide + video
 
 ---
 
-## Tuần 6 (27/08 – 01/09) ⬜
+## Tuần 6 (24/08 – 01/09) ⬜
 
-### T2 (27/08)
-- [ ] Rehearsal lần 1 (toàn nhóm) — 5 phút demo
-- [ ] Ghi nhận feedback
-
-### T4 (29/08)
-- [ ] Rehearsal lần 2 — target chạy trơn tru 5 phút
-
-### T5 (30/08)
-- [ ] Rehearsal lần 3 — target chạy trơn tru 5 phút
-
-### T6 (31/08)
-- [ ] Final rehearsal + Backup data
-- [ ] Chuẩn bị: laptop + demo script in sẵn
-
-### T2 (01/09) 🏆 **DEMO DAY**
-- [ ] Setup trước 30 phút
-- [ ] Demo 5 phút
-- [ ] Q&A với BGK
+- [ ] **T2 (25/08):** Rehearsal lần 1 (5 phút demo) — ghi nhận feedback
+- [ ] **T4 (27/08):** Rehearsal lần 2 — target chạy trơn tru 5 phút
+- [ ] **T5 (28/08):** Rehearsal lần 3 — target chạy trơn tru 5 phút
+- [ ] **T6 (29/08):** Final rehearsal + backup `data/` + chuẩn bị laptop
+- [ ] **T2 (01/09) 🏆 DEMO DAY:** Demo 5 phút + Q&A với BGK
 
 ---
 
-## ✅ Checklist cuối cùng
+## ✅ Checklist cuối cùng (Tuần 6)
 
 ```
-Tất cả TASK-BE-* (12 tasks)        → STATUS
-Tất cả TASK-OPS-* (5 tasks)        → STATUS
-Tất cả TASK-TEST-* (5 tasks, hỗ trợ Member 3/4)
-make run                             → OK
-make test                            → OK
-make backup                          → OK
-docker compose up                    → OK
-Coverage > 70%                       → OK
+✅ M1-BE-01 → M1-BE-06 (6 modules)              → DONE
+✅ 11 bảng DB migrated                          → OK
+✅ Repository + Service + Auth + LLM Gateway    → OK
+✅ make run / make test / make backup           → OK
+✅ docker compose up                            → OK
+✅ Test coverage > 70%                          → OK
+✅ Slide 13 trang + Video 3 phút                → OK
+✅ Demo Day 01/09/2026                          → OK
 ```
 
 ---
