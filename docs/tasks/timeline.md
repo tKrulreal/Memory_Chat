@@ -15,16 +15,16 @@
 
 ---
 
-## Trạng thái hiện tại
+## Trạng thái hiện tại (cập nhật 03/08/2026)
 
-- ✅ Tuần 1: Kick-off & Setup (hoàn thành 23/07 – 29/07).
-- 🟡 **Tuần 2: GATE 1 — Chốt đề tài** (đang diễn ra 30/07 – 05/08).
-- ⬜ Tuần 3: MVP đầu tiên.
-- ⬜ Tuần 4: GATE 2 — MVP hoàn chỉnh.
-- ⬜ Tuần 5: Nộp hồ sơ Demo Day.
-- ⬜ Tuần 6: Demo Day.
+- ✅ Tuần 1 (23/07 – 29/07): Kick-off & Setup.
+- ✅ Tuần 2 (30/07 – 02/08): **GATE 1** — Đã nộp 02/08 (Chủ nhật).
+- 🟡 **Tuần 3 (03/08 – 09/08): MVP đầu tiên** — đang diễn ra.
+- ⬜ Tuần 4 (10/08 – 16/08): GATE 2 — MVP hoàn chỉnh.
+- ⬜ Tuần 5 (17/08 – 23/08): Nộp hồ sơ Demo Day.
+- ⬜ Tuần 6 (24/08 – 01/09): Demo Day.
 
-**Hôm nay:** Đầu tuần 2 (30/07/2026).
+**Hôm nay:** 03/08/2026 (Thứ Hai) — Đầu tuần 3.
 
 ---
 
@@ -32,52 +32,52 @@
 
 ```
 Tuần 1 (23/07 - 29/07): Kick-off
-  ▓▓▓▓▓▓▓▓ DONE
-  - Đọc spec, phân vai, setup Git, setup Slack
+  ▓▓▓▓▓▓▓▓ DONE ✅
+  - Đọc spec, phân vai, setup Git
   - M1: Setup môi trường (Python 3.11, Docker, OpenAI key)
   - M2: Setup Node.js, Vite
   - M3: Setup Python env, test OpenAI API
   - M4: Setup Python env, test LangChain
 
-Tuần 2 (30/07 - 05/08): GATE 1 — Chốt đề tài
-  ▓▓▓░░░░░ IN PROGRESS ⭐ DEADLINE 05/08
-  - M1: WS-01 (Backend Foundation) — models + auth + LLM Gateway
-  - M2: WS-06-01 (Vite scaffold) + WS-06-02 (Design System)
-  - M3: WS-02 (Chat APIs) + WS-02 (WebSocket skeleton)
-  - M4: Đọc spec Memory + Search, design prompt template
-  - ALL: Demo GATE 1 — "Backend chạy + Frontend skeleton + Chat được"
+Tuần 2 (30/07 - 02/08): GATE 1 — Chốt đề tài
+  ▓▓▓▓▓▓▓▓ DONE ✅ (nộp 02/08 CN)
+  - M1: Module 1 (DB Schema + Migration) + Module 2 (Repo+Service skeleton)
+  - M2: Module 1 (Vite scaffold + Design System VinUni Red)
+  - M3: Module 1 (Schemas + Contact API)
+  - M4: Memory Agent prompt template + test 1 conversation mẫu
+  - ALL: Demo GATE 1 — "Backend chạy + Frontend skeleton + Contact API"
 
-Tuần 3 (06/08 - 12/08): MVP đầu tiên ⭐
-  ░░░░░░░░░ TODO
-  - M1: WS-01 hoàn thiện (Alembic, test)
-  - M2: WS-06 (Auth pages + Chat pages + WebSocket client)
-  - M3: WS-03 (Memory Agent + ChromaDB) ⭐ QUAN TRỌNG
-  - M4: WS-04 (Search Agent + Recommendation Agent) ⭐ QUAN TRỌNG
+Tuần 3 (03/08 - 09/08): MVP đầu tiên ⭐
+  ▓░░░░░░░░ IN PROGRESS 🟡 (deadline 09/08)
+  - M1: Module 3 (Auth + LLM Gateway) + Module 4 (API Skeleton + Tests)
+  - M2: Module 2 (Auth pages + Chat pages + WebSocket client)
+  - M3: Module 2 (Conversation/Message API + WS) + Module 3 (Embedding + Vector Store)
+  - M4: Search Agent + Recommendation Agent
   - ALL: Demo MVP — "Chat + Memory + Search hoạt động"
 
-Tuần 4 (13/08 - 19/08): GATE 2 — MVP hoàn chỉnh
-  ░░░░░░░░░ TODO
-  - M1: WS-07 (Dockerfile + Makefile + backup)
-  - M2: WS-06 (Search + Rec + Copilot pages + polish)
-  - M3: WS-03 hoàn thiện + Integration test
-  - M4: WS-05 (Orchestrator + Copilot + Tagging + Connection)
+Tuần 4 (10/08 - 16/08): GATE 2 — MVP hoàn chỉnh
+  ░░░░░░░░░ TODO ⬜
+  - M1: Module 5 (Dockerfile + Compose + Scripts + Health)
+  - M2: Module 3 (Search + Rec + Copilot pages + polish)
+  - M3: WS-03 hoàn thiện (Memory Agent + Worker + API) + Integration test
+  - M4: Module 4 (Orchestrator + Copilot) + Module 5 (Tagging + Connection)
   - ALL: Demo GATE 2 — "Full MVP với Copilot hoạt động"
 
-Tuần 5 (20/08 - 26/08): Nộp hồ sơ Demo Day
-  ░░░░░░░░░ TODO
-  - M1: WS-08 (test suite + CI) + Slide
-  - M2: WS-08 (frontend test + responsive polish) + Demo script
-  - M3: WS-08 (seed data + manual test)
-  - M4: WS-08 (AI eval + integration test) + Video
+Tuần 5 (17/08 - 23/08): Nộp hồ sơ Demo Day
+  ░░░░░░░░░ TODO ⬜
+  - M1: Test suite backend + Slide (slides 1-5)
+  - M2: Frontend polish + Demo script (5 phút)
+  - M3: Seed data + Manual test checklist
+  - M4: AI eval + Integration test + Video demo 3 phút
   - ALL: Nộp slide + video + user manual
 
-Tuần 6 (27/08 - 01/09): Demo Day
+Tuần 6 (24/08 - 01/09): Demo Day
   ░░░░░░░░░ TODO 🏆
-  - 27/08: Rehearsal lần 1
-  - 29/08: Rehearsal lần 2
-  - 30/08: Rehearsal lần 3
-  - 31/08: Final rehearsal + backup data
-  - 01/09: DEMO DAY 5 PHÚT
+  - 25/08 (T2): Rehearsal lần 1
+  - 27/08 (T4): Rehearsal lần 2
+  - 28/08 (T5): Rehearsal lần 3
+  - 29/08 (T6): Final rehearsal + backup data
+  - 01/09 (T2): DEMO DAY 5 PHÚT
 ```
 
 ---
@@ -86,12 +86,12 @@ Tuần 6 (27/08 - 01/09): Demo Day
 
 ```
 WS-01 (M1) ──┐
-             ├──► GATE 1 (05/08) ──┐
-WS-06-01 (M2)┘                    │
-                                  ├──► MVP (12/08) ──┐
-WS-02 (M3) ──────────────────────┘                  │
-                                                     ├──► GATE 2 (19/08) ──┐
-WS-03 (M3) ──────────────────────────────────────────┘                     │
+             ├──► GATE 1 (02/08) ✅ ──┐
+WS-06-01 (M2)┘                       │
+                                     ├──► MVP (09/08) ──┐
+WS-02 (M3) ──────────────────────────┘                  │
+                                                        ├──► GATE 2 (16/08) ──┐
+WS-03 (M3) ─────────────────────────────────────────────┘                     │
                                                                            │
 WS-04 (M4) ──────────────────────────────────────────────────────────────┤
                                                                            │
@@ -104,56 +104,59 @@ WS-07 (M1) ─── chạy song song ──────────────
 WS-08 (ALL) ── chạy từ tuần 4 đến tuần 6 ─────────────────────────────────┘
 ```
 
-**GATE chính:**
-- **GATE 1 (05/08):** Backend + Frontend chạy được, có thể demo "Hello World" → "Login" → "Chat" trên Swagger UI.
-- **GATE 2 (19/08):** MVP hoàn chỉnh với Copilot, Recommendation, Tagging hoạt động → có thể demo cho stakeholder.
+**GATE đã qua:**
+- ✅ **GATE 1 (02/08):** Backend + Frontend chạy được, demo "Hello → Login → Contact API" trên Swagger UI.
+
+**GATE sắp tới:**
+- **MVP (09/08):** Chat + Memory + Search hoạt động end-to-end.
+- **GATE 2 (16/08):** MVP hoàn chỉnh với Copilot, Recommendation, Tagging.
 - **Demo Day (01/09):** 5 phút demo chạy trơn tru trước BGK.
 
 ---
 
-## Tuần 2 (30/07 – 05/08) — CHI TIẾT
+## Tuần 3 (03/08 – 09/08) — CHI TIẾT
 
-> **Mốc quan trọng:** GATE 1 — Chốt đề tài vào 05/08 (Thứ Ba).
+> **Mốc quan trọng:** MVP đầu tiên vào 09/08 (Chủ Nhật).
 
 ### Member 1 — Backend + DevOps
 
-- [ ] **T2 (30/07):** WS-01-T01 + T02 — Models User + Contact + Conversation + Message
-- [ ] **T3 (31/07):** WS-01-T03 + T04 — ContactMemory + Recommendation + EventLog
-- [ ] **T4 (01/08):** WS-01-T11 + T12 — Alembic init + migration đầu tiên
-- [ ] **T5 (02/08):** WS-01-T13 + T14 — Repository skeleton + ConversationRepository
-- [ ] **T6 (03/08):** WS-01-T15 + T16 — MessageRepository + ContactRepository
-- [ ] **CN (04/08):** (optional) Buffer / fix bug
-- [ ] **T2 (05/08):** 🚨 **GATE 1** — Demo Backend chạy được trên Swagger
+- [ ] **T2 (03/08):** Module 3 — Auth (register/login API + JWT)
+- [ ] **T3 (04/08):** Module 3 — LLM Gateway (retry + log + embed)
+- [ ] **T4 (05/08):** Module 4 — API Skeleton (routers + middleware + CORS)
+- [ ] **T5 (06/08):** Module 4 — Unit tests Repo + Service
+- [ ] **T6 (07/08):** Module 4 — Tests Auth + Swagger docs polish
+- [ ] **T7 (08/08):** Buffer / fix bug / help Member 3, 4
+- [ ] **CN (09/08):** 🎯 **MVP** — Demo Backend có Auth + LLM + full Swagger
 
 ### Member 2 — Frontend
 
-- [ ] **T2 (30/07):** WS-06-T01 — Vite + React + TS scaffold
-- [ ] **T3 (31/07):** WS-06-T02 — Tailwind + ESLint + Prettier
-- [ ] **T4 (01/08):** WS-06-T04 + T05 — React Router + Zustand
-- [ ] **T5 (02/08):** WS-06-T06 + T07 — Axios client + TanStack Query
-- [ ] **T6 (03/08):** WS-06-T10 — VinUni Red color tokens
-- [ ] **CN (04/08):** (optional) Buffer / fix bug
-- [ ] **T2 (05/08):** 🚨 **GATE 1** — Demo Frontend chạy được trên browser
+- [ ] **T2 (03/08):** Module 2 — Page `<Login>` + `<Register>` + Auth API integration
+- [ ] **T3 (04/08):** Module 2 — Protected route + Axios interceptor
+- [ ] **T4 (05/08):** Module 2 — Page `<Home>` + `<Chat>` mockup
+- [ ] **T5 (06/08):** Module 2 — Components (ContextCard, MessageBubble)
+- [ ] **T6 (07/08):** Module 2 — WebSocket client hook + auto-reconnect
+- [ ] **T7 (08/08):** Polish UI + help Member 3 test WS
+- [ ] **CN (09/08):** 🎯 **MVP** — Demo Frontend Login → Chat UI render đúng
 
 ### Member 3 — Chat + Memory
 
-- [ ] **T2 (30/07):** WS-02-T01 — Pydantic schemas cho Contact
-- [ ] **T3 (31/07):** WS-02-T04 — API GET/POST /contacts
-- [ ] **T4 (01/08):** WS-02-T05 — API GET/PUT/DELETE /contacts/{id}
-- [ ] **T5 (02/08):** WS-02-T06 + T07 — Conversation API + List messages
-- [ ] **T6 (03/08):** WS-02-T09 — WebSocket endpoint skeleton
-- [ ] **CN (04/08):** (optional) Test WebSocket với 2 client
-- [ ] **T2 (05/08):** 🚨 **GATE 1** — Demo Chat gửi/nhận qua WS
+- [ ] **T2 (03/08):** Module 2 — Conversation API + Message API
+- [ ] **T3 (04/08):** Module 2 — WebSocket endpoint + Connection Manager
+- [ ] **T4 (05/08):** Module 2 — EventBus + dispatcher loop + EventLog
+- [ ] **T5 (06/08):** Module 3 — EmbeddingService + VectorStoreService (ChromaDB)
+- [ ] **T6 (07/08):** Module 3 — Memory Agent (summarize + extract entities)
+- [ ] **T7 (08/08):** Integration test: gửi message qua WS → trigger Memory
+- [ ] **CN (09/08):** 🎯 **MVP** — Demo Chat realtime + Memory auto-generated
 
 ### Member 4 — AI Copilot
 
-- [ ] **T2 (30/07):** Đọc `09_AI_Agent_Architecture.md` + design Memory prompt
-- [ ] **T3 (31/07):** Đọc `06_AI_Workflow.md` + design Search prompt
-- [ ] **T4 (01/08):** Setup `src/agents/memory/` package + prompt template
-- [ ] **T5 (02/08):** Test Memory Agent với 1 conversation mẫu (verify LLM response)
-- [ ] **T6 (03/08):** Test OpenAI Embeddings + ChromaDB upsert (local)
-- [ ] **CN (04/08):** (optional) Design Recommendation rule engine
-- [ ] **T2 (05/08):** 🚨 **GATE 1** — Demo "Memory Agent generate summary từ 5 messages"
+- [ ] **T2 (03/08):** Module 1 — Search Agent (embed query + ChromaDB top-k)
+- [ ] **T3 (04/08):** Module 1 — Search API + LLM re-rank
+- [ ] **T4 (05/08):** Module 2 — Recommendation Agent (rule-based filter)
+- [ ] **T5 (06/08):** Module 2 — Recommendation API (Accept/Reject)
+- [ ] **T6 (07/08):** Module 2 — Insight Agent + API (3 loại Insight)
+- [ ] **T7 (08/08):** Test Search Agent với 5 query mẫu (precision > 80%)
+- [ ] **CN (09/08):** 🎯 **MVP** — Demo Search + Recommendation
 
 ---
 
@@ -169,39 +172,39 @@ Cập nhật cuối mỗi tuần:
 - [x] Setup môi trường cho 4 người
 - [x] Test OpenAI API key hoạt động
 
-### Tuần 2 (30/07 – 05/08) 🟡
-- [ ] M1: 4 bảng models + migration chạy được
-- [ ] M2: Vite + Tailwind + VinUni Red tokens render đúng
-- [ ] M3: Contact/Conversation API + WebSocket skeleton
-- [ ] M4: Memory Agent test với 1 conversation mẫu
-- [ ] **GATE 1:** Demo được "Hello World" → "Login" → "Chat gửi/nhận"
+### Tuần 2 (30/07 – 02/08) ✅
+- [x] M1: Module 1 (DB Schema + Migration) + Module 2 (Repo+Service skeleton)
+- [x] M2: Module 1 (Vite + Tailwind + VinUni Red tokens)
+- [x] M3: Module 1 (Schemas + Contact API)
+- [x] M4: Memory Agent prompt template + test 1 conversation mẫu
+- [x] **GATE 1:** Nộp demo được "Hello World → Login → Contact API" — **02/08** ✅
 
-### Tuần 3 (06/08 – 12/08) ⬜
-- [ ] M1: WS-01 hoàn thiện (repositories + auth + LLM Gateway)
-- [ ] M2: Auth pages + Chat UI + WebSocket client integration
-- [ ] M3: WS-03 — Memory Agent + ChromaDB embed
-- [ ] M4: WS-04 — Search Agent + Recommendation rule engine
-- [ ] **MVP:** Demo được "Chat → Memory → Search"
+### Tuần 3 (03/08 – 09/08) 🟡
+- [ ] M1: Module 3 (Auth + LLM Gateway) + Module 4 (API Skeleton + Tests)
+- [ ] M2: Module 2 (Auth + Chat pages + WebSocket client)
+- [ ] M3: Module 2 (WS + EventBus) + Module 3 (Embedding + Vector Store + Memory Agent)
+- [ ] M4: Module 1 (Search Agent) + Module 2 (Recommendation + Insight)
+- [ ] **MVP:** Demo được "Chat + Memory + Search" — **09/08**
 
-### Tuần 4 (13/08 – 19/08) ⬜
-- [ ] M1: WS-07 — Dockerfile + Makefile + backup script
-- [ ] M2: Search + Recommendation + Copilot pages
-- [ ] M3: WS-03 hoàn thiện + Integration test
-- [ ] M4: WS-05 — Orchestrator + Copilot + Tagging + Connection
-- [ ] **GATE 2:** Demo được Full MVP với Copilot
+### Tuần 4 (10/08 – 16/08) ⬜
+- [ ] M1: Module 5 (Dockerfile + Compose + Scripts + Health)
+- [ ] M2: Module 3 (Search + Recommendation + Copilot pages)
+- [ ] M3: Memory API + Worker + Integration test
+- [ ] M4: Module 4 (Orchestrator + Copilot) + Module 5 (Tagging + Connection)
+- [ ] **GATE 2:** Demo được Full MVP với Copilot — **16/08**
 
-### Tuần 5 (20/08 – 26/08) ⬜
+### Tuần 5 (17/08 – 23/08) ⬜
 - [ ] M1: Test suite backend + Slide (slides 1-5)
-- [ ] M2: Frontend polish + Demo script
+- [ ] M2: Frontend polish + Demo script 5 phút
 - [ ] M3: Seed data + Manual test checklist
 - [ ] M4: AI eval + Integration test + Video demo 3 phút
-- [ ] **Nộp hồ sơ:** Slide + Video + User Manual
+- [ ] **Nộp hồ sơ:** Slide + Video + User Manual — **23/08**
 
-### Tuần 6 (27/08 – 01/09) ⬜
-- [ ] T2 (27/08): Rehearsal lần 1 (full 5 phút, có feedback)
-- [ ] T4 (29/08): Rehearsal lần 2 (target 5 phút không lỗi)
-- [ ] T5 (30/08): Rehearsal lần 3 (target 5 phút không lỗi)
-- [ ] T6 (31/08): Final rehearsal + Backup data + Kiểm tra slide
+### Tuần 6 (24/08 – 01/09) ⬜
+- [ ] T2 (25/08): Rehearsal lần 1
+- [ ] T4 (27/08): Rehearsal lần 2
+- [ ] T5 (28/08): Rehearsal lần 3
+- [ ] T6 (29/08): Final rehearsal + Backup data
 - [ ] **T2 (01/09): 🏆 DEMO DAY**
 
 ---

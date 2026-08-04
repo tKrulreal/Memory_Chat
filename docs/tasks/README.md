@@ -1,6 +1,6 @@
 # Tasks — MemoryChat (4 Members × 6 Weeks)
 
-> **Mục tiêu:** Chia việc cho 4 người trong nhóm theo 6 tuần, có tracking tiến độ bằng checklist `[ ]` → `[x]`.
+> **Mục tiêu:** Chia việc cho 4 người theo **module lớn** (gộp task nhỏ thành module), có tracking bằng checklist `[ ]` → `[x]`.
 
 ---
 
@@ -15,43 +15,44 @@
 
 ---
 
-## Timeline 6 tuần
+## Timeline 6 tuần (cập nhật 03/08/2026)
 
-| Tuần | Ngày | Mốc | Mục tiêu |
-|------|------|-----|----------|
-| 1 | 23/07 – 29/07/2026 | **Kick-off & Lập đội** | Setup môi trường, phân vai, đọc spec |
-| 2 | 30/07 – 05/08/2026 | **GATE 1 — Chốt đề tài** | Backend skeleton + Frontend skeleton + Docker chạy được |
-| 3 | 06/08 – 12/08/2026 | **MVP đầu tiên** ⭐ | Chat + Memory + Search hoạt động |
-| 4 | 13/08 – 19/08/2026 | **GATE 2 — MVP** | Copilot + Recommendation + Integration |
-| 5 | 20/08 – 26/08/2026 | **Nộp hồ sơ Demo Day** | Polish + Demo script + Video |
-| 6 | 27/08 – 01/09/2026 | **Demo Day** 🏆 | Demo thật 5 phút + Slide + User Manual |
+| Tuần | Ngày | Mốc | Trạng thái |
+|------|------|-----|------------|
+| 1 | 23/07 – 29/07/2026 | Kick-off & Lập đội | ✅ DONE |
+| 2 | 30/07 – 02/08/2026 | **GATE 1 — Chốt đề tài** | ✅ Nộp 02/08 |
+| 3 | 03/08 – 09/08/2026 | **MVP đầu tiên** ⭐ | 🟡 IN PROGRESS |
+| 4 | 10/08 – 16/08/2026 | **GATE 2 — MVP hoàn chỉnh** | ⬜ |
+| 5 | 17/08 – 23/08/2026 | **Nộp hồ sơ Demo Day** | ⬜ |
+| 6 | 24/08 – 01/09/2026 | **Demo Day** 🏆 | ⬜ |
 
-**Hôm nay:** Đầu tuần 2 (30/07/2026) — đang chuẩn bị vào **GATE 1**.
+**Hôm nay:** 03/08/2026 (Thứ Hai) — Đầu tuần 3, đang chuẩn bị MVP.
 
 ---
 
-## Phân vai (4 người)
+## Phân vai (4 người × 4 Modules)
 
-| Member | Workstream | File | Phụ trách |
-|--------|------------|------|-----------|
-| **Member 1** (Leader — Backend + DevOps) | WS-01 + WS-07 | [person-1-backend.md](./person-1-backend.md) | Models + Repositories + Auth + LLM Gateway + Docker + Makefile |
-| **Member 2** (Frontend) | WS-06 | [person-2-frontend.md](./person-2-frontend.md) | React + Vite + Tailwind + Pages + WebSocket client |
-| **Member 3** (Chat + Memory) | WS-02 + WS-03 | [person-3-chat-memory.md](./person-3-chat-memory.md) | Contact API + WebSocket + Event Bus + Memory Agent + ChromaDB |
-| **Member 4** (AI Copilot) | WS-04 + WS-05 | [person-4-ai-copilot.md](./person-4-ai-copilot.md) | Search + Recommendation + Orchestrator + Copilot API + Tagging + Connection |
+| Member | Workstream | File | Phụ trách module |
+|--------|------------|------|------------------|
+| **Member 1** (Backend + DevOps) | WS-01 + WS-07 | [person-1-backend.md](./person-1-backend.md) | DB Schema, Repo+Service, Auth+LLM, Docker+Scripts |
+| **Member 2** (Frontend) | WS-06 | [person-2-frontend.md](./person-2-frontend.md) | Setup+Design System, Auth+Chat, Search+Rec+Copilot |
+| **Member 3** (Chat + Memory) | WS-02 + WS-03 | [person-3-chat-memory.md](./person-3-chat-memory.md) | Chat API, WebSocket+Bus, Memory+Embed+Vector |
+| **Member 4** (AI Copilot) | WS-04 + WS-05 | [person-4-ai-copilot.md](./person-4-ai-copilot.md) | Search, Recommendation+Insight, Copilot Orchestrator |
 
-**WS-08 (Testing & Demo):** Tất cả 4 người cùng làm tuần 5 + 6.
+**Quy ước gộp module:**
+- Mỗi Module = gộp nhiều task nhỏ (TASK-XXX-NN) thành 1 đơn vị lớn.
+- Checklist trong mỗi module liệt kê chi tiết cần làm.
 
 ---
 
 ## Trạng thái hiện tại
 
-- ✅ Plan folder đã chuẩn hoá (`docs/plan/`).
-- ✅ Spec folder đã chuẩn hoá (`docs/general overview/`).
+- ✅ Plan + Spec folder đã chuẩn hoá.
 - ✅ Phân vai đã rõ.
-- ⬜ Tuần 1 đã hoàn thành (kick-off).
-- 🟡 **Đang vào tuần 2** — GATE 1 ngày 05/08.
-- ⬜ WS-01 chưa bắt đầu code.
-- ⬜ WS-02 → WS-07 đang pending.
+- ✅ GATE 1 đã nộp ngày 02/08 (Chủ nhật).
+- 🟡 **Đang vào tuần 3** — Target MVP ngày 09/08.
+- ⬜ MVP demo chưa có.
+- ⬜ Tuần 4 → 6 đang pending.
 
 ---
 
@@ -59,16 +60,16 @@
 
 Mỗi Member đọc file của mình mỗi sáng:
 
-1. Xem tuần hiện tại + checklist task cần làm hôm nay.
-2. Check `[ ]` thành `[x]` khi xong.
+1. Xem tuần hiện tại + module cần làm hôm nay.
+2. Check `[ ]` thành `[x]` khi xong từng checklist con.
 3. Cập nhật ghi chú nếu có vướng mắc.
 4. Commit code + push lên git cuối ngày.
 
 **Convention commit:**
 ```
-feat(WS-01): implement User model
-fix(WS-02): WebSocket reconnect on disconnect
-docs(tasks): update week 2 progress
+feat(WS-01): db schema migration
+feat(WS-02): contact API + WebSocket
+docs(tasks): update week 3 progress
 ```
 
 ---
@@ -79,17 +80,17 @@ docs(tasks): update week 2 progress
 docs/tasks/
 ├── README.md                  ← file này (overview)
 ├── timeline.md                ← master timeline + critical path
-├── person-1-backend.md        ← Member 1 (Backend + DevOps)
-├── person-2-frontend.md       ← Member 2 (Frontend)
-├── person-3-chat-memory.md    ← Member 3 (Chat + AI Memory)
-└── person-4-ai-copilot.md     ← Member 4 (Search + Rec + Copilot)
+├── person-1-backend.md        ← Member 1 (Backend + DevOps) — 6 modules
+├── person-2-frontend.md       ← Member 2 (Frontend) — 3 modules
+├── person-3-chat-memory.md    ← Member 3 (Chat + Memory) — 3 modules
+└── person-4-ai-copilot.md     ← Member 4 (AI) — 3 modules
 ```
 
 ---
 
 ## Quy tắc cập nhật
 
-- Mỗi Member **bắt buộc** check `[ ]` → `[x]` ngay khi xong task (không để cuối tuần).
+- Mỗi Member **bắt buộc** check `[ ]` → `[x]` ngay khi xong checklist con.
 - Cuối tuần tổng kết: vào `timeline.md` cập nhật "Tuần X hoàn thành: Y/N".
 - Nếu **Blocked** → ghi rõ trong section "⚠️ Vướng mắc" của file Member.
 
@@ -98,8 +99,8 @@ docs/tasks/
 ## Kết quả mong đợi
 
 ```
-✅ 4 Member file có checklist cho 6 tuần
-✅ Timeline master rõ ràng với critical path
-✅ Mỗi Member biết phải làm gì trong tuần nào
+✅ 4 Member file chia theo module lớn (không quá nhỏ)
+✅ Timeline master rõ ràng với critical path + tuần 2 đã hoàn thành
+✅ Mỗi Member biết phải làm module gì trong tuần nào
 ✅ Cuối tuần 6 (01/09/2026): Demo thành công 5 phút
 ```
