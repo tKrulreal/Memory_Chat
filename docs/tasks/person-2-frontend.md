@@ -69,16 +69,16 @@
 
 ### Module M2-FE-02: Auth + Chat Pages
 
-- [ ] **Auth API:** `src/api/auth.ts` — register + login + logout
-- [ ] Lưu JWT vào localStorage + Zustand store
-- [ ] **Page `<Login>`:** Form email/password + submit + error handling
-- [ ] **Page `<Register>`:** Form email/password/confirm + submit
-- [ ] **Axios interceptor:** auto-attach Bearer token + 401 → redirect Login
-- [ ] **Protected route wrapper `<RequireAuth>`**
-- [ ] **Page `<Home>`:** Conversation list (mockup hoặc gọi API)
-- [ ] **Page `<Chat>`:** Message list + input + typing indicator
-- [ ] **Components:** `<ContextCard>`, `<MessageBubble>` (user / contact / ai)
-- [ ] **Hook `useWebSocket`** — auto-reconnect on disconnect
+- [x] **Auth API:** `src/api/auth.ts` — register + login + logout
+- [x] Lưu JWT vào localStorage + Zustand store
+- [x] **Page `<Login>`:** Form email/password + submit + error handling
+- [x] **Page `<Register>`:** Form email/password/confirm + submit
+- [x] **Axios interceptor:** auto-attach Bearer token + 401 → redirect Login
+- [x] **Protected route wrapper `<RequireAuth>`**
+- [x] **Page `<Home>`:** Conversation list (mockup hoặc gọi API)
+- [x] **Page `<Chat>`:** Message list + input + typing indicator
+- [x] **Components:** `<ContextCard>`, `<MessageBubble>` (user / contact / ai)
+- [x] **Hook `useWebSocket`** — auto-reconnect on disconnect
 
 ### 🎯 MVP (09/08 CN)
 - [ ] **Demo Frontend:** Login → Home → Chat UI render đúng + WebSocket gửi/nhận message

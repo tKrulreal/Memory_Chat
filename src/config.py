@@ -18,12 +18,17 @@ class Settings(BaseSettings):
     app_port: int = Field(default=8000, ge=1, le=65535)
     app_host: str = "0.0.0.0"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:5173,http://localhost:3000"
+
+    # Auth
+    jwt_secret: str = "your-super-secret-jwt-key"
+    jwt_expire_minutes: int = 60
 
     # LLM
     openai_api_key: str = ""
     model_name: str = "gpt-4o-mini"
     llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    llm_timeout: int = 30
 
     # Database
     database_url: str = "sqlite:///./data/app.db"

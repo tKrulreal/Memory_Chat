@@ -1,0 +1,22 @@
+/* App.css — Minimal overrides (most styling handled by index.css + Tailwind) */
+
+/* Ensure full-height layout */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Remove default margin/padding */
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100%;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(0, 132, 255, 0.3);
+  color: inherit;
+}

@@ -1,0 +1,267 @@
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Messenger Color System — Light Mode */
+    --messenger-blue: #0084FF;
+    --messenger-blue-hover: #0077E6;
+    --messenger-gradient: linear-gradient(135deg, #0084FF 0%, #A855F7 100%);
+    --messenger-gradient-hover: linear-gradient(135deg, #0077E6 0%, #9333EA 100%);
+
+    --background: #FFFFFF;
+    --foreground: #050505;
+    --card: #FFFFFF;
+    --card-foreground: #050505;
+    --popover: #FFFFFF;
+    --popover-foreground: #050505;
+    --primary: #0084FF;
+    --primary-foreground: #FFFFFF;
+    --secondary: #F0F2F5;
+    --secondary-foreground: #050505;
+    --muted: #F0F2F5;
+    --muted-foreground: #65676B;
+    --accent: #E4E6EB;
+    --accent-foreground: #050505;
+    --destructive: #FA3E3E;
+    --destructive-foreground: #FFFFFF;
+    --border: #E4E6EB;
+    --input: #F0F2F5;
+    --ring: #0084FF;
+    --radius: 0.75rem;
+
+    /* Messenger-specific tokens */
+    --sidebar-bg: #FFFFFF;
+    --sidebar-border: #E4E6EB;
+    --sidebar-icon: #65676B;
+    --sidebar-icon-active: #0084FF;
+    --conversation-hover: #F0F2F5;
+    --conversation-active: #E7F3FF;
+    --bubble-sent: #0084FF;
+    --bubble-sent-text: #FFFFFF;
+    --bubble-received: #E4E6EB;
+    --bubble-received-text: #050505;
+    --online-green: #31A24C;
+    --unread-badge: #0084FF;
+    --chat-input-bg: #F0F2F5;
+    --typing-dots: #65676B;
+    --text-primary: #050505;
+    --text-secondary: #65676B;
+    --text-tertiary: #8A8D91;
+    --divider: #E4E6EB;
+
+    /* Auth page tokens */
+    --auth-bg-from: #0084FF;
+    --auth-bg-via: #6C5CE7;
+    --auth-bg-to: #A855F7;
+    --auth-card-bg: rgba(255, 255, 255, 0.95);
+    --auth-card-border: rgba(255, 255, 255, 0.3);
+  }
+
+  .dark {
+    /* Messenger Color System — Dark Mode */
+    --background: #1A1A2E;
+    --foreground: #E4E6EB;
+    --card: #242526;
+    --card-foreground: #E4E6EB;
+    --popover: #242526;
+    --popover-foreground: #E4E6EB;
+    --primary: #0084FF;
+    --primary-foreground: #FFFFFF;
+    --secondary: #3A3B3C;
+    --secondary-foreground: #E4E6EB;
+    --muted: #3A3B3C;
+    --muted-foreground: #B0B3B8;
+    --accent: #3A3B3C;
+    --accent-foreground: #E4E6EB;
+    --destructive: #FA3E3E;
+    --destructive-foreground: #FFFFFF;
+    --border: #3A3B3C;
+    --input: #3A3B3C;
+    --ring: #0084FF;
+
+    --sidebar-bg: #0F0F23;
+    --sidebar-border: #3A3B3C;
+    --sidebar-icon: #B0B3B8;
+    --sidebar-icon-active: #0084FF;
+    --conversation-hover: #3A3B3C;
+    --conversation-active: #263951;
+    --bubble-sent: #0084FF;
+    --bubble-sent-text: #FFFFFF;
+    --bubble-received: #3A3B3C;
+    --bubble-received-text: #E4E6EB;
+    --online-green: #31A24C;
+    --unread-badge: #0084FF;
+    --chat-input-bg: #3A3B3C;
+    --typing-dots: #B0B3B8;
+    --text-primary: #E4E6EB;
+    --text-secondary: #B0B3B8;
+    --text-tertiary: #8A8D91;
+    --divider: #3A3B3C;
+
+    --auth-bg-from: #0F0F23;
+    --auth-bg-via: #1A1A2E;
+    --auth-bg-to: #16213E;
+    --auth-card-bg: rgba(36, 37, 38, 0.9);
+    --auth-card-border: rgba(255, 255, 255, 0.1);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+}
+
+/* ===== Messenger Utility Classes ===== */
+
+/* Gradient button */
+.messenger-gradient {
+  background: var(--messenger-gradient);
+  transition: all 0.2s ease;
+}
+.messenger-gradient:hover {
+  background: var(--messenger-gradient-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 132, 255, 0.4);
+}
+
+/* Glassmorphism card */
+.glass-card {
+  background: var(--auth-card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--auth-card-border);
+}
+
+/* Scrollbar styling (Messenger-style thin scrollbar) */
+.messenger-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.messenger-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.messenger-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--text-tertiary);
+  border-radius: 3px;
+}
+.messenger-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Message appear animation */
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.message-animate {
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+/* Typing indicator dots */
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+}
+
+.typing-dot {
+  animation: typingBounce 1.4s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Floating particles for auth background */
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.6; }
+  50% { transform: translateY(-20px) rotate(180deg); opacity: 0.3; }
+}
+
+.floating-particle {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Gradient shimmer animation */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.shimmer-btn {
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Pulse animation for online status */
+@keyframes pulse-online {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(49, 162, 76, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(49, 162, 76, 0); }
+}
+
+.online-pulse {
+  animation: pulse-online 2s ease-in-out infinite;
+}
+
+/* Conversation item hover effect */
+.conversation-item {
+  transition: background-color 0.15s ease;
+}
+
+/* Send button animation */
+@keyframes sendPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+.send-pop {
+  animation: sendPop 0.2s ease;
+}
+
+/* Wave animation for auth background */
+@keyframes wave {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.auth-wave {
+  animation: wave 15s linear infinite;
+}
+
+/* Fade in */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Slide up */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-up {
+  animation: slideUp 0.6s ease-out;
+}

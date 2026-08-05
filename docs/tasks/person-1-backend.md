@@ -77,22 +77,22 @@
 
 ### Module M1-BE-03: Auth + LLM Gateway
 
-- [ ] **AuthService** (register, login, verify_token — hash password bằng bcrypt)
-- [ ] Middleware `get_current_user` (FastAPI Depends)
-- [ ] API `POST /api/v1/auth/register` + `POST /api/v1/auth/login`
-- [ ] JWT với `python-jose`, secret từ env `JWT_SECRET`, expire 60 phút
-- [ ] **LLMGateway** class với retry + exponential backoff (max 3 lần)
-- [ ] Method `complete()`, `chat()`, `embed()`
-- [ ] Log prompt + response vào `.ai-log/` (JSON Lines)
-- [ ] Timeout config từ env: `LLM_TIMEOUT=30`
+- [x] **AuthService** (register, login, verify_token — hash password bằng bcrypt)
+- [x] Middleware `get_current_user` (FastAPI Depends)
+- [x] API `POST /api/v1/auth/register` + `POST /api/v1/auth/login`
+- [x] JWT với `python-jose`, secret từ env `JWT_SECRET`, expire 60 phút
+- [x] **LLMGateway** class với retry + exponential backoff (max 3 lần)
+- [x] Method `complete()`, `chat()`, `embed()`
+- [x] Log prompt + response vào `.ai-log/` (JSON Lines)
+- [x] Timeout config từ env: `LLM_TIMEOUT=30`
 
 ### Module M1-BE-04 (phần 1): API Skeleton
 
-- [ ] Tạo skeleton routers: contacts, conversations, messages, memory, recommendations, search, copilot
-- [ ] Include tất cả router trong `main.py` với prefix `/api/v1`
-- [ ] CORS middleware (cho Frontend `localhost:5173`)
-- [ ] Global exception handler + Request logging middleware
-- [ ] Settings (Pydantic BaseSettings) + `.env.example` đầy đủ
+- [x] Tạo skeleton routers: contacts, conversations, messages, memory, recommendations, search, copilot
+- [x] Include tất cả router trong `main.py` với prefix `/api/v1`
+- [x] CORS middleware (cho Frontend `localhost:5173`)
+- [x] Global exception handler + Request logging middleware
+- [x] Settings (Pydantic BaseSettings) + `.env.example` đầy đủ
 
 ### 🎯 MVP (09/08 CN)
 - [ ] **Demo Backend:** Auth + LLM + full Swagger hiển thị endpoints
