@@ -1,12 +1,77 @@
-from langchain_openai import ChatOpenAI
+import json
+import os
+from datetime import datetime
+from typing import List, Any
+
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_core.messages import BaseMessage
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config import get_settings
 
+class LLMGateway:
+    def __init__(self):
+        self.settings = get_settings()
+        self.chat_model = ChatOpenAI(
+            model=self.settings.model_name,
+            api_key=self.settings.openai_api_key,
+            temperature=self.settings.llm_temperature,
+            request_timeout=30.0
+        )
+        self.embed_model = OpenAIEmbeddings(
+            model="text-embedding-3-small",
+            api_key=self.settings.openai_api_key
+        )
+        self.log_dir = ".ai-log"
+        os.makedirs(self.log_dir, exist_ok=True)
 
+    def _log_interaction(self, method: str, prompt: Any, response: Any, kwargs: dict):
+        log_file = os.path.join(self.log_dir, f"{datetime.now().strftime('%Y-%m-%d')}.jsonl")
+        log_entry = {
+            "ts": datetime.now().isoformat(),
+            "method": method,
+            "prompt": str(prompt),
+            "response": str(response),
+            "kwargs": kwargs
+        }
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_entry) + "\n")
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    def complete(self, prompt: str, **kwargs) -> str:
+        try:
+            resp = self.chat_model.invoke(prompt, **kwargs)
+            result = resp.content
+            self._log_interaction("complete", prompt, result, kwargs)
+            return result
+        except Exception as e:
+            self._log_interaction("complete_error", prompt, str(e), kwargs)
+            raise e
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    def chat(self, messages: List[BaseMessage], **kwargs) -> str:
+        try:
+            resp = self.chat_model.invoke(messages, **kwargs)
+            result = resp.content
+            # Convert messages to strings for safe JSON serialization
+            safe_messages = [str(m) if not hasattr(m, 'content') else m.content for m in messages]
+            self._log_interaction("chat", safe_messages, result, kwargs)
+            return result
+        except Exception as e:
+            safe_messages = [str(m) if not hasattr(m, 'content') else m.content for m in messages]
+            self._log_interaction("chat_error", safe_messages, str(e), kwargs)
+            raise e
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+    def embed(self, text: str) -> List[float]:
+        try:
+            result = self.embed_model.embed_query(text)
+            self._log_interaction("embed", text, "Vector generated", {})
+            return result
+        except Exception as e:
+            self._log_interaction("embed_error", text, str(e), {})
+            raise e
+
+# Maintain backwards compatibility
 def get_llm() -> ChatOpenAI:
-    settings = get_settings()
-    return ChatOpenAI(
-        model=settings.model_name,
-        api_key=settings.openai_api_key,
-        temperature=settings.llm_temperature,
-    )
+    return LLMGateway().chat_model
