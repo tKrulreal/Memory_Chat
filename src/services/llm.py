@@ -30,22 +30,32 @@ class LLMGateway:
         if self.settings.app_env != "development":
             return
             
-        def mask_pii(text: str) -> str:
-            if not isinstance(text, str):
+        def mask_pii(data: Any) -> Any:
+            if isinstance(data, dict):
+                return {k: mask_pii(v) for k, v in data.items()}
+            elif isinstance(data, (list, tuple)):
+                return type(data)(mask_pii(v) for v in data)
+            elif isinstance(data, str):
+                try:
+                    parsed = json.loads(data)
+                    if isinstance(parsed, (dict, list)):
+                        return json.dumps(mask_pii(parsed), ensure_ascii=False)
+                except Exception:
+                    pass
+                
+                text = data
+                text = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '[EMAIL MASKED]', text)
+                text = re.sub(r'(?i)(password|secret|key|token)["\'\s:=]+[^\s,\]}]+', r'\1: [REDACTED]', text)
                 return text
-            # Mask emails
-            text = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '[EMAIL MASKED]', text)
-            # Mask potential credentials
-            text = re.sub(r'(?i)(password|secret|key|token)["\'\s:=]+[^\s,\]}]+', r'\1: [REDACTED]', text)
-            return text
+            return data
 
         log_file = os.path.join(self.log_dir, f"{datetime.now().strftime('%Y-%m-%d')}.jsonl")
         log_entry = {
             "ts": datetime.now().isoformat(),
             "method": method,
-            "prompt": mask_pii(str(prompt)),
-            "response": mask_pii(str(response)),
-            "kwargs": kwargs
+            "prompt": mask_pii(prompt),
+            "response": mask_pii(response),
+            "kwargs": mask_pii(kwargs)
         }
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(log_entry) + "\n")

@@ -2,7 +2,7 @@ import os
 import json
 import re
 from datetime import datetime, timezone, timedelta
-from typing import List
+from typing import List, Any
 from tenacity import retry, stop_after_attempt, wait_exponential
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -26,12 +26,24 @@ class LLMGateway:
         if os.getenv("APP_ENV", "development") != "development":
             return
             
-        def mask_pii(text: str) -> str:
-            if not isinstance(text, str):
+        def mask_pii(data: Any) -> Any:
+            if isinstance(data, dict):
+                return {k: mask_pii(v) for k, v in data.items()}
+            elif isinstance(data, (list, tuple)):
+                return type(data)(mask_pii(v) for v in data)
+            elif isinstance(data, str):
+                try:
+                    parsed = json.loads(data)
+                    if isinstance(parsed, (dict, list)):
+                        return json.dumps(mask_pii(parsed), ensure_ascii=False)
+                except Exception:
+                    pass
+                
+                text = data
+                text = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '[EMAIL MASKED]', text)
+                text = re.sub(r'(?i)(password|secret|key|token)["\'\s:=]+[^\s,\]}]+', r'\1: [REDACTED]', text)
                 return text
-            text = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '[EMAIL MASKED]', text)
-            text = re.sub(r'(?i)(password|secret|key|token)["\'\s:=]+[^\s,\]}]+', r'\1: [REDACTED]', text)
-            return text
+            return data
 
         date_str = datetime.now(VN_TZ).strftime('%Y-%m-%d')
         log_file = os.path.join(self.log_dir, f"{date_str}.jsonl")
