@@ -4,7 +4,8 @@ from src.api.deps import get_db
 from src.services.auth import AuthService, UserCreate, UserLogin
 from src.core.security import get_current_user
 from src.models.user import User
-from pydantic import BaseModel
+import uuid
+from pydantic import BaseModel, ConfigDict
 
 router = APIRouter()
 
@@ -13,12 +14,11 @@ class Token(BaseModel):
     token_type: str
 
 class UserResponse(BaseModel):
-    id: str
+    id: uuid.UUID
     email: str
     full_name: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 @router.post("/register", response_model=UserResponse)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
