@@ -16,7 +16,9 @@ def db_session():
 
 def test_contact_repository(db_session: Session):
     # 1. Setup user
-    user = User(email="repo@example.com", password_hash="hash", full_name="Repo User")
+    import uuid
+    email = f"repo_{uuid.uuid4()}@example.com"
+    user = User(email=email, password_hash="hash", full_name="Repo User")
     db_session.add(user)
     db_session.commit()
     
