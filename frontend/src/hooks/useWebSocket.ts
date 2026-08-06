@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
-import { Message, getMessagesForConversation } from '@/data/mockData';
+import type { Message } from '@/data/mockData';
+import { getMessagesForConversation } from '@/data/mockData';
 
 export interface WebSocketHook {
   messages: Message[];
@@ -11,7 +12,6 @@ export interface WebSocketHook {
 export function useWebSocket(conversationId: string | undefined): WebSocketHook {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const ws = useRef<WebSocket | null>(null);
   const token = useAuthStore((s) => s.token);
 
   // Load initial messages

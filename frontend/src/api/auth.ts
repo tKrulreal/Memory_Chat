@@ -9,6 +9,8 @@ export interface UserResponse {
 export interface TokenResponse {
   access_token: string;
   token_type: string;
+  user_id?: string;
+  full_name?: string;
 }
 
 export const authApi = {

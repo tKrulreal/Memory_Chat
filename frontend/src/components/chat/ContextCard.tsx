@@ -1,4 +1,4 @@
-import { ContactContext } from '@/data/mockData';
+import type { ContactContext } from '@/data/mockData';
 
 interface ContextCardProps {
   context: ContactContext | null;
