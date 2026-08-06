@@ -11,7 +11,8 @@ from src.api.deps import get_db
 from src.repositories.user import user_repo
 from src.models.user import User
 
-SECRET_KEY = os.getenv("JWT_SECRET", "super-secret-key-123456789")
+from src.config import get_settings
+SECRET_KEY = get_settings().jwt_secret
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 

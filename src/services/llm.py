@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from datetime import datetime
 from typing import List, Any
 
@@ -26,12 +27,24 @@ class LLMGateway:
         os.makedirs(self.log_dir, exist_ok=True)
 
     def _log_interaction(self, method: str, prompt: Any, response: Any, kwargs: dict):
+        if self.settings.app_env != "development":
+            return
+            
+        def mask_pii(text: str) -> str:
+            if not isinstance(text, str):
+                return text
+            # Mask emails
+            text = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '[EMAIL MASKED]', text)
+            # Mask potential credentials
+            text = re.sub(r'(?i)(password|secret|key|token)["\'\s:=]+[^\s,\]}]+', r'\1: [REDACTED]', text)
+            return text
+
         log_file = os.path.join(self.log_dir, f"{datetime.now().strftime('%Y-%m-%d')}.jsonl")
         log_entry = {
             "ts": datetime.now().isoformat(),
             "method": method,
-            "prompt": str(prompt),
-            "response": str(response),
+            "prompt": mask_pii(str(prompt)),
+            "response": mask_pii(str(response)),
             "kwargs": kwargs
         }
         with open(log_file, "a", encoding="utf-8") as f:
