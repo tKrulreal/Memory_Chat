@@ -60,3 +60,4 @@ out/
 .ai-log/archive/
 .vibecode
 .private-folder
+*.jsonl
