@@ -25,19 +25,19 @@
 
 ---
 
-## TASK-CHAT-01: Pydantic Schemas (Contact/Conversation/Message) ⬜
+## TASK-CHAT-01: Pydantic Schemas (Contact/Conversation/Message) ✅
 
 **Mô tả:** Định nghĩa request/response schemas cho Contact, Conversation, Message.
 
 **Checklist:**
-- [ ] Tạo `src/schemas/__init__.py`
-- [ ] `ContactBase`, `ContactCreate`, `ContactUpdate`, `ContactResponse`
-- [ ] `ConversationBase`, `ConversationCreate`, `ConversationResponse`
-- [ ] `MessageBase`, `MessageCreate`, `MessageResponse`
-- [ ] `MessageRole` enum (`USER`, `CONTACT`, `AI`)
-- [ ] `ConversationStatus` enum (`OPEN`, `CLOSED`, `ARCHIVED`)
-- [ ] Validation: `name` không rỗng, `content` không rỗng
-- [ ] Config ORM mode cho Pydantic v2
+- [x] Tạo `src/schemas/__init__.py`
+- [x] `ContactBase`, `ContactCreate`, `ContactUpdate`, `ContactResponse`
+- [x] `ConversationBase`, `ConversationCreate`, `ConversationResponse`
+- [x] `MessageBase`, `MessageCreate`, `MessageResponse`
+- [x] `MessageRole` enum (`USER`, `CONTACT`, `AI`)
+- [x] `ConversationStatus` enum (`OPEN`, `CLOSED`, `ARCHIVED`)
+- [x] Validation: `name` không rỗng, `content` không rỗng
+- [x] Config ORM mode cho Pydantic v2
 
 **Commands:**
 ```bash
