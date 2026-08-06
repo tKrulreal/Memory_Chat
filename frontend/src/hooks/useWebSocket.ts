@@ -1,7 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
 import { useAuthStore } from '@/stores/authStore';
-import type { Message } from '@/data/mockData';
-import { getMessagesForConversation } from '@/data/mockData';
+
+interface Message {
+  id: string;
+  conversationId: string;
+  content: string;
+  isSent: boolean;
+  timestamp: string;
+  type: 'user' | 'contact' | 'ai';
+}
+
+interface WebSocketMessage {
+  id: string;
+  conversation_id: string;
+  content: string;
+  role: 'USER' | 'CONTACT' | 'AI';
+  created_at: string;
+}
 
 export interface WebSocketHook {
   messages: Message[];
@@ -9,77 +25,77 @@ export interface WebSocketHook {
   isConnected: boolean;
 }
 
+const reconnectDelay = (attempt: number) => Math.min(1000 * 2 ** attempt, 10_000);
+
 export function useWebSocket(conversationId: string | undefined): WebSocketHook {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const token = useAuthStore((s) => s.token);
+  const socketRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const token = useAuthStore((state) => state.token);
 
-  // Load initial messages
   useEffect(() => {
-    if (conversationId) {
-      setMessages(getMessagesForConversation(conversationId));
-    } else {
-      setMessages([]);
-    }
-  }, [conversationId]);
-
-  // WebSocket connection logic (mocked for now)
-  useEffect(() => {
+    setMessages([]);
     if (!conversationId || !token) {
       return;
     }
 
-    // TODO: Implement actual WS connection when backend is ready
-    // const wsUrl = `ws://localhost:8000/api/v1/ws/chat/${conversationId}?token=${token}`;
-    // ws.current = new WebSocket(wsUrl);
-    // ws.current.onopen = () => setIsConnected(true);
-    // ws.current.onclose = () => setIsConnected(false);
-    // ws.current.onmessage = (e) => { ... parse and setMessages ... }
-    
-    setIsConnected(true); // Mock connected state
-    
+    let disposed = false;
+    const connect = () => {
+      const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const baseUrl = import.meta.env.VITE_WS_URL ?? `${scheme}://localhost:8000`;
+      const socket = new WebSocket(`${baseUrl}/ws/chat/${conversationId}?token=${encodeURIComponent(token)}`);
+      socketRef.current = socket;
+
+      socket.onopen = () => {
+        reconnectAttemptRef.current = 0;
+        setIsConnected(true);
+      };
+      socket.onmessage = (event) => {
+        const payload = JSON.parse(event.data) as WebSocketMessage | { type: string };
+        if ('type' in payload && payload.type === 'ping') {
+          socket.send(JSON.stringify({ type: 'pong' }));
+          return;
+        }
+        if (!('conversation_id' in payload)) {
+          return;
+        }
+        const message: Message = {
+          id: payload.id,
+          conversationId: payload.conversation_id,
+          content: payload.content,
+          isSent: payload.role === 'USER',
+          timestamp: new Date(payload.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          type: payload.role.toLowerCase() as Message['type'],
+        };
+        setMessages((previous) => previous.some((item) => item.id === message.id) ? previous : [...previous, message]);
+      };
+      socket.onclose = () => {
+        setIsConnected(false);
+        if (!disposed) {
+          reconnectTimerRef.current = window.setTimeout(connect, reconnectDelay(reconnectAttemptRef.current++));
+        }
+      };
+    };
+
+    connect();
     return () => {
-      // ws.current?.close();
+      disposed = true;
+      if (reconnectTimerRef.current !== null) {
+        window.clearTimeout(reconnectTimerRef.current);
+      }
+      socketRef.current?.close();
+      socketRef.current = null;
       setIsConnected(false);
     };
   }, [conversationId, token]);
 
   const sendMessage = useCallback((content: string) => {
-    if (!conversationId) return;
-    
-    // Optimistic update
-    const newMessage: Message = {
-      id: `msg-${Date.now()}`,
-      conversationId,
-      content,
-      isSent: true,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: 'user'
-    };
-    
-    setMessages(prev => [...prev, newMessage]);
-
-    // Simulate backend response
-    setTimeout(() => {
-      const replies = [
-        "That's interesting! Tell me more 🤔",
-        "Got it, thanks! 👍",
-        "I'll check that out right away!",
-        "Sounds good to me! 😊",
-        "Let me think about that...",
-      ];
-      const replyMessage: Message = {
-        id: `msg-reply-${Date.now()}`,
-        conversationId,
-        content: replies[Math.floor(Math.random() * replies.length)],
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isSent: false,
-        type: 'contact'
-      };
-      setMessages((prev) => [...prev, replyMessage]);
-    }, 1000 + Math.random() * 2000);
-
-  }, [conversationId]);
+    if (socketRef.current?.readyState === WebSocket.OPEN && content.trim()) {
+      socketRef.current.send(JSON.stringify({ content }));
+    }
+  }, []);
 
   return { messages, sendMessage, isConnected };
 }

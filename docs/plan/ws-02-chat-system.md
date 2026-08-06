@@ -19,9 +19,9 @@
 
 - ✅ `src/api/chat.py` skeleton (gọi LangGraph `analyze` + `respond`).
 - ✅ `src/agents/graph.py` skeleton (LangGraph demo).
-- ⬜ Contact / Conversation / Message API chưa có.
-- ⬜ WebSocket endpoint chưa có.
-- ⬜ Event Bus chưa có.
+- ✅ Contact / Conversation / Message API đã có.
+- ✅ WebSocket endpoint đã có.
+- ✅ Event Bus đã có.
 
 ---
 
@@ -47,7 +47,7 @@ pytest tests/unit/schemas -v
 
 ---
 
-## TASK-CHAT-02: Contact API (CRUD) ⬜
+## TASK-CHAT-02: Contact API (CRUD) ✅
 
 **Mô tả:** REST API cho Contact — tạo, liệt kê, sửa, xoá.
 
@@ -62,13 +62,13 @@ DELETE /api/v1/contacts/{id}     — Xoá Contact
 ```
 
 **Checklist:**
-- [ ] Tạo `src/api/contacts.py` router
-- [ ] Inject `ContactService` qua Depends
-- [ ] Apply `get_current_user` (auth)
-- [ ] Pagination: `?page=1&limit=20`
-- [ ] Filter: `?search=keyword`
-- [ ] Response shape chuẩn: `{ data, pagination }`
-- [ ] Error handling: 404 nếu không tìm thấy, 403 nếu không phải owner
+- [x] Tạo `src/api/contacts.py` router
+- [x] Inject `ContactService` qua Depends
+- [x] Apply `get_current_user` (auth)
+- [x] Pagination: `?page=1&limit=20`
+- [x] Filter: `?search=keyword`
+- [x] Response shape chuẩn: `{ data, pagination }`
+- [x] Error handling: 404 nếu không tìm thấy, 403 nếu không phải owner
 
 **Commands:**
 ```bash
@@ -84,7 +84,7 @@ curl http://localhost:8000/api/v1/contacts \
 
 ---
 
-## TASK-CHAT-03: Conversation API (CRUD) ⬜
+## TASK-CHAT-03: Conversation API (CRUD) ✅
 
 **Mô tả:** REST API cho Conversation — tạo, liệt kê, lấy chi tiết.
 
@@ -99,14 +99,14 @@ DELETE /api/v1/conversations/{id}         — Xoá Conversation
 ```
 
 **Checklist:**
-- [ ] Tạo `src/api/conversations.py` router
-- [ ] Inject `ConversationService` qua Depends
-- [ ] Apply `get_current_user` (auth)
-- [ ] Sinh Event `OPEN_CHAT` khi tạo conversation
-- [ ] Sinh Event `CLOSE_CHAT` khi status → CLOSED
-- [ ] Filter: `?status=OPEN&contact_id=...`
-- [ ] Sort: `last_message_at DESC`
-- [ ] Include `last_message` preview trong list response
+- [x] Tạo `src/api/conversations.py` router
+- [x] Inject `ConversationService` qua Depends
+- [x] Apply `get_current_user` (auth)
+- [x] Sinh Event `OPEN_CHAT` khi tạo conversation
+- [x] Sinh Event `CLOSE_CHAT` khi status → CLOSED
+- [x] Filter: `?status=OPEN&contact_id=...`
+- [x] Sort: `last_message_at DESC`
+- [x] Include `last_message` preview trong list response
 
 **Commands:**
 ```bash
@@ -119,7 +119,7 @@ curl -X POST http://localhost:8000/api/v1/conversations \
 
 ---
 
-## TASK-CHAT-04: Message API (CRUD) ⬜
+## TASK-CHAT-04: Message API (CRUD) ✅ (Memory Worker deferred to WS-03)
 
 **Mô tả:** REST API cho Message — gửi, liệt kê, lấy chi tiết.
 
@@ -133,13 +133,13 @@ DELETE /api/v1/messages/{id}                        — Xoá Message
 ```
 
 **Checklist:**
-- [ ] Tạo `src/api/messages.py` router
-- [ ] Inject `MessageService` qua Depends
-- [ ] Sinh Event `SEND_MESSAGE` mỗi khi có message mới
-- [ ] Update `Conversation.last_message_at` mỗi khi gửi
-- [ ] Pagination: `?page=1&limit=50`
+- [x] Tạo `src/api/messages.py` router
+- [x] Inject `MessageService` qua Depends
+- [x] Sinh Event `SEND_MESSAGE` mỗi khi có message mới
+- [x] Update `Conversation.last_message_at` mỗi khi gửi
+- [x] Pagination: `?page=1&limit=50`
 - [ ] Trigger Memory Worker qua EventBus (chuẩn bị cho WS-03)
-- [ ] Response bao gồm `id`, `role`, `content`, `created_at`
+- [x] Response bao gồm `id`, `role`, `content`, `created_at`
 
 **Commands:**
 ```bash
@@ -152,7 +152,7 @@ curl -X POST http://localhost:8000/api/v1/conversations/1/messages \
 
 ---
 
-## TASK-CHAT-05: WebSocket + Connection Manager ⬜
+## TASK-CHAT-05: WebSocket + Connection Manager ✅
 
 **Mô tả:** WebSocket endpoint cho realtime chat + Connection Manager (in-memory dict).
 
@@ -163,16 +163,16 @@ WS /ws/chat/{conversation_id}        — Realtime chat (gửi/nhận Message)
 ```
 
 **Checklist:**
-- [ ] Tạo `src/api/ws.py` (WebSocket endpoint)
-- [ ] Tạo `src/ws/manager.py` (ConnectionManager class)
-- [ ] Method `connect(websocket, conversation_id)` — accept + lưu vào dict
-- [ ] Method `disconnect(websocket, conversation_id)` — remove khỏi dict
-- [ ] Method `broadcast(conversation_id, message)` — gửi cho tất cả client cùng conversation
-- [ ] Khi nhận message qua WS → lưu DB + broadcast
-- [ ] Khi nhận message qua WS → emit Event `SEND_MESSAGE` qua EventBus
-- [ ] Heartbeat ping/pong mỗi 30s
-- [ ] Auto-reconnect support (client side)
-- [ ] Test với 2 client giả lập (WebSocketTest client)
+- [x] Tạo `src/api/ws.py` (WebSocket endpoint)
+- [x] Tạo `src/ws/manager.py` (ConnectionManager class)
+- [x] Method `connect(websocket, conversation_id)` — accept + lưu vào dict
+- [x] Method `disconnect(websocket, conversation_id)` — remove khỏi dict
+- [x] Method `broadcast(conversation_id, message)` — gửi cho tất cả client cùng conversation
+- [x] Khi nhận message qua WS → lưu DB + broadcast
+- [x] Khi nhận message qua WS → emit Event `SEND_MESSAGE` qua EventBus
+- [x] Heartbeat ping/pong mỗi 30s
+- [x] Auto-reconnect support (client side)
+- [x] Test với 2 client giả lập (WebSocketTest client)
 
 **Commands:**
 ```bash
@@ -184,20 +184,20 @@ wscat -c ws://localhost:8000/ws/chat/1 \
 
 ---
 
-## TASK-CHAT-06: Event Bus (asyncio + EventLog) ⬜
+## TASK-CHAT-06: Event Bus (asyncio + EventLog) ✅
 
 **Mô tả:** Event Bus đơn giản — ghi vào `EventLog` + asyncio dispatcher loop.
 
 **Checklist:**
-- [ ] Tạo `src/events/bus.py` (EventBus singleton)
-- [ ] Method `publish(event_type, payload)` — enqueue vào asyncio.Queue
-- [ ] Method `subscribe(event_type, handler)` — đăng ký handler
-- [ ] Background task `dispatcher_loop()` chạy trong lifespan
-- [ ] Mỗi event ghi vào `EventLog` (event_type, payload, created_at)
-- [ ] Gọi các handler đã subscribe
-- [ ] Handler fail không crash dispatcher (log + skip)
-- [ ] Event types: `SEND_MESSAGE`, `OPEN_CHAT`, `CLOSE_CHAT`, `MEMORY_REFRESH`, `OPEN_AI`
-- [ ] Test E2E: gửi message → EventBus ghi EventLog → handler nhận
+- [x] Tạo `src/events/bus.py` (EventBus singleton)
+- [x] Method `publish(event_type, payload)` — enqueue vào asyncio.Queue
+- [x] Method `subscribe(event_type, handler)` — đăng ký handler
+- [x] Background task `dispatcher_loop()` chạy trong lifespan
+- [x] Mỗi event ghi vào `EventLog` (event_type, payload, created_at)
+- [x] Gọi các handler đã subscribe
+- [x] Handler fail không crash dispatcher (log + skip)
+- [x] Event types: `SEND_MESSAGE`, `OPEN_CHAT`, `CLOSE_CHAT`, `MEMORY_REFRESH`, `OPEN_AI`
+- [x] Test E2E: gửi message → EventBus ghi EventLog → handler nhận
 
 **Commands:**
 ```bash

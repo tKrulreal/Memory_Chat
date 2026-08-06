@@ -1,11 +1,13 @@
-from enum import Enum
+from enum import StrEnum
 
-class MessageRole(str, Enum):
+
+class MessageRole(StrEnum):
     USER = "USER"
     CONTACT = "CONTACT"
     AI = "AI"
 
-class ConversationStatus(str, Enum):
+
+class ConversationStatus(StrEnum):
     OPEN = "OPEN"
     CLOSED = "CLOSED"
     ARCHIVED = "ARCHIVED"
