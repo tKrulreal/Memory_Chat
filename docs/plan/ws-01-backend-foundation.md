@@ -21,29 +21,29 @@
 - ✅ `src/services/llm.py` skeleton (LLM Gateway placeholder).
 - ✅ `src/agents/graph.py` skeleton (LangGraph `analyze` + `respond`).
 - ✅ `src/api/chat.py` router (gọi LangGraph).
-- ⬜ Models, Repositories, Services chưa có.
-- ⬜ Alembic chưa init.
-- ⬜ Auth skeleton chưa có.
+- ✅ Models, Repositories, Services chưa có.
+- ✅ Alembic chưa init.
+- ✅ Auth skeleton chưa có.
 
 ---
 
-## TASK-BE-01: Database Models (SQLAlchemy) ⬜
+## TASK-BE-01: Database Models (SQLAlchemy) ✅
 
 **Mô tả:** Định nghĩa 11 bảng schema theo `docs/general overview/04_Database_Design.md`.
 
 **Checklist:**
-- [ ] Tạo `src/models/__init__.py` + base class `Base` (SQLAlchemy 2.x DeclarativeBase)
-- [ ] Model `User` (id, email, password_hash, created_at)
-- [ ] Model `Contact` (id, user_id, name, avatar_url, relationship_score)
-- [ ] Model `Conversation` (id, contact_id, user_id, title, last_message_at, status)
-- [ ] Model `Message` (id, conversation_id, sender, content, role, created_at)
-- [ ] Model `ContactMemory` (id, contact_id, summary, timeline JSON, company, profession, skills, interests, relationship_score, updated_at)
-- [ ] Model `Recommendation` (id, contact_id, type, reason, status, created_at)
-- [ ] Model `Tag` (id, name) + `ContactTag` (contact_id, tag_id)
-- [ ] Model `SearchHistory` (id, user_id, query, results JSON, created_at)
-- [ ] Model `Notification` (id, user_id, type, payload JSON, read_at)
-- [ ] Model `Setting` (id, user_id, key, value JSON)
-- [ ] Model `EventLog` (id, user_id, event_type, payload JSON, created_at)
+- [x] Tạo `src/models/__init__.py` + base class `Base` (SQLAlchemy 2.x DeclarativeBase)
+- [x] Model `User` (id, email, password_hash, created_at)
+- [x] Model `Contact` (id, user_id, name, avatar_url, relationship_score)
+- [x] Model `Conversation` (id, contact_id, user_id, title, last_message_at, status)
+- [x] Model `Message` (id, conversation_id, sender, content, role, created_at)
+- [x] Model `ContactMemory` (id, contact_id, summary, timeline JSON, company, profession, skills, interests, relationship_score, updated_at)
+- [x] Model `Recommendation` (id, contact_id, type, reason, status, created_at)
+- [x] Model `Tag` (id, name) + `ContactTag` (contact_id, tag_id)
+- [x] Model `SearchHistory` (id, user_id, query, results JSON, created_at)
+- [x] Model `Notification` (id, user_id, type, payload JSON, read_at)
+- [x] Model `Setting` (id, user_id, key, value JSON)
+- [x] Model `EventLog` (id, user_id, event_type, payload JSON, created_at)
 
 **Commands:**
 ```bash
@@ -54,17 +54,17 @@ touch src/models/__init__.py
 
 ---
 
-## TASK-BE-02: Alembic Migration ⬜
+## TASK-BE-02: Alembic Migration ✅
 
 **Mô tả:** Khởi tạo Alembic và tạo migration đầu tiên cho toàn bộ schema.
 
 **Checklist:**
-- [ ] `alembic init alembic`
-- [ ] Cấu hình `alembic.ini` + `alembic/env.py` trỏ tới `src.models.Base.metadata`
-- [ ] Cấu hình `DATABASE_URL` từ `.env`
-- [ ] Tạo `alembic/versions/<hash>_init_schema.py`
-- [ ] Verify migration chạy được trên SQLite trống: `alembic upgrade head`
-- [ ] Verify 11 bảng đã được tạo
+- [x] `alembic init alembic`
+- [x] Cấu hình `alembic.ini` + `alembic/env.py` trỏ tới `src.models.Base.metadata`
+- [x] Cấu hình `DATABASE_URL` từ `.env`
+- [x] Tạo `alembic/versions/<hash>_init_schema.py`
+- [x] Verify migration chạy được trên SQLite trống: `alembic upgrade head`
+- [x] Verify 11 bảng đã được tạo
 
 **Commands:**
 ```bash
@@ -76,21 +76,21 @@ sqlite3 data/app.db ".tables"
 
 ---
 
-## TASK-BE-03: Repositories (CRUD layer) ⬜
+## TASK-BE-03: Repositories (CRUD layer) ✅
 
 **Mô tả:** Implement Repository pattern cho mỗi model — đóng gói logic truy vấn DB.
 
 **Checklist:**
-- [ ] Tạo `src/repositories/base.py` (BaseRepository generic với CRUD: `get`, `list`, `create`, `update`, `delete`)
-- [ ] `ConversationRepository` (CRUD + `list_by_user`)
-- [ ] `MessageRepository` (CRUD + `list_by_conversation`)
-- [ ] `ContactRepository` (CRUD + `get_by_user`)
-- [ ] `MemoryRepository` (CRUD + `get_by_contact`)
-- [ ] `RecommendationRepository` (CRUD + `list_pending`)
-- [ ] `EventLogRepository` (CRUD + `list_recent`)
-- [ ] `UserRepository` (CRUD + `get_by_email`)
-- [ ] `TagRepository` + `ContactTagRepository`
-- [ ] `SearchHistoryRepository` + `NotificationRepository` + `SettingRepository`
+- [x] Tạo `src/repositories/base.py` (BaseRepository generic với CRUD: `get`, `list`, `create`, `update`, `delete`)
+- [x] `ConversationRepository` (CRUD + `list_by_user`)
+- [x] `MessageRepository` (CRUD + `list_by_conversation`)
+- [x] `ContactRepository` (CRUD + `get_by_user`)
+- [x] `MemoryRepository` (CRUD + `get_by_contact`)
+- [x] `RecommendationRepository` (CRUD + `list_pending`)
+- [x] `EventLogRepository` (CRUD + `list_recent`)
+- [x] `UserRepository` (CRUD + `get_by_email`)
+- [x] `TagRepository` + `ContactTagRepository`
+- [x] `SearchHistoryRepository` + `NotificationRepository` + `SettingRepository`
 
 **Commands:**
 ```bash
@@ -101,18 +101,18 @@ pytest tests/unit/repositories -v
 
 ---
 
-## TASK-BE-04: Services (business logic) ⬜
+## TASK-BE-04: Services (business logic) ✅
 
 **Mô tả:** Service layer gọi Repository + áp dụng business rules.
 
 **Checklist:**
-- [ ] `src/services/contact.py` (ContactService — CRUD qua repo)
-- [ ] `src/services/conversation.py` (ConversationService — CRUD + logic mở/đóng)
-- [ ] `src/services/message.py` (MessageService — CRUD + emit Event `SEND_MESSAGE`)
-- [ ] `src/services/memory.py` (MemoryService — CRUD + trigger Memory Agent)
-- [ ] `src/services/recommendation.py` (RecommendationService — CRUD + accept/reject)
-- [ ] `src/services/event_log.py` (EventLogService — ghi log event)
-- [ ] Tất cả Service inject Repository qua constructor (DI)
+- [x] `src/services/contact.py` (ContactService — CRUD qua repo)
+- [x] `src/services/conversation.py` (ConversationService — CRUD + logic mở/đóng)
+- [x] `src/services/message.py` (MessageService — CRUD + emit Event `SEND_MESSAGE`)
+- [x] `src/services/memory.py` (MemoryService — CRUD + trigger Memory Agent)
+- [x] `src/services/recommendation.py` (RecommendationService — CRUD + accept/reject)
+- [x] `src/services/event_log.py` (EventLogService — ghi log event)
+- [x] Tất cả Service inject Repository qua constructor (DI)
 
 **Commands:**
 ```bash
@@ -122,19 +122,19 @@ pytest tests/unit/services -v
 
 ---
 
-## TASK-BE-05: LLM Gateway (retry + log) ⬜
+## TASK-BE-05: LLM Gateway (retry + log) ✅
 
 **Mô tả:** Chuẩn hoá `src/services/llm.py` thành LLM Gateway có retry, logging, fallback.
 
 **Checklist:**
-- [ ] Refactor `src/services/llm.py` thành class `LLMGateway`
-- [ ] Method `complete(prompt, **kwargs) -> str`
-- [ ] Method `chat(messages, **kwargs) -> str`
-- [ ] Method `embed(text) -> list[float]`
-- [ ] Retry với exponential backoff (max 3 lần)
-- [ ] Log prompt + response vào `.ai-log/` (JSON Lines)
-- [ ] Timeout config từ env: `LLM_TIMEOUT=30`
-- [ ] Fallback graceful error (không crash app)
+- [x] Refactor `src/services/llm.py` thành class `LLMGateway`
+- [x] Method `complete(prompt, **kwargs) -> str`
+- [x] Method `chat(messages, **kwargs) -> str`
+- [x] Method `embed(text) -> list[float]`
+- [x] Retry với exponential backoff (max 3 lần)
+- [x] Log prompt + response vào `.ai-log/` (JSON Lines)
+- [x] Timeout config từ env: `LLM_TIMEOUT=30`
+- [x] Fallback graceful error (không crash app)
 
 **Commands:**
 ```bash
@@ -144,19 +144,19 @@ python -c "from src.services.llm import LLMGateway; g = LLMGateway(); print(g.co
 
 ---
 
-## TASK-BE-06: Auth (JWT + bcrypt) ⬜
+## TASK-BE-06: Auth (JWT + bcrypt) ✅
 
 **Mô tả:** Implement AuthService + middleware xác thực JWT.
 
 **Checklist:**
-- [ ] `src/services/auth.py` (AuthService — register, login, verify_token)
-- [ ] Hash password bằng `passlib[bcrypt]`
-- [ ] Sinh JWT bằng `python-jose` với secret từ env: `JWT_SECRET`
-- [ ] Middleware `get_current_user` (FastAPI Depends)
-- [ ] Endpoint `POST /api/v1/auth/register` (create User)
-- [ ] Endpoint `POST /api/v1/auth/login` (return access_token)
-- [ ] Token expire: `JWT_EXPIRE_MINUTES=60`
-- [ ] Optional: bỏ qua auth trong demo (1 user cố định)
+- [x] `src/services/auth.py` (AuthService — register, login, verify_token)
+- [x] Hash password bằng `passlib[bcrypt]`
+- [x] Sinh JWT bằng `python-jose` với secret từ env: `JWT_SECRET`
+- [x] Middleware `get_current_user` (FastAPI Depends)
+- [x] Endpoint `POST /api/v1/auth/register` (create User)
+- [x] Endpoint `POST /api/v1/auth/login` (return access_token)
+- [x] Token expire: `JWT_EXPIRE_MINUTES=60`
+- [x] Optional: bỏ qua auth trong demo (1 user cố định)
 
 **Commands:**
 ```bash
@@ -172,18 +172,18 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 
 ---
 
-## TASK-BE-07: Settings + Config ⬜
+## TASK-BE-07: Settings + Config ✅
 
 **Mô tả:** Chuẩn hoá `src/config.py` (hoặc `src/core/settings.py`) — load env vars + validate.
 
 **Checklist:**
-- [ ] Dùng Pydantic Settings (`BaseSettings`)
-- [ ] Vars bắt buộc: `OPENAI_API_KEY`, `DATABASE_URL`, `JWT_SECRET`
-- [ ] Vars optional: `LLM_MODEL`, `EMBEDDING_MODEL`, `LLM_TIMEOUT`, `LOG_LEVEL`
-- [ ] Validate `OPENAI_API_KEY` không rỗng khi khởi động
-- [ ] Singleton instance: `settings = Settings()`
-- [ ] Tạo `.env.example` đầy đủ
-- [ ] Document từng biến env trong README
+- [x] Dùng Pydantic Settings (`BaseSettings`)
+- [x] Vars bắt buộc: `OPENAI_API_KEY`, `DATABASE_URL`, `JWT_SECRET`
+- [x] Vars optional: `LLM_MODEL`, `EMBEDDING_MODEL`, `LLM_TIMEOUT`, `LOG_LEVEL`
+- [x] Validate `OPENAI_API_KEY` không rỗng khi khởi động
+- [x] Singleton instance: `settings = Settings()`
+- [x] Tạo `.env.example` đầy đủ
+- [x] Document từng biến env trong README
 
 **Commands:**
 ```bash
@@ -194,23 +194,23 @@ python -c "from src.config import settings; print(settings.OPENAI_API_KEY[:10])"
 
 ---
 
-## TASK-BE-08: Middleware + Routers ⬜
+## TASK-BE-08: Middleware + Routers ✅
 
 **Mô tả:** Kết nối các thành phần vào `src/main.py` — include routers + middleware.
 
 **Checklist:**
-- [ ] Tạo `src/api/contacts.py` (router cho Contact API — placeholder)
-- [ ] Tạo `src/api/conversations.py` (router placeholder)
-- [ ] Tạo `src/api/messages.py` (router placeholder)
-- [ ] Tạo `src/api/memory.py` (router placeholder)
-- [ ] Tạo `src/api/recommendations.py` (router placeholder)
-- [ ] Tạo `src/api/search.py` (router placeholder)
-- [ ] Tạo `src/api/copilot.py` (router placeholder)
-- [ ] Cập nhật `src/main.py` include tất cả router
-- [ ] Mount `/api/v1` prefix
-- [ ] CORS middleware (cho Frontend)
-- [ ] Global exception handler
-- [ ] Request logging middleware
+- [x] Tạo `src/api/contacts.py` (router cho Contact API — placeholder)
+- [x] Tạo `src/api/conversations.py` (router placeholder)
+- [x] Tạo `src/api/messages.py` (router placeholder)
+- [x] Tạo `src/api/memory.py` (router placeholder)
+- [x] Tạo `src/api/recommendations.py` (router placeholder)
+- [x] Tạo `src/api/search.py` (router placeholder)
+- [x] Tạo `src/api/copilot.py` (router placeholder)
+- [x] Cập nhật `src/main.py` include tất cả router
+- [x] Mount `/api/v1` prefix
+- [x] CORS middleware (cho Frontend)
+- [x] Global exception handler
+- [x] Request logging middleware
 
 **Commands:**
 ```bash
@@ -223,21 +223,21 @@ curl http://localhost:8000/docs
 
 ---
 
-## TASK-BE-09: Unit tests cho Repository + Service ⬜
+## TASK-BE-09: Unit tests cho Repository + Service ✅
 
 **Mô tả:** Unit test cho từng Repository + Service layer.
 
 **Checklist:**
-- [ ] Setup `tests/` folder + `conftest.py` (fixture DB in-memory SQLite)
-- [ ] Test `ConversationRepository` (CRUD + list_by_user)
-- [ ] Test `MessageRepository` (CRUD + list_by_conversation)
-- [ ] Test `ContactRepository` (CRUD + get_by_user)
-- [ ] Test `MemoryRepository` (CRUD + get_by_contact)
-- [ ] Test `RecommendationRepository` (CRUD + list_pending)
-- [ ] Test `EventLogRepository` (CRUD + list_recent)
-- [ ] Test `ContactService` (logic nghiệp vụ)
-- [ ] Test `MessageService` (logic + emit event)
-- [ ] Test `MemoryService` (logic + trigger agent)
+- [x] Setup `tests/` folder + `conftest.py` (fixture DB in-memory SQLite)
+- [x] Test `ConversationRepository` (CRUD + list_by_user)
+- [x] Test `MessageRepository` (CRUD + list_by_conversation)
+- [x] Test `ContactRepository` (CRUD + get_by_user)
+- [x] Test `MemoryRepository` (CRUD + get_by_contact)
+- [x] Test `RecommendationRepository` (CRUD + list_pending)
+- [x] Test `EventLogRepository` (CRUD + list_recent)
+- [x] Test `ContactService` (logic nghiệp vụ)
+- [x] Test `MessageService` (logic + emit event)
+- [x] Test `MemoryService` (logic + trigger agent)
 
 **Commands:**
 ```bash
@@ -247,19 +247,19 @@ pytest tests/unit -v --cov=src/repositories --cov=src/services
 
 ---
 
-## TASK-BE-10: Unit test Auth ⬜
+## TASK-BE-10: Unit test Auth ✅
 
 **Mô tả:** Unit test cho AuthService + API endpoints.
 
 **Checklist:**
-- [ ] Test `AuthService.register` (hash password + tạo User)
-- [ ] Test `AuthService.login` (verify password + sinh JWT)
-- [ ] Test `AuthService.verify_token` (decode JWT + trả user)
-- [ ] Test API `POST /auth/register` (200 + trả user_id)
-- [ ] Test API `POST /auth/login` (200 + trả access_token)
-- [ ] Test API `POST /auth/login` với password sai (401)
-- [ ] Test API `/contacts` với token hợp lệ (200)
-- [ ] Test API `/contacts` không có token (401)
+- [x] Test `AuthService.register` (hash password + tạo User)
+- [x] Test `AuthService.login` (verify password + sinh JWT)
+- [x] Test `AuthService.verify_token` (decode JWT + trả user)
+- [x] Test API `POST /auth/register` (200 + trả user_id)
+- [x] Test API `POST /auth/login` (200 + trả access_token)
+- [x] Test API `POST /auth/login` với password sai (401)
+- [x] Test API `/contacts` với token hợp lệ (200)
+- [x] Test API `/contacts` không có token (401)
 
 **Commands:**
 ```bash
@@ -268,22 +268,22 @@ pytest tests/unit/auth tests/api/test_auth.py -v
 
 ---
 
-## TASK-BE-11: Cập nhật `.env.example` ⬜
+## TASK-BE-11: Cập nhật `.env.example` ✅
 
 **Mô tả:** Bổ sung đầy đủ biến env cần thiết cho toàn bộ Backend.
 
 **Checklist:**
-- [ ] `OPENAI_API_KEY` (bắt buộc)
-- [ ] `DATABASE_URL=sqlite:///./data/app.db`
-- [ ] `CHROMA_PERSIST_DIR=./data/chroma`
-- [ ] `JWT_SECRET=change-me-in-production`
-- [ ] `JWT_EXPIRE_MINUTES=60`
-- [ ] `LLM_MODEL=gpt-4o-mini`
-- [ ] `EMBEDDING_MODEL=text-embedding-3-small`
-- [ ] `LLM_TIMEOUT=30`
-- [ ] `LOG_LEVEL=INFO`
-- [ ] `LOG_DIR=./.ai-log`
-- [ ] `CORS_ORIGINS=http://localhost:5173`
+- [x] `OPENAI_API_KEY` (bắt buộc)
+- [x] `DATABASE_URL=sqlite:///./data/app.db`
+- [x] `CHROMA_PERSIST_DIR=./data/chroma`
+- [x] `JWT_SECRET=change-me-in-production`
+- [x] `JWT_EXPIRE_MINUTES=60`
+- [x] `LLM_MODEL=gpt-4o-mini`
+- [x] `EMBEDDING_MODEL=text-embedding-3-small`
+- [x] `LLM_TIMEOUT=30`
+- [x] `LOG_LEVEL=INFO`
+- [x] `LOG_DIR=./.ai-log`
+- [x] `CORS_ORIGINS=http://localhost:5173`
 
 **Commands:**
 ```bash
@@ -293,18 +293,18 @@ cp .env.example .env
 
 ---
 
-## TASK-BE-12: Cập nhật README ⬜
+## TASK-BE-12: Cập nhật README ✅
 
 **Mô tả:** Cập nhật `README.md` chính của dự án — hướng dẫn setup + chạy migration.
 
 **Checklist:**
-- [ ] Section "Quick Start" (clone → make setup → make run)
-- [ ] Section "Architecture" (liên kết tới `docs/general overview/05_Backend_Architecture.md`)
-- [ ] Section "Tech Stack" (MVP)
-- [ ] Section "Environment Variables" (tham chiếu `.env.example`)
-- [ ] Section "Database Migration" (alembic upgrade head)
-- [ ] Section "Running Tests" (pytest)
-- [ ] Section "Project Structure" (folder tree)
+- [x] Section "Quick Start" (clone → make setup → make run)
+- [x] Section "Architecture" (liên kết tới `docs/general overview/05_Backend_Architecture.md`)
+- [x] Section "Tech Stack" (MVP)
+- [x] Section "Environment Variables" (tham chiếu `.env.example`)
+- [x] Section "Database Migration" (alembic upgrade head)
+- [x] Section "Running Tests" (pytest)
+- [x] Section "Project Structure" (folder tree)
 
 **Commands:**
 ```bash

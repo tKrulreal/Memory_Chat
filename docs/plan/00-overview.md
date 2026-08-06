@@ -45,7 +45,7 @@ Trong MVP (6 tuần), nhóm cần chứng minh:
 
 | ID | Workstream | Status | Owner | Depends On |
 |----|------------|--------|-------|------------|
-| WS-01 | Backend Foundation | ⬜ Pending | Member 1 | — |
+| WS-01 | Backend Foundation | ✅ Done | Member 1 | — |
 | WS-02 | Chat System | ⬜ Pending | Member 3 | WS-01 |
 | WS-03 | AI Memory | ⬜ Pending | Member 1 + 4 | WS-01 + WS-02 |
 | WS-04 | Search & Recommendation | ⬜ Pending | Member 4 | WS-03 |
