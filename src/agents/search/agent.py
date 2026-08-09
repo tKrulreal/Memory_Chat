@@ -1,5 +1,7 @@
 import json
 import logging
+import os
+from datetime import datetime
 from typing import List, Dict, Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -14,6 +16,20 @@ class SearchAgent:
     def __init__(self):
         self.llm = LLMGateway()
         self.vector_store = VectorStoreService.get_instance()
+        self.log_file = ".ai-log/search.jsonl"
+        os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
+        
+    def _log_search(self, query: str, results: List[SearchResult]):
+        entry = {
+            "timestamp": datetime.now().isoformat(),
+            "query": query,
+            "results": [r.model_dump() for r in results]
+        }
+        try:
+            with open(self.log_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except Exception as e:
+            logger.error(f"Failed to write log: {e}")
         
     def _build_rerank_prompt(self, query: str, grouped_memories: Dict[str, Dict[str, Any]]) -> List[Any]:
         system_prompt = (
@@ -102,7 +118,9 @@ class SearchAgent:
                 
             # 5. Sort and limit
             results.sort(key=lambda x: x.score, reverse=True)
-            return results[:limit]
+            final_results = results[:limit]
+            self._log_search(query, final_results)
+            return final_results
             
         except Exception as e:
             logger.error(f"Error in LLM re-ranking: {e}")
@@ -115,4 +133,6 @@ class SearchAgent:
                     score=0,
                     explanation="Lỗi khi re-rank"
                 ))
-            return fallback_results[:limit]
+            final_results = fallback_results[:limit]
+            self._log_search(query, final_results)
+            return final_results
