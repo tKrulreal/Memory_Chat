@@ -20,6 +20,7 @@ from src.core.middlewares import RequestLoggingMiddleware
 from src.events.bus import EventBus
 from src.models.database import SessionLocal
 from src.workers.memory_worker import MemoryWorker
+from src.workers.recommendation_worker import RecommendationWorker
 
 
 @asynccontextmanager
@@ -38,6 +39,13 @@ async def lifespan(app: FastAPI):
     )
     app.state.memory_worker.subscribe()
     print("MemoryWorker started")
+
+    # Start Recommendation Worker
+    app.state.recommendation_worker = RecommendationWorker(
+        event_bus=app.state.event_bus,
+    )
+    app.state.recommendation_worker.subscribe()
+    print("RecommendationWorker started")
 
     try:
         yield
