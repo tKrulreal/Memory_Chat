@@ -47,6 +47,7 @@ class SearchHistory(Base):
     id: Mapped[uuid_pk]
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     query: Mapped[str] = mapped_column(String(1024))
+    results: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     result_count: Mapped[int] = mapped_column(default=0)
     
     created_at: Mapped[created_at_col]
