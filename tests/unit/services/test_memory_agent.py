@@ -61,7 +61,9 @@ class TestMemoryAgent:
     def mock_llm(self):
         """Mock LLM Gateway."""
         llm = MagicMock()
-        llm.complete = AsyncMock(return_value="Mocked summary")
+        # complete() được gọi sync (không await) → dùng MagicMock
+        llm.complete = MagicMock(return_value="Mocked summary")
+        llm.embed = MagicMock(return_value=[0.1] * 1536)
         return llm
 
     @pytest.fixture
@@ -182,13 +184,16 @@ class TestMemoryAgent:
             },
         ]
 
-        with patch.object(agent, "extract_entities", new_callable=AsyncMock) as mock_extract:
-            mock_extract.return_value = {
+        # extract_entities là async — dùng AsyncMock với return_value (không side_effect)
+        async def fake_extract(msgs):
+            return {
                 "company": "VinUni",
                 "profession": "Student",
                 "skills": ["Python"],
                 "interests": ["AI"],
             }
+
+        with patch.object(agent, "extract_entities", side_effect=fake_extract):
             result = await agent.build_memory(contact_id, messages)
 
         assert isinstance(result, MemoryResult)

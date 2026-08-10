@@ -10,18 +10,18 @@ Trigger logic:
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone, UTC
-from typing import Any
-
-from sqlalchemy.orm import Session
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from src.agents.memory import MemoryAgent
 from src.events.bus import EventBus
 from src.events.types import ChatEvent, EventType
 from src.models.contact import ContactMemory
 from src.models.chat import Conversation, Message
-from src.repositories.memory import MemoryRepository
 from src.services.vector_store import VectorStoreService
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -41,11 +41,17 @@ class MemoryWorker:
     ):
         self._event_bus = event_bus
         self._session_factory = session_factory
-        self._agent = MemoryAgent()
+        # Lazy-init MemoryAgent — tránh crash khi thiếu OpenAI key khi worker khởi động
+        self._agent: MemoryAgent | None = None
         self._vector_store = VectorStoreService.get_instance()
-        self._memory_repo = MemoryRepository(ContactMemory)
         self._pending_contacts: set[uuid.UUID] = set()
         self._lock = asyncio.Lock()
+
+    def _get_agent(self) -> MemoryAgent:
+        """Lazy khởi tạo MemoryAgent (chỉ tạo khi thực sự cần)."""
+        if self._agent is None:
+            self._agent = MemoryAgent()
+        return self._agent
 
     def subscribe(self) -> None:
         """Đăng ký handlers với EventBus."""
@@ -155,13 +161,11 @@ class MemoryWorker:
 
     async def _do_refresh(self, contact_id: uuid.UUID) -> None:
         """Thực hiện refresh memory."""
-        from src.gateways.llm import LLMGateway
-
-        logger.info("Memory refreshed for contact %s", contact_id)
+        logger.info("Memory refresh started for contact_id=%s", contact_id)
 
         session = self._session_factory()
         try:
-            # Lấy messages
+            # Lấy messages (last 100, oldest first)
             messages = (
                 session.query(Message)
                 .join(Conversation, Conversation.id == Message.conversation_id)
@@ -175,18 +179,18 @@ class MemoryWorker:
                 logger.info("No messages found for contact_id=%s, skipping", contact_id)
                 return
 
-            # Convert to dict
+            # Convert to dict (oldest first)
             messages_data = [
                 {
                     "content": msg.content,
                     "sender_type": msg.sender_type,
                     "created_at": msg.created_at,
                 }
-                for msg in reversed(messages)  # Oldest first
+                for msg in reversed(messages)
             ]
 
-            # Build memory
-            agent = MemoryAgent(llm=LLMGateway())
+            # Build memory (lazy-init agent)
+            agent = self._get_agent()
             result = await agent.build_memory(contact_id, messages_data)
 
             # Lưu vào DB
@@ -209,7 +213,7 @@ class MemoryWorker:
 
             session.commit()
 
-            # Upsert vào ChromaDB
+            # Upsert vào ChromaDB — dùng cùng LLM instance từ MemoryAgent
             memory_id = str(existing.id) if existing else str(uuid.uuid4())
             text_for_embedding = (
                 f"Summary: {result.summary}\n"
@@ -220,9 +224,8 @@ class MemoryWorker:
             )
 
             try:
-                from src.gateways.llm import LLMGateway
-                llm = LLMGateway()
-                embedding = llm.embed(text_for_embedding)
+                # Reuse LLM from MemoryAgent thay vì tạo instance mới
+                embedding = agent._llm.embed(text_for_embedding)
 
                 self._vector_store.upsert(
                     memory_id=memory_id,

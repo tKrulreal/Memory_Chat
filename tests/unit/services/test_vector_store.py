@@ -16,15 +16,18 @@ def vector_store():
     """Tạo VectorStoreService với thư mục tạm."""
     # Reset singleton before each test
     VectorStoreService._instance = None
-    tmpdirs = []
     with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdirs.append(tmpdir)
         with patch("src.services.vector_store.get_settings") as mock_settings:
             mock_settings.return_value.chroma_persist_dir = tmpdir
             vs = VectorStoreService()
-            vs._instance = None  # Reset singleton
+            VectorStoreService._instance = vs  # Set singleton
             yield vs
-            # Reset again after test
+            # Close client + reset singleton trước khi xóa tempdir
+            # Tránh PermissionError trên Windows do file handles
+            try:
+                vs.close()
+            except Exception:
+                pass
             VectorStoreService._instance = None
 
 

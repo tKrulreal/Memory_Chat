@@ -13,13 +13,16 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import String, cast, func
 from sqlalchemy.orm import Session
 
 from src.api.deps import get_db, get_event_bus
 from src.core.security import get_current_user
+from src.models.chat import Conversation, Message
 from src.models.user import User
+from src.repositories.contact import ContactRepository
+from src.services.contact import ContactNotFoundError, ContactOwnershipError
 from src.services.memory import MemoryService
-
 
 router = APIRouter()
 
@@ -30,6 +33,7 @@ EventBusDep = Annotated[Any, Depends(get_event_bus)]
 
 
 # --- Request/Response Schemas ---
+
 
 class MemoryTimelineResponse(BaseModel):
     date: str
@@ -76,37 +80,32 @@ class MemoryErrorResponse(BaseModel):
     detail: str
 
 
-# --- Endpoints ---
+# --- Helpers ---
 
 
-@router.get("/{contact_id}", response_model=MemoryResponse | None)
-def get_contact_memory(
+def _verify_contact_access(
+    db: Session,
+    user_id: uuid.UUID,
     contact_id: uuid.UUID,
-    current_user: CurrentUserDep,
-    db: DatabaseDep,
-) -> MemoryResponse | None:
+) -> None:
     """
-    Lấy Memory hiện tại của một Contact.
+    Verify that the user owns the contact. Raises HTTPException on failure.
 
-    Returns 404 nếu contact không có memory.
+    Raises:
+        HTTPException 404: if contact not found or not owned by user
     """
-    # Verify contact ownership
-    from src.repositories.contact import ContactRepository
-    from src.services.contact import ContactOwnershipError
-
-    contact_repo = ContactRepository()
+    repo = ContactRepository()
     try:
-        contact = contact_repo.get_owned_contact(db, current_user.id, contact_id)
-    except Exception:
+        repo.get_owned_contact(db, user_id, contact_id)
+    except (ContactNotFoundError, ContactOwnershipError):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Contact not found or access denied",
         ) from None
 
-    memory = MemoryService.get_by_contact(db, contact_id)
-    if not memory:
-        return None
 
+def _to_response(memory) -> MemoryResponse:
+    """Convert ContactMemory ORM model → MemoryResponse schema."""
     return MemoryResponse(
         id=memory.id,
         contact_id=memory.contact_id,
@@ -120,6 +119,28 @@ def get_contact_memory(
         last_discussion=memory.last_discussion,
         updated_at=memory.updated_at.isoformat() if memory.updated_at else None,
     )
+
+
+# --- Endpoints ---
+
+
+@router.get("/{contact_id}", response_model=MemoryResponse | None)
+def get_contact_memory(
+    contact_id: uuid.UUID,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+) -> MemoryResponse | None:
+    """
+    Lấy Memory hiện tại của một Contact.
+
+    Returns None nếu contact chưa có memory (200 OK with null).
+    """
+    _verify_contact_access(db, current_user.id, contact_id)
+
+    memory = MemoryService.get_by_contact(db, contact_id)
+    if memory is None:
+        return None
+    return _to_response(memory)
 
 
 @router.post(
@@ -138,19 +159,11 @@ async def trigger_memory_refresh(
 
     Emit event OPEN_AI → Memory Worker xử lý async.
     """
-    # Verify contact ownership
-    from src.repositories.contact import ContactRepository
+    _verify_contact_access(db, current_user.id, contact_id)
 
-    contact_repo = ContactRepository()
-    try:
-        contact_repo.get_owned_contact(db, current_user.id, contact_id)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Contact not found or access denied",
-        ) from None
-
-    result = await MemoryService.refresh(db, event_bus, contact_id)
+    result = await MemoryService.refresh(
+        db, event_bus, contact_id, user_id=current_user.id
+    )
     return MemoryRefreshResponse(**result)
 
 
@@ -164,17 +177,7 @@ def update_contact_memory(
     """
     User edit Memory (summary, profession, skills, interests...).
     """
-    # Verify contact ownership
-    from src.repositories.contact import ContactRepository
-
-    contact_repo = ContactRepository()
-    try:
-        contact_repo.get_owned_contact(db, current_user.id, contact_id)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Contact not found or access denied",
-        ) from None
+    _verify_contact_access(db, current_user.id, contact_id)
 
     updates_dict = updates.model_dump(exclude_unset=True)
     if not updates_dict:
@@ -184,20 +187,7 @@ def update_contact_memory(
         )
 
     memory = MemoryService.update(db, contact_id, updates_dict)
-
-    return MemoryResponse(
-        id=memory.id,
-        contact_id=memory.contact_id,
-        summary=memory.summary,
-        profession=memory.profession,
-        company=memory.company,
-        skills=memory.skills,
-        interest=memory.interest,
-        timeline=memory.timeline,
-        relationship_score=memory.relationship_score,
-        last_discussion=memory.last_discussion,
-        updated_at=memory.updated_at.isoformat() if memory.updated_at else None,
-    )
+    return _to_response(memory)
 
 
 @router.get("/{contact_id}/timeline", response_model=list[MemoryTimelineResponse])
@@ -211,21 +201,7 @@ def get_contact_memory_timeline(
 
     Timeline được build từ Message history trong DB.
     """
-    # Verify contact ownership
-    from src.repositories.contact import ContactRepository
-
-    contact_repo = ContactRepository()
-    try:
-        contact_repo.get_owned_contact(db, current_user.id, contact_id)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Contact not found or access denied",
-        ) from None
-
-    # Build timeline from Message history
-    from src.models.chat import Conversation, Message
-    from sqlalchemy import func, cast, String
+    _verify_contact_access(db, current_user.id, contact_id)
 
     # Group messages by date
     date_expr = func.date(Message.created_at).label("date")
@@ -234,7 +210,7 @@ def get_contact_memory_timeline(
         db.query(
             date_expr,
             func.count(Message.id).label("message_count"),
-            func.max(Message.content).label("last_message"),
+            func.max(cast(Message.content, String)).label("last_message"),
         )
         .join(Conversation, Conversation.id == Message.conversation_id)
         .filter(Conversation.contact_id == contact_id)
