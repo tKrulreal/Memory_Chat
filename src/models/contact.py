@@ -58,6 +58,7 @@ class ContactMemory(Base):
     timeline: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     relationship_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True) # 0-100
     last_discussion: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    insights: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     
     updated_at: Mapped[updated_at_col]
     

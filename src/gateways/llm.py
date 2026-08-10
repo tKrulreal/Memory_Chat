@@ -14,12 +14,15 @@ class LLMGateway:
         self.timeout = int(os.getenv("LLM_TIMEOUT", "30"))
         self.model_name = "gpt-4o-mini"
         self.log_dir = os.getenv("AI_LOG_DIR", ".ai-log")
+        from src.config import get_settings
+        settings = get_settings()
         self.llm = ChatOpenAI(
             model=self.model_name,
             temperature=0.7,
-            request_timeout=self.timeout
+            request_timeout=self.timeout,
+            api_key=settings.openai_api_key
         )
-        self.embed_model = OpenAIEmbeddings()
+        self.embed_model = OpenAIEmbeddings(api_key=settings.openai_api_key)
         os.makedirs(self.log_dir, exist_ok=True)
 
     def _log_interaction(self, prompt: str, response: str, method: str):
