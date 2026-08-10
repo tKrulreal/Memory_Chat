@@ -124,11 +124,12 @@ async def reject_recommendation(
 
 @router.post("/generate")
 async def generate_recommendations(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Chạy RecommendationAgent để sinh ra các recommendations mới ngay lập tức.
     """
     agent = RecommendationAgent()
-    recs = await agent.generate(user_id=current_user.id)
+    recs = await agent.generate(user_id=current_user.id, db=db)
     return {"status": "success", "generated_count": len(recs)}

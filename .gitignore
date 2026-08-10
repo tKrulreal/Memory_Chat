@@ -60,4 +60,4 @@ out/
 .ai-log/archive/
 .vibecoding
 *.jsonl
-agents.md
+.ai-log

@@ -274,12 +274,14 @@ class MemoryAgent:
         seen_interests: set[str] = set()
 
         for r in results:
-            for skill in r.get("skills", []):
+            skills = r.get("skills") or []
+            for skill in skills:
                 norm = str(skill).strip().lower()
                 if norm and norm not in seen_skills:
                     seen_skills.add(norm)
                     all_skills.append(str(skill).strip())
-            for interest in r.get("interests", []):
+            interests = r.get("interests") or []
+            for interest in interests:
                 norm = str(interest).strip().lower()
                 if norm and norm not in seen_interests:
                     seen_interests.add(norm)

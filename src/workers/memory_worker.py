@@ -195,7 +195,7 @@ class MemoryWorker:
             # Upsert ContactMemory
             existing = session.query(ContactMemory).filter(
                 ContactMemory.contact_id == contact_id
-            ).first()
+            ).with_for_update().first()
 
             if existing:
                 for key, value in memory_dict.items():

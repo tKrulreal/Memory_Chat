@@ -20,12 +20,13 @@ class RecommendationAgent:
     def __init__(self, llm: Optional[LLMGateway] = None):
         self._llm = llm or LLMGateway()
 
-    async def generate(self, user_id: uuid.UUID) -> List[Recommendation]:
+    async def generate(self, user_id: uuid.UUID, db: Optional[Session] = None) -> List[Recommendation]:
         """
         Generate recommendations for all contacts of a specific user.
         (For production, we might want to run this incrementally or per contact)
         """
-        db: Session = SessionLocal()
+        is_local_db = db is None
+        db = db or SessionLocal()
         new_recommendations = []
         try:
             # 1. Rule: PRIORITY - Memory relationship_score > 80
@@ -73,7 +74,8 @@ class RecommendationAgent:
             logger.error(f"Error generating recommendations: {e}")
             return []
         finally:
-            db.close()
+            if is_local_db:
+                db.close()
 
     def _check_priority_rule(self, db: Session, user_id: uuid.UUID) -> List[Recommendation]:
         recs = []
