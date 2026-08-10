@@ -10,7 +10,9 @@ class EventType(StrEnum):
     OPEN_CHAT = "OPEN_CHAT"
     CLOSE_CHAT = "CLOSE_CHAT"
     MEMORY_REFRESH = "MEMORY_REFRESH"
+    MEMORY_UPDATED = "MEMORY_UPDATED"
     OPEN_AI = "OPEN_AI"
+
 
 
 @dataclass(frozen=True)

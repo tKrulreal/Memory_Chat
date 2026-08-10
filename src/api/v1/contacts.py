@@ -166,10 +166,11 @@ async def refresh_contact_insights(
     
     # Emit event to trigger background InsightWorker
     await event_bus.publish(
-        "memory_updated",
-        contact_id=str(contact_id),
-        user_id=str(current_user.id)
+        event_type=EventType.MEMORY_UPDATED,
+        user_id=current_user.id,
+        payload={"contact_id": str(contact_id)}
     )
+
     
     return {"status": "refresh_triggered", "contact_id": str(contact_id)}
 
