@@ -11,7 +11,9 @@ from src.api.v1.conversations import router as conversations_router
 from src.api.v1.copilot import router as copilot_router
 from src.api.v1.memory import router as memory_router
 from src.api.v1.messages import router as messages_router
+from src.api.v1.notifications import router as notifications_router
 from src.api.v1.recommendations import router as recommendations_router
+
 from src.api.v1.search import router as search_router
 from src.api.ws import router as websocket_router
 from src.config import get_settings
@@ -91,7 +93,9 @@ app.include_router(contacts_router, prefix="/api/v1/contacts", tags=["contacts"]
 app.include_router(conversations_router, prefix="/api/v1/conversations", tags=["conversations"])
 app.include_router(messages_router, prefix="/api/v1", tags=["messages"])
 app.include_router(memory_router, prefix="/api/v1/memory", tags=["memory"])
+app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["notifications"])
 app.include_router(recommendations_router, prefix="/api/v1/recommendations", tags=["recommendations"])
+
 app.include_router(search_router, prefix="/api/v1/search", tags=["search"])
 app.include_router(copilot_router, prefix="/api/v1/copilot", tags=["copilot"])
 
