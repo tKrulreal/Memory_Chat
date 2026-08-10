@@ -21,6 +21,7 @@ from src.events.bus import EventBus
 from src.models.database import SessionLocal
 from src.workers.memory_worker import MemoryWorker
 from src.workers.recommendation_worker import RecommendationWorker
+from src.workers.insight_worker import InsightWorker
 
 
 @asynccontextmanager
@@ -46,6 +47,13 @@ async def lifespan(app: FastAPI):
     )
     app.state.recommendation_worker.subscribe()
     print("RecommendationWorker started")
+
+    # Start Insight Worker
+    app.state.insight_worker = InsightWorker(
+        event_bus=app.state.event_bus,
+    )
+    app.state.insight_worker.start()
+    print("InsightWorker started")
 
     try:
         yield
