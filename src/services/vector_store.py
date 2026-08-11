@@ -156,3 +156,20 @@ class VectorStoreService:
         except Exception:
             pass
         self._collection = None
+
+    def close(self) -> None:
+        """
+        Đóng persistent client và giải phóng file handles.
+
+        Quan trọng cho Windows testing — tránh PermissionError khi xóa tempdir.
+        """
+        # Reset singleton reference first
+        VectorStoreService._instance = None
+        # Try close() on client to release native handles
+        if self._client is not None:
+            try:
+                self._client.close()
+            except Exception:
+                pass
+        self._collection = None
+        self._client = None

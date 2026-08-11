@@ -29,5 +29,33 @@ class ContactRepository(BaseRepository[Contact]):
             query = query.filter(Contact.display_name.ilike(f"%{search}%"))
         return query.count()
 
+    def get_owned_contact(
+        self,
+        db: Session,
+        user_id: uuid.UUID,
+        contact_id: uuid.UUID,
+    ) -> Contact:
+        """
+        Get a contact and verify ownership.
+
+        Raises:
+            ContactService.ContactNotFoundError: if contact does not exist
+            ContactService.ContactOwnershipError: if user does not own the contact
+        """
+        # Import here to avoid circular dependency (services.contact uses repository)
+        from src.services.contact import (
+            ContactNotFoundError,
+            ContactOwnershipError,
+        )
+
+        contact = self.get(db, id=contact_id)
+        if contact is None:
+            raise ContactNotFoundError(f"Contact {contact_id} not found")
+        if contact.user_id != user_id:
+            raise ContactOwnershipError(
+                f"User {user_id} does not own contact {contact_id}"
+            )
+        return contact
+
 
 contact_repo = ContactRepository()

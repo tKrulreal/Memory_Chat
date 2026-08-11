@@ -158,7 +158,9 @@ async def test_patch_memory_empty_body(
         json={},
     )
     assert response.status_code == 400
-    assert "No fields" in response.json()["detail"]
+    body = response.json()
+    # App's exception handler formats HTTPException as {"error", "message"}
+    assert "No fields" in body.get("detail", "") or "No fields" in body.get("message", "")
 
 
 @pytest.mark.asyncio
@@ -184,6 +186,7 @@ async def test_get_memory_timeline(
             conversation_id=conversation.id,
             sender_type="USER" if i % 2 == 0 else "CONTACT",
             content=content,
+            message_type="TEXT",
         )
         db_session.add(msg)
     db_session.commit()
