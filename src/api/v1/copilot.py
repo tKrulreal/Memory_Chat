@@ -1,9 +1,411 @@
-from fastapi import APIRouter, Depends, status
-from typing import Any
+"""
+AI Copilot API — TASK-COP-05.
+
+Endpoints:
+- POST /chat              — Hỏi Copilot (gọi Assistant Orchestrator)
+- POST /stream            — Streaming response (optional)
+- POST /share             — Share AI response vào conversation input box
+"""
+
+import uuid
+import logging
+from typing import Annotated, Any, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from src.api.deps import get_db
+from src.core.security import get_current_user
+from src.models.user import User
+from src.models.chat import Message, Conversation
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-@router.post("/chat", response_model=Any)
-async def copilot_chat(payload: dict):
-    """AI Copilot interaction endpoint."""
-    return {"reply": "Mock copilot response", "context": payload}
+CurrentUserDep = Annotated[User, Depends(get_current_user)]
+DatabaseDep = Annotated[Session, Depends(get_db)]
+
+
+# =============================================================================
+# Schemas
+# =============================================================================
+
+class CopilotContext(BaseModel):
+    """Context cho copilot request."""
+    contact_id: Optional[str] = None
+    conversation_id: Optional[str] = None
+
+    model_config = {"extra": "forbid"}
+
+
+class CopilotRequest(BaseModel):
+    """Request body cho copilot."""
+    query: str = Field(..., min_length=1, max_length=1000, description="Câu hỏi của user")
+    context: Optional[CopilotContext] = None
+
+    model_config = {"extra": "forbid"}
+
+
+class CopilotToolUsed(BaseModel):
+    """Tool đã được sử dụng."""
+    tool: str
+    success: bool
+
+
+class CopilotResponse(BaseModel):
+    """Response từ copilot."""
+    response: str = Field(..., description="Câu trả lời của AI")
+    intent: str = Field(..., description="Intent đã được detect")
+    tools_used: list[str] = Field(default_factory=list, description="Tools đã sử dụng")
+    sources: list[str] = Field(default_factory=list, description="Nguồn dữ liệu đã sử dụng")
+    is_valid: bool = Field(default=True, description="Response có valid không")
+
+    model_config = {"from_attributes": True}
+
+
+class ShareRequest(BaseModel):
+    """Request để share AI response vào conversation."""
+    conversation_id: str = Field(..., description="UUID của conversation")
+    content: str = Field(..., min_length=1, max_length=5000, description="Nội dung AI response để share")
+    save_to_draft: bool = Field(
+        default=False,
+        description="True = lưu vào draft, False = tạo message thật (default: tạo draft)"
+    )
+
+    model_config = {"extra": "forbid"}
+
+
+class ShareResponse(BaseModel):
+    """Response sau khi share."""
+    status: str
+    message: str
+    conversation_id: str
+    content: str
+
+
+# =============================================================================
+# Helpers
+# =============================================================================
+
+def _verify_conversation_access(
+    db: Session,
+    user_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+) -> Conversation:
+    """Verify user owns the conversation."""
+    from src.models.chat import Conversation
+    conv = db.get(Conversation, conversation_id)
+    if not conv:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found",
+        )
+    if conv.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not allowed to access this conversation",
+        )
+    return conv
+
+
+def _log_copilot_interaction(
+    user_id: uuid.UUID,
+    query: str,
+    response: str,
+    intent: str,
+    tools_used: list[str],
+) -> None:
+    """Log copilot interaction vào file."""
+    import json
+    import os
+    from datetime import datetime
+
+    log_dir = ".ai-log"
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "copilot.jsonl")
+
+    entry = {
+        "ts": datetime.now().isoformat(),
+        "user_id": str(user_id),
+        "query": query,
+        "response": response,
+        "intent": intent,
+        "tools_used": tools_used,
+    }
+
+    try:
+        with open(log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception as e:
+        logger.warning(f"Failed to log copilot interaction: {e}")
+
+
+def _emit_open_ai_event(
+    request,
+    user_id: uuid.UUID,
+    conversation_id: Optional[uuid.UUID],
+    contact_id: Optional[uuid.UUID],
+) -> None:
+    """Emit OPEN_AI event để trigger background processing."""
+    from src.events.types import EventType
+
+    payload = {"query_type": "copilot"}
+    if conversation_id:
+        payload["conversation_id"] = str(conversation_id)
+    if contact_id:
+        payload["contact_id"] = str(contact_id)
+
+    if hasattr(request.app.state, "event_bus"):
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.create_task(
+                    request.app.state.event_bus.publish(
+                        EventType.OPEN_AI,
+                        user_id=user_id,
+                        payload=payload,
+                        conversation_id=conversation_id,
+                    )
+                )
+        except Exception:
+            pass  # Best effort
+
+
+# =============================================================================
+# Endpoints
+# =============================================================================
+
+@router.post("", response_model=CopilotResponse)
+async def copilot_chat(
+    payload: CopilotRequest,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+    request: Any = None,  # FastAPI Request
+) -> CopilotResponse:
+    """
+    Hỏi AI Copilot.
+
+    Gọi Assistant Orchestrator để xử lý query của user.
+    Response được log vào `.ai-log/`.
+    """
+    from src.agents import run_copilot
+
+    try:
+        # Build context
+        context_kwargs = {"user_id": str(current_user.id)}
+        if payload.context:
+            if payload.context.contact_id:
+                context_kwargs["contact_id"] = payload.context.contact_id
+            if payload.context.conversation_id:
+                context_kwargs["conversation_id"] = payload.context.conversation_id
+
+        # Run orchestrator
+        result = await run_copilot(
+            query=payload.query,
+            **context_kwargs,
+        )
+
+        # Log interaction
+        _log_copilot_interaction(
+            user_id=current_user.id,
+            query=payload.query,
+            response=result.get("response", ""),
+            intent=result.get("intent", "UNKNOWN"),
+            tools_used=result.get("tools_used", []),
+        )
+
+        # Emit event for background processing
+        conv_id = payload.context.conversation_id if payload.context else None
+        contact_id = payload.context.contact_id if payload.context else None
+        _emit_open_ai_event(
+            request,
+            current_user.id,
+            uuid.UUID(conv_id) if conv_id else None,
+            uuid.UUID(contact_id) if contact_id else None,
+        )
+
+        return CopilotResponse(
+            response=result.get("response", ""),
+            intent=result.get("intent", "UNKNOWN"),
+            tools_used=result.get("tools_used", []),
+            is_valid=result.get("is_valid", True),
+        )
+
+    except Exception as e:
+        logger.error(f"Copilot chat failed: {e}")
+        return CopilotResponse(
+            response="Xin lỗi, hệ thống đang bận. Vui lòng thử lại sau.",
+            intent="ERROR",
+            tools_used=[],
+            is_valid=False,
+        )
+
+
+@router.post("/stream", response_model=CopilotResponse)
+async def copilot_chat_stream(
+    payload: CopilotRequest,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+) -> StreamingResponse:
+    """
+    AI Copilot với streaming response.
+
+    Response được stream về client để hiển thị typing effect.
+    """
+    from src.agents import run_copilot
+
+    async def generate():
+        try:
+            # Run orchestrator
+            result = await run_copilot(
+                query=payload.query,
+                user_id=str(current_user.id),
+                contact_id=payload.context.contact_id if payload.context else None,
+                conversation_id=payload.context.conversation_id if payload.context else None,
+            )
+
+            response_text = result.get("response", "")
+
+            # Stream word by word
+            for word in response_text.split():
+                yield f"data: {word} \n\n"
+                import asyncio
+                await asyncio.sleep(0.02)  # Small delay for effect
+
+            # Send final event
+            yield f"data: [DONE]\n\n"
+
+        except Exception as e:
+            logger.error(f"Copilot stream failed: {e}")
+            yield f"data: Xin lỗi, đã xảy ra lỗi.\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
+
+
+@router.post("/share", response_model=ShareResponse)
+async def share_to_conversation(
+    payload: ShareRequest,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+) -> ShareResponse:
+    """
+    Share AI response vào conversation input box.
+
+    Tạo một draft message (USER message type) trong conversation
+    để user có thể edit trước khi gửi.
+
+    User phải verify ownership của conversation.
+    """
+    try:
+        conv_id = uuid.UUID(payload.conversation_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid conversation_id format",
+        )
+
+    # Verify conversation access
+    conversation = _verify_conversation_access(db, current_user.id, conv_id)
+
+    # Create draft message
+    draft_message = Message(
+        conversation_id=conv_id,
+        sender_type="USER",
+        content=payload.content,
+        message_type="DRAFT" if payload.save_to_draft else "TEXT",
+    )
+    db.add(draft_message)
+    db.commit()
+    db.refresh(draft_message)
+
+    logger.info(
+        f"Shared AI response to conversation {conv_id} "
+        f"by user {current_user.id}"
+    )
+
+    return ShareResponse(
+        status="shared",
+        message="AI response đã được chia sẻ vào ô nhập tin nhắn. Bạn có thể chỉnh sửa trước khi gửi.",
+        conversation_id=payload.conversation_id,
+        content=payload.content,
+    )
+
+
+# =============================================================================
+# Additional Endpoints
+# =============================================================================
+
+@router.get("/intents")
+def list_supported_intents() -> dict[str, Any]:
+    """
+    Lấy danh sách intents mà Copilot hỗ trợ.
+
+    Useful cho frontend để hiển thị examples.
+    """
+    return {
+        "intents": [
+            {
+                "name": "SEARCH",
+                "description": "Tìm kiếm contacts",
+                "examples": [
+                    "Tìm người làm AI ở Hà Nội",
+                    "Ai biết về blockchain?",
+                    "Tìm founder startup",
+                ],
+            },
+            {
+                "name": "MEMORY",
+                "description": "Hỏi về thông tin đã nhớ",
+                "examples": [
+                    "Người này là ai?",
+                    "Họ làm ở đâu?",
+                    "Chúng ta đã trao đổi gì?",
+                ],
+            },
+            {
+                "name": "REPLY_SUGGEST",
+                "description": "Gợi ý trả lời",
+                "examples": [
+                    "Tôi nên nhắn gì?",
+                    "Gợi ý reply cho người này",
+                    "Viết giúp tôi một tin nhắn",
+                ],
+            },
+            {
+                "name": "RECOMMENDATION",
+                "description": "Hỏi về gợi ý",
+                "examples": [
+                    "Ai cần follow-up?",
+                    "Có gì mới không?",
+                    "Ai nên ưu tiên?",
+                ],
+            },
+            {
+                "name": "TAG_SUGGEST",
+                "description": "Gợi ý tags",
+                "examples": [
+                    "Gợi ý tags cho người này",
+                    "Nên gắn nhãn gì?",
+                ],
+            },
+            {
+                "name": "CONNECTION",
+                "description": "Hỏi về kết nối",
+                "examples": [
+                    "Ai phù hợp để giới thiệu?",
+                    "Có người nào tương tự không?",
+                ],
+            },
+        ]
+    }

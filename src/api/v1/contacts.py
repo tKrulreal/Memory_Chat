@@ -15,7 +15,7 @@ from src.schemas.contact import ContactCreate, ContactResponse, ContactUpdate
 from src.schemas.pagination import PaginatedResponse, Pagination
 from src.services.contact import ContactNotFoundError, ContactOwnershipError, ContactService
 from src.agents.insight.agent import InsightAgent
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import datetime
 
 
@@ -163,7 +163,7 @@ async def refresh_contact_insights(
 ):
     # Verify ownership
     _get_owned_contact(service, db, current_user.id, contact_id)
-    
+
     # Emit event to trigger background InsightWorker
     await event_bus.publish(
         event_type=EventType.MEMORY_UPDATED,
@@ -171,6 +171,101 @@ async def refresh_contact_insights(
         payload={"contact_id": str(contact_id)}
     )
 
-    
+
     return {"status": "refresh_triggered", "contact_id": str(contact_id)}
+
+
+# =============================================================================
+# Tagging Endpoints (TASK-COP-03)
+# =============================================================================
+
+class TagListResponse(BaseModel):
+    tags: list[str]
+
+
+class TagApproveRequest(BaseModel):
+    tags: list[str] = Field(..., min_length=1, description="List of tag names to approve")
+
+
+@router.get("/{contact_id}/tags", response_model=TagListResponse)
+def get_contact_tags(
+    contact_id: uuid.UUID,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+    service: ContactServiceDep,
+) -> TagListResponse:
+    """Lấy danh sách tags của một contact."""
+    _get_owned_contact(service, db, current_user.id, contact_id)
+
+    from src.agents.tagging import TaggingAgent
+    agent = TaggingAgent()
+    tags = agent.get_contact_tags(db, contact_id)
+    return TagListResponse(tags=tags)
+
+
+@router.get("/{contact_id}/suggested-tags", response_model=TagListResponse)
+async def get_suggested_tags(
+    contact_id: uuid.UUID,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+    service: ContactServiceDep,
+) -> TagListResponse:
+    """
+    Đề xuất tags cho contact dựa trên Memory.
+
+    Gọi TaggingAgent để phân tích memory và đề xuất tags phù hợp.
+    """
+    _get_owned_contact(service, db, current_user.id, contact_id)
+
+    from src.agents.tagging import TaggingAgent
+    agent = TaggingAgent()
+    suggested = await agent.suggest_tags(contact_id, db)
+    return TagListResponse(tags=suggested)
+
+
+@router.post("/{contact_id}/tags", response_model=TagListResponse, status_code=status.HTTP_201_CREATED)
+async def approve_contact_tags(
+    contact_id: uuid.UUID,
+    request: TagApproveRequest,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+    service: ContactServiceDep,
+) -> TagListResponse:
+    """
+    User approve tags → lưu vào ContactTag.
+
+    Tags đã approve sẽ được gắn vào contact.
+    """
+    _get_owned_contact(service, db, current_user.id, contact_id)
+
+    from src.agents.tagging import TaggingAgent
+    agent = TaggingAgent()
+    saved_tags = await agent.approve_tags(db, contact_id, request.tags)
+    return TagListResponse(tags=[t.name for t in saved_tags])
+
+
+@router.delete("/{contact_id}/tags/{tag_name}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_contact_tag(
+    contact_id: uuid.UUID,
+    tag_name: str,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+    service: ContactServiceDep,
+) -> Response:
+    """Xóa một tag khỏi contact."""
+    _get_owned_contact(service, db, current_user.id, contact_id)
+
+    from src.models.contact import Tag, Contact
+    contact = db.get(Contact, contact_id)
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    # Find and remove tag
+    for tag in contact.tags:
+        if tag.name == tag_name:
+            contact.tags.remove(tag)
+            db.commit()
+            break
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 

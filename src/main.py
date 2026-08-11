@@ -13,6 +13,7 @@ from src.api.v1.memory import router as memory_router
 from src.api.v1.messages import router as messages_router
 from src.api.v1.notifications import router as notifications_router
 from src.api.v1.recommendations import router as recommendations_router
+from src.api.v1.connections import router as connections_router
 
 from src.api.v1.search import router as search_router
 from src.api.ws import router as websocket_router
@@ -98,6 +99,7 @@ app.include_router(recommendations_router, prefix="/api/v1/recommendations", tag
 
 app.include_router(search_router, prefix="/api/v1/search", tags=["search"])
 app.include_router(copilot_router, prefix="/api/v1/copilot", tags=["copilot"])
+app.include_router(connections_router, prefix="/api/v1/connections", tags=["connections"])
 
 
 @app.get("/health")
