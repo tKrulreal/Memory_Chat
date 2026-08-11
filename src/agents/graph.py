@@ -7,7 +7,8 @@ Giữ interface cũ: analyze + respond nodes.
 
 from langgraph.graph import END, StateGraph
 
-from src.agents.nodes.example_node import analyze_node, respond_node
+from src.agents.nodes.example_node import analyze_node
+from src.agents.nodes.example_node import respond_node as legacy_respond_node
 from src.agents.orchestrator import (
     AgentState,
     Intent,
@@ -32,7 +33,7 @@ def build_graph() -> StateGraph:
 
     # Add nodes
     graph.add_node("analyze", analyze_node)
-    graph.add_node("respond", respond_node)
+    graph.add_node("respond", legacy_respond_node)
 
     # Add edges
     graph.set_entry_point("analyze")
