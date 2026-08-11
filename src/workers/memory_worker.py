@@ -10,18 +10,18 @@ Trigger logic:
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from src.agents.memory import MemoryAgent
 from src.events.bus import EventBus
 from src.events.types import ChatEvent, EventType
-from src.models.contact import ContactMemory
 from src.models.chat import Conversation, Message
+from src.models.contact import ContactMemory
 from src.services.vector_store import VectorStoreService
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -81,10 +81,10 @@ class MemoryWorker:
             if conversation.last_message_time is None:
                 should_trigger = True
             else:
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 last_time = conversation.last_message_time
                 if last_time.tzinfo is None:
-                    last_time = last_time.replace(tzinfo=timezone.utc)
+                    last_time = last_time.replace(tzinfo=UTC)
                 idle_minutes = (now - last_time).total_seconds() / 60
                 should_trigger = idle_minutes >= MEMORY_IDLE_THRESHOLD_MINUTES
 
@@ -234,7 +234,7 @@ class MemoryWorker:
                     metadata={
                         "contact_id": str(contact_id),
                         "relationship_score": result.relationship_score,
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(UTC).isoformat(),
                     },
                 )
                 logger.info("Upserted memory to ChromaDB for contact_id=%s", contact_id)

@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 from src.api.routes import router
 from src.api.v1.auth import router as auth_router
+from src.api.v1.connections import router as connections_router
 from src.api.v1.contacts import router as contacts_router
 from src.api.v1.conversations import router as conversations_router
 from src.api.v1.copilot import router as copilot_router
@@ -13,18 +14,15 @@ from src.api.v1.memory import router as memory_router
 from src.api.v1.messages import router as messages_router
 from src.api.v1.notifications import router as notifications_router
 from src.api.v1.recommendations import router as recommendations_router
-from src.api.v1.connections import router as connections_router
-
 from src.api.v1.search import router as search_router
 from src.api.ws import router as websocket_router
 from src.config import get_settings
 from src.core.exceptions import setup_exception_handlers
 from src.core.middlewares import RequestLoggingMiddleware
 from src.events.bus import EventBus
-from src.models.database import SessionLocal
+from src.workers.insight_worker import InsightWorker
 from src.workers.memory_worker import MemoryWorker
 from src.workers.recommendation_worker import RecommendationWorker
-from src.workers.insight_worker import InsightWorker
 
 
 @asynccontextmanager

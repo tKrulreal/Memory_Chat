@@ -13,7 +13,6 @@ Ví dụ:
 import json
 import logging
 import uuid
-from typing import Optional
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -61,11 +60,11 @@ class ConnectionPair(BaseModel):
 
 
 class ConnectionAgent:
-    def __init__(self, llm: Optional[LLMGateway] = None):
+    def __init__(self, llm: LLMGateway | None = None):
         self._llm = llm or LLMGateway()
         self._vector_store = VectorStoreService.get_instance()
 
-    def _build_contact_summary(self, contact: Contact, memory: Optional[ContactMemory] = None) -> str:
+    def _build_contact_summary(self, contact: Contact, memory: ContactMemory | None = None) -> str:
         """Build summary string cho contact."""
         parts = [
             f"Name: {contact.display_name}",
@@ -131,8 +130,8 @@ class ConnectionAgent:
         self,
         contact_a: Contact,
         contact_b: Contact,
-        memory_a: Optional[ContactMemory],
-        memory_b: Optional[ContactMemory],
+        memory_a: ContactMemory | None,
+        memory_b: ContactMemory | None,
     ) -> tuple[bool, str, str]:
         """
         Dùng LLM để phân tích và sinh reasoning cho connection.
@@ -173,7 +172,7 @@ class ConnectionAgent:
     async def find_connections(
         self,
         user_id: uuid.UUID,
-        db: Optional[Session] = None,
+        db: Session | None = None,
         top_k: int = 5,
     ) -> list[ConnectionPair]:
         """
@@ -192,7 +191,6 @@ class ConnectionAgent:
         Returns:
             List of ConnectionPair
         """
-        from src.models.database import SessionLocal
 
         is_local_db = db is None
         db = db or SessionLocal()
@@ -202,7 +200,7 @@ class ConnectionAgent:
             contacts = db.query(Contact).filter(Contact.user_id == user_id).all()
 
             if len(contacts) < 2:
-                logger.info(f"Not enough contacts for connection suggestions")
+                logger.info("Not enough contacts for connection suggestions")
                 return []
 
             # Build contact -> memory mapping
@@ -287,7 +285,7 @@ class ConnectionAgent:
     def suggest_connections_for_contact(
         self,
         contact_id: uuid.UUID,
-        db: Optional[Session] = None,
+        db: Session | None = None,
         top_k: int = 3,
     ) -> list[ConnectionPair]:
         """
@@ -301,7 +299,6 @@ class ConnectionAgent:
         Returns:
             List of ConnectionPair
         """
-        from src.models.database import SessionLocal
 
         is_local_db = db is None
         db = db or SessionLocal()

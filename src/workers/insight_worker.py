@@ -1,9 +1,8 @@
 import logging
-from typing import Dict, Any
 
-from src.events.bus import EventBus
-from src.events.types import EventType, ChatEvent
 from src.agents.insight.agent import InsightAgent
+from src.events.bus import EventBus
+from src.events.types import ChatEvent, EventType
 
 logger = logging.getLogger(__name__)
 
@@ -11,11 +10,11 @@ class InsightWorker:
     def __init__(self, event_bus: EventBus):
         self._event_bus = event_bus
         self._agent = InsightAgent()
-        
+
     def start(self):
         """Subscribe to events."""
         self._event_bus.subscribe(EventType.MEMORY_UPDATED, self._handle_memory_updated)
-        
+
     async def _handle_memory_updated(self, event: ChatEvent):
         """
         Handle memory update event by generating insights.

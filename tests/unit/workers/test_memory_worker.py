@@ -4,7 +4,7 @@ Tests cho MemoryWorker.
 
 import asyncio
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -115,7 +115,7 @@ class TestMemoryWorker:
         contact_id = uuid.uuid4()
         conversation = MagicMock()
         conversation.contact_id = contact_id
-        conversation.last_message_time = datetime.now(timezone.utc) - timedelta(minutes=10)
+        conversation.last_message_time = datetime.now(UTC) - timedelta(minutes=10)
 
         session = mock_session_factory.return_value
         session.query.return_value.filter.return_value.first.return_value = conversation
@@ -135,7 +135,7 @@ class TestMemoryWorker:
         # Conversation has message < 5 minutes ago
         conversation = MagicMock()
         conversation.contact_id = uuid.uuid4()
-        conversation.last_message_time = datetime.now(timezone.utc) - timedelta(minutes=1)
+        conversation.last_message_time = datetime.now(UTC) - timedelta(minutes=1)
 
         session = mock_session_factory.return_value
         session.query.return_value.filter.return_value.first.return_value = conversation

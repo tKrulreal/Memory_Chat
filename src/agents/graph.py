@@ -7,15 +7,13 @@ Giữ interface cũ: analyze + respond nodes.
 
 from langgraph.graph import END, StateGraph
 
-from src.agents.orchestrator import (
-    orchestrator as _orchestrator,
-    Intent,
-    run_copilot,
-    intent_detection_node,
-    respond_node,
-    AgentState,
-)
 from src.agents.nodes.example_node import analyze_node, respond_node
+from src.agents.orchestrator import (
+    AgentState,
+    Intent,
+    respond_node,
+    run_copilot,
+)
 
 # Re-export for backward compat
 __all__ = ["build_graph", "agent", "analyze_node", "respond_node", "run_copilot", "Intent"]

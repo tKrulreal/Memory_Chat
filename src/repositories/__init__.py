@@ -1,7 +1,7 @@
 from src.repositories.base import BaseRepository
-from src.repositories.contact import contact_repo, ContactRepository
-from src.repositories.conversation import conversation_repo, ConversationRepository
-from src.repositories.message import message_repo, MessageRepository
+from src.repositories.contact import ContactRepository, contact_repo
+from src.repositories.conversation import ConversationRepository, conversation_repo
+from src.repositories.message import MessageRepository, message_repo
 
 __all__ = [
     "BaseRepository",

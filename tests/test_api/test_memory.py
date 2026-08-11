@@ -3,15 +3,13 @@ Tests cho Memory API endpoints.
 """
 
 import uuid
-from unittest.mock import AsyncMock, patch
 
 import pytest
-import pytest_asyncio
 from sqlalchemy.orm import Session
 
 from src.events.bus import EventBus
-from src.models.contact import Contact, ContactMemory
 from src.models.chat import Conversation, Message
+from src.models.contact import Contact, ContactMemory
 
 
 @pytest.mark.asyncio

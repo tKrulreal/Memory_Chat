@@ -1,5 +1,6 @@
-from src.repositories.base import BaseRepository
 from src.models.user import Setting
+from src.repositories.base import BaseRepository
+
 
 class SettingRepository(BaseRepository[Setting]):
     pass

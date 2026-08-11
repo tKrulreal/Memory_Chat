@@ -1,26 +1,25 @@
-import uuid
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import List, Optional
+import uuid
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
-from src.models.database import SessionLocal
-from src.models.contact import Contact, ContactMemory
-from src.models.chat import Conversation, Message
-from src.models.ai import Recommendation
-from src.schemas.enums import RecommendationType, MessageRole
 from src.gateways.llm import LLMGateway
+from src.models.ai import Recommendation
+from src.models.chat import Conversation, Message
+from src.models.contact import Contact, ContactMemory
+from src.models.database import SessionLocal
+from src.schemas.enums import MessageRole, RecommendationType
 
 logger = logging.getLogger(__name__)
 VN_TZ = timezone(timedelta(hours=7))
 
 class RecommendationAgent:
-    def __init__(self, llm: Optional[LLMGateway] = None):
+    def __init__(self, llm: LLMGateway | None = None):
         self._llm = llm or LLMGateway()
 
-    async def generate(self, user_id: uuid.UUID, db: Optional[Session] = None) -> List[Recommendation]:
+    async def generate(self, user_id: uuid.UUID, db: Session | None = None) -> list[Recommendation]:
         """
         Generate recommendations for all contacts of a specific user.
         (For production, we might want to run this incrementally or per contact)
@@ -62,12 +61,12 @@ class RecommendationAgent:
                     rec.reason = reason
                     db.add(rec)
                     saved_recs.append(rec)
-            
+
             if saved_recs:
                 db.commit()
                 for rec in saved_recs:
                     db.refresh(rec)
-                
+
             return saved_recs
         except Exception as e:
             db.rollback()
@@ -77,7 +76,7 @@ class RecommendationAgent:
             if is_local_db:
                 db.close()
 
-    def _check_priority_rule(self, db: Session, user_id: uuid.UUID) -> List[Recommendation]:
+    def _check_priority_rule(self, db: Session, user_id: uuid.UUID) -> list[Recommendation]:
         recs = []
         stmt = select(ContactMemory, Contact).join(Contact).where(
             and_(
@@ -94,14 +93,14 @@ class RecommendationAgent:
             recs.append(rec)
         return recs
 
-    def _check_followup_rule(self, db: Session, user_id: uuid.UUID) -> List[Recommendation]:
+    def _check_followup_rule(self, db: Session, user_id: uuid.UUID) -> list[Recommendation]:
         recs = []
         seven_days_ago = datetime.now(VN_TZ) - timedelta(days=7)
         # Find conversations where last message was older than 7 days
         stmt = select(Conversation).where(
             and_(
                 Conversation.user_id == user_id,
-                Conversation.last_message_time != None,
+                Conversation.last_message_time is not None,
                 Conversation.last_message_time < seven_days_ago
             )
         )
@@ -115,14 +114,14 @@ class RecommendationAgent:
             recs.append(rec)
         return recs
 
-    def _check_reply_rule(self, db: Session, user_id: uuid.UUID) -> List[Recommendation]:
+    def _check_reply_rule(self, db: Session, user_id: uuid.UUID) -> list[Recommendation]:
         recs = []
         one_day_ago = datetime.now(VN_TZ) - timedelta(days=1)
-        
+
         stmt = select(Conversation).where(
             and_(
                 Conversation.user_id == user_id,
-                Conversation.last_message_time != None,
+                Conversation.last_message_time is not None,
                 Conversation.last_message_time < one_day_ago
             )
         )

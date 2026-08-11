@@ -1,15 +1,15 @@
 import asyncio
-import sys
-import uuid
 import logging
+import sys
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from src.models.database import SessionLocal, Base, engine
-from src.models.user import User
 from src.agents.recommendation import RecommendationAgent
+from src.models.database import Base, SessionLocal, engine
+from src.models.user import User
+
 
 async def main():
     logger.info("Initializing database metadata if needed...")
@@ -33,13 +33,13 @@ async def main():
             db.add(user)
             db.commit()
             db.refresh(user)
-        
+
         logger.info(f"Using user_id: {user.id}")
 
         logger.info("Running RecommendationAgent...")
         agent = RecommendationAgent()
         recs = await agent.generate(user_id=user.id)
-        
+
         logger.info(f"Generated {len(recs)} recommendations.")
         for r in recs:
             logger.info(f"Type: {r.type} | Priority: {r.priority} | Reason: {r.reason}")

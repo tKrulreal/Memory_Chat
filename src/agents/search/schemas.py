@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+
 class SearchResult(BaseModel):
     contact_id: str = Field(description="ID của contact")
     name: str = Field(description="Tên của contact")

@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 
 from src.api.deps import get_db
 from src.core.security import get_current_user
-from src.models.user import User
 from src.models.contact import Contact
+from src.models.user import User
 from src.repositories.contact import ContactRepository
 
 router = APIRouter()

@@ -1,11 +1,13 @@
+import uuid
+
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
+
 from src.api.deps import get_db
-from src.services.auth import AuthService, UserCreate, UserLogin
 from src.core.security import get_current_user
 from src.models.user import User
-import uuid
-from pydantic import BaseModel, ConfigDict
+from src.services.auth import AuthService, UserCreate, UserLogin
 
 router = APIRouter()
 

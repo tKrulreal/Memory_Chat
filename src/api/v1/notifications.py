@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.api.deps import get_db
 from src.core.security import get_current_user
-from src.models.user import User, Notification
+from src.models.user import Notification, User
 from src.schemas.pagination import PaginatedResponse, Pagination
 
 router = APIRouter()
@@ -34,11 +34,11 @@ def list_notifications(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
     skip = (page - 1) * limit
-    
+
     query = db.query(Notification).filter(Notification.user_id == current_user.id)
     total = query.count()
     notifications = query.order_by(Notification.created_at.desc()).offset(skip).limit(limit).all()
-    
+
     data = []
     for notif in notifications:
         n_resp = NotificationResponse(
@@ -51,7 +51,7 @@ def list_notifications(
             created_at=notif.created_at.isoformat() if notif.created_at else ""
         )
         data.append(n_resp)
-        
+
     return PaginatedResponse(
         data=data,
         pagination=Pagination(page=page, limit=limit, total=total)
@@ -68,15 +68,15 @@ def mark_notification_read(
         Notification.id == notification_id,
         Notification.user_id == current_user.id
     ).first()
-    
+
     if not notif:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
-        
+
     if notif.status != "READ":
         notif.status = "READ"
         db.commit()
         db.refresh(notif)
-        
+
     return NotificationResponse(
         id=notif.id,
         user_id=notif.user_id,

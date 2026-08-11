@@ -8,15 +8,13 @@ import logging
 import uuid
 from typing import Annotated
 
-from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
 from sqlalchemy.orm import Session
 
 from src.gateways.llm import LLMGateway
-from src.models.database import SessionLocal
 from src.models.ai import Recommendation
 from src.models.contact import Contact, ContactMemory
-from src.schemas.enums import RecommendationType
+from src.models.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +59,7 @@ def get_recommendations(
         except ValueError:
             return f"Invalid user_id: {user_id}"
 
-        from sqlalchemy import select, desc
+        from sqlalchemy import desc, select
 
         # ✅ FIX: Lọc theo user_id để ngăn data leak
         stmt = (
@@ -147,6 +145,7 @@ def recommend_reply(
 
         # Get recent messages
         from sqlalchemy import select
+
         from src.models.chat import Conversation, Message
 
         stmt = (

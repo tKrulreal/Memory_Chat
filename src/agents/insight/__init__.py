@@ -1,3 +1,3 @@
-from .agent import InsightAgent, InsightType, Insight
+from .agent import Insight, InsightAgent, InsightType
 
 __all__ = ["InsightAgent", "InsightType", "Insight"]

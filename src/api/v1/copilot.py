@@ -7,9 +7,9 @@ Endpoints:
 - POST /share             — Share AI response vào conversation input box
 """
 
-import uuid
 import logging
-from typing import Annotated, Any, Optional
+import uuid
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -18,8 +18,8 @@ from sqlalchemy.orm import Session
 
 from src.api.deps import get_db
 from src.core.security import get_current_user
+from src.models.chat import Conversation, Message
 from src.models.user import User
-from src.models.chat import Message, Conversation
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +35,8 @@ DatabaseDep = Annotated[Session, Depends(get_db)]
 
 class CopilotContext(BaseModel):
     """Context cho copilot request."""
-    contact_id: Optional[str] = None
-    conversation_id: Optional[str] = None
+    contact_id: str | None = None
+    conversation_id: str | None = None
 
     model_config = {"extra": "forbid"}
 
@@ -44,7 +44,7 @@ class CopilotContext(BaseModel):
 class CopilotRequest(BaseModel):
     """Request body cho copilot."""
     query: str = Field(..., min_length=1, max_length=1000, description="Câu hỏi của user")
-    context: Optional[CopilotContext] = None
+    context: CopilotContext | None = None
 
     model_config = {"extra": "forbid"}
 
@@ -146,8 +146,8 @@ def _log_copilot_interaction(
 def _emit_open_ai_event(
     request,
     user_id: uuid.UUID,
-    conversation_id: Optional[uuid.UUID],
-    contact_id: Optional[uuid.UUID],
+    conversation_id: uuid.UUID | None,
+    contact_id: uuid.UUID | None,
 ) -> None:
     """Emit OPEN_AI event để trigger background processing."""
     from src.events.types import EventType
@@ -277,11 +277,11 @@ async def copilot_chat_stream(
                 await asyncio.sleep(0.02)  # Small delay for effect
 
             # Send final event
-            yield f"data: [DONE]\n\n"
+            yield "data: [DONE]\n\n"
 
         except Exception as e:
             logger.error(f"Copilot stream failed: {e}")
-            yield f"data: Xin lỗi, đã xảy ra lỗi.\n\n"
+            yield "data: Xin lỗi, đã xảy ra lỗi.\n\n"
 
     return StreamingResponse(
         generate(),
@@ -316,7 +316,7 @@ async def share_to_conversation(
         )
 
     # Verify conversation access
-    conversation = _verify_conversation_access(db, current_user.id, conv_id)
+    _verify_conversation_access(db, current_user.id, conv_id)
 
     # Create draft message
     draft_message = Message(

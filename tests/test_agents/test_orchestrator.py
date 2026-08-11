@@ -4,22 +4,21 @@ Tests cho Assistant Orchestrator (WS-05 TASK-COP-01).
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-import uuid
 
 import pytest
 
 from src.agents.orchestrator import (
     Intent,
-    intent_detection_node,
-    context_builder_node,
-    tool_selection_node,
-    agent_execution_node,
-    response_validator_node,
-    respond_node,
     _classify_intent,
     _generate_chitchat_response,
+    agent_execution_node,
     build_orchestrator,
+    context_builder_node,
+    intent_detection_node,
+    respond_node,
+    response_validator_node,
     run_copilot,
+    tool_selection_node,
 )
 from src.agents.state import AgentState
 
@@ -29,7 +28,6 @@ class TestIntentClassification:
 
     def test_classify_search_intent(self):
         """Từ khóa tìm kiếm → SEARCH intent."""
-        from src.gateways.llm import LLMGateway
         llm = MagicMock()
         intent, conf = _classify_intent("tìm người làm AI ở Hà Nội", llm)
         assert intent == Intent.SEARCH
@@ -37,7 +35,6 @@ class TestIntentClassification:
 
     def test_classify_memory_intent(self):
         """Từ khóa về memory → MEMORY intent."""
-        from src.gateways.llm import LLMGateway
         llm = MagicMock()
         intent, conf = _classify_intent("người này là ai", llm)
         assert intent == Intent.MEMORY
@@ -45,7 +42,6 @@ class TestIntentClassification:
 
     def test_classify_reply_suggest_intent(self):
         """Từ khóa về reply → REPLY_SUGGEST intent."""
-        from src.gateways.llm import LLMGateway
         llm = MagicMock()
         intent, conf = _classify_intent("tôi nên nhắn gì", llm)
         assert intent == Intent.REPLY_SUGGEST
@@ -53,7 +49,6 @@ class TestIntentClassification:
 
     def test_classify_chitchat_intent(self):
         """Từ khóa chào hỏi → CHITCHAT intent."""
-        from src.gateways.llm import LLMGateway
         llm = MagicMock()
         intent, conf = _classify_intent("chào bạn", llm)
         assert intent == Intent.CHITCHAT
@@ -61,7 +56,6 @@ class TestIntentClassification:
 
     def test_classify_recommendation_intent(self):
         """Từ khóa gợi ý → RECOMMENDATION intent."""
-        from src.gateways.llm import LLMGateway
         llm = MagicMock()
         intent, conf = _classify_intent("ai cần follow-up", llm)
         assert intent == Intent.RECOMMENDATION
@@ -69,7 +63,6 @@ class TestIntentClassification:
 
     def test_classify_tag_intent(self):
         """Từ khóa tag → TAG_SUGGEST intent."""
-        from src.gateways.llm import LLMGateway
         llm = MagicMock()
         intent, conf = _classify_intent("gợi ý tag cho người này", llm)
         assert intent == Intent.TAG_SUGGEST

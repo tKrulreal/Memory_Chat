@@ -6,15 +6,14 @@ Dùng LangChain @tool decorator.
 
 import logging
 import uuid
-from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated
 
 from langchain_core.tools import tool
 from sqlalchemy.orm import Session
 
-from src.models.database import SessionLocal
+from src.models.chat import Conversation, Message
 from src.models.contact import ContactMemory
-from src.models.chat import Message, Conversation
+from src.models.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +101,7 @@ def get_contact_memory(
             lines.append(f"\n💬 Cuộc trò chuyện gần nhất:\n{memory.last_discussion}")
 
         if memory.insights:
-            lines.append(f"\n💡 Insights:")
+            lines.append("\n💡 Insights:")
             for insight in (memory.insights if isinstance(memory.insights, list) else [memory.insights]):
                 if isinstance(insight, dict):
                     lines.append(f"  - [{insight.get('type', 'INFO')}] {insight.get('description', '')}")

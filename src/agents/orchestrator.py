@@ -16,14 +16,10 @@ import json
 import logging
 import uuid
 from enum import StrEnum
-from typing import Annotated, Any, Literal
 
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.tools import tool
 from langgraph.graph import END, StateGraph
 
 from src.agents.state import AgentState
-from src.agents.tools import TOOL_REGISTRY
 from src.gateways.llm import LLMGateway
 
 logger = logging.getLogger(__name__)
@@ -148,7 +144,7 @@ async def intent_detection_node(state: AgentState) -> dict:
     Output: intent, intent_confidence, reasoning
     """
     query = state.get("query", "")
-    context = state.get("context", {})
+    state.get("context", {})
 
     if not query:
         return {
@@ -183,7 +179,7 @@ async def context_builder_node(state: AgentState) -> dict:
     Output: context_data (string cho LLM)
     """
     context = state.get("context", {})
-    query = state.get("query", "")
+    state.get("query", "")
 
     # Build context data string
     context_parts = []
@@ -263,7 +259,7 @@ async def agent_execution_node(state: AgentState) -> dict:
     """
     tools_to_call = state.get("tools_to_call", [])
     context = state.get("context", {})
-    query = state.get("query", "")
+    state.get("query", "")
 
     if not tools_to_call:
         return {
@@ -412,8 +408,8 @@ async def respond_node(state: AgentState) -> dict:
 
         contact_name = "người này"
         if context.get("contact_id"):
-            from src.models.database import SessionLocal
             from src.models.contact import Contact
+            from src.models.database import SessionLocal
             db = SessionLocal()
             contact = db.get(Contact, uuid.UUID(context["contact_id"]))
             if contact:

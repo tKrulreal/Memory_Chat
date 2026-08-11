@@ -1,11 +1,11 @@
-from typing import Optional, Dict, Any
-from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from src.core.security import create_access_token, get_password_hash, verify_password
 from src.models.user import User
 from src.repositories.user import user_repo
-from src.core.security import get_password_hash, verify_password, create_access_token
+
 
 class UserCreate(BaseModel):
     email: str
@@ -26,7 +26,7 @@ class AuthService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
-            
+
         hashed_password = get_password_hash(data.password)
         obj_in = {
             "email": data.email,
@@ -37,7 +37,7 @@ class AuthService:
         return user
 
     @staticmethod
-    def login(db: Session, data: UserLogin) -> Dict[str, str]:
+    def login(db: Session, data: UserLogin) -> dict[str, str]:
         user = user_repo.get_by_email(db, email=data.email)
         if not user or not verify_password(data.password, user.password_hash):
             raise HTTPException(
@@ -45,6 +45,6 @@ class AuthService:
                 detail="Incorrect email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-            
+
         access_token = create_access_token(data={"sub": str(user.id)})
         return {"access_token": access_token, "token_type": "bearer"}

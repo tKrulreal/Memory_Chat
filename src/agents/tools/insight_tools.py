@@ -11,8 +11,8 @@ from typing import Annotated
 from langchain_core.tools import tool
 from sqlalchemy.orm import Session
 
-from src.models.database import SessionLocal
 from src.models.contact import ContactMemory
+from src.models.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 

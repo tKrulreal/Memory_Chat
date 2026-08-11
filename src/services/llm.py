@@ -2,13 +2,14 @@ import json
 import os
 import re
 from datetime import datetime
-from typing import List, Any
+from typing import Any
 
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.messages import BaseMessage
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.config import get_settings
+
 
 class LLMGateway:
     def __init__(self):
@@ -29,7 +30,7 @@ class LLMGateway:
     def _log_interaction(self, method: str, prompt: Any, response: Any, kwargs: dict):
         if self.settings.app_env != "development":
             return
-            
+
         def mask_pii(data: Any) -> Any:
             if isinstance(data, dict):
                 return {k: mask_pii(v) for k, v in data.items()}
@@ -42,7 +43,7 @@ class LLMGateway:
                         return json.dumps(mask_pii(parsed), ensure_ascii=False)
                 except Exception:
                     pass
-                
+
                 text = data
                 text = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '[EMAIL MASKED]', text)
                 text = re.sub(r'(?i)(password|secret|key|token)["\'\s:=]+[^\s,\]}]+', r'\1: [REDACTED]', text)
@@ -72,7 +73,7 @@ class LLMGateway:
             raise e
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    def chat(self, messages: List[BaseMessage], **kwargs) -> str:
+    def chat(self, messages: list[BaseMessage], **kwargs) -> str:
         try:
             resp = self.chat_model.invoke(messages, **kwargs)
             result = resp.content
@@ -86,7 +87,7 @@ class LLMGateway:
             raise e
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         try:
             result = self.embed_model.embed_query(text)
             self._log_interaction("embed", text, "Vector generated", {})

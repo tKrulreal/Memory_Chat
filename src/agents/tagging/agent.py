@@ -8,12 +8,11 @@ phù hợp cho user approve.
 import json
 import logging
 import uuid
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from src.gateways.llm import LLMGateway
-from src.models.contact import ContactMemory, Tag, Contact
+from src.models.contact import Contact, ContactMemory, Tag
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +42,7 @@ Không có text khác, chỉ JSON array."""
 
 
 class TaggingAgent:
-    def __init__(self, llm: Optional[LLMGateway] = None):
+    def __init__(self, llm: LLMGateway | None = None):
         self._llm = llm or LLMGateway()
 
     def _build_memory_context(self, memory: ContactMemory) -> str:
@@ -75,7 +74,7 @@ class TaggingAgent:
     async def suggest_tags(
         self,
         contact_id: uuid.UUID,
-        db: Optional[Session] = None,
+        db: Session | None = None,
         max_tags: int = 5,
     ) -> list[str]:
         """

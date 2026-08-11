@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
+
 from src.repositories.event_log import event_log_repo
+
 
 class EventLogService:
     @staticmethod
@@ -10,7 +12,7 @@ class EventLogService:
             "payload": payload
         }
         return event_log_repo.create(db, obj_in=obj_in)
-    
+
     @staticmethod
     def list_recent(db: Session, limit: int = 100):
         return event_log_repo.list_recent(db, limit=limit)

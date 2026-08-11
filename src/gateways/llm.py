@@ -1,11 +1,12 @@
-import os
 import json
+import os
 import re
-from datetime import datetime, timezone, timedelta
-from typing import List, Any
-from tenacity import retry, stop_after_attempt, wait_exponential
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_core.messages import SystemMessage, HumanMessage
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 VN_TZ = timezone(timedelta(hours=7))
 
@@ -28,7 +29,7 @@ class LLMGateway:
     def _log_interaction(self, prompt: str, response: str, method: str):
         if os.getenv("APP_ENV", "development") != "development":
             return
-            
+
         def mask_pii(data: Any) -> Any:
             if isinstance(data, dict):
                 return {k: mask_pii(v) for k, v in data.items()}
@@ -41,7 +42,7 @@ class LLMGateway:
                         return json.dumps(mask_pii(parsed), ensure_ascii=False)
                 except Exception:
                     pass
-                
+
                 text = data
                 text = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '[EMAIL MASKED]', text)
                 text = re.sub(r'(?i)(password|secret|key|token)["\'\s:=]+[^\s,\]}]+', r'\1: [REDACTED]', text)
@@ -50,7 +51,7 @@ class LLMGateway:
 
         date_str = datetime.now(VN_TZ).strftime('%Y-%m-%d')
         log_file = os.path.join(self.log_dir, f"{date_str}.jsonl")
-        
+
         entry = {
             "ts": datetime.now(VN_TZ).isoformat(),
             "tool": "llm-gateway",
@@ -61,7 +62,7 @@ class LLMGateway:
             "prompt": mask_pii(prompt),
             "response": mask_pii(response)
         }
-        
+
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
@@ -84,14 +85,14 @@ class LLMGateway:
         response = self.llm.invoke(messages)
         result = str(response.content)
         self._log_interaction(
-            prompt=f"SYS: {system_prompt}\nUSER: {user_prompt}", 
-            response=result, 
+            prompt=f"SYS: {system_prompt}\nUSER: {user_prompt}",
+            response=result,
             method="chat"
         )
         return result
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-    def embed(self, text: str) -> List[float]:
+    def embed(self, text: str) -> list[float]:
         """Generate embeddings"""
         result = self.embed_model.embed_query(text)
         self._log_interaction(prompt=text, response=f"Vector dimension: {len(result)}", method="embed")

@@ -3,8 +3,8 @@ Tests cho MemoryAgent.
 """
 
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -23,11 +23,11 @@ class TestMemoryAgentHelpers:
 
     def test_chunk_messages(self):
         messages = [
-            {"content": "Hello", "sender_type": "USER", "created_at": datetime.now(timezone.utc)},
-            {"content": "Hi", "sender_type": "CONTACT", "created_at": datetime.now(timezone.utc)},
-            {"content": "How are you?", "sender_type": "USER", "created_at": datetime.now(timezone.utc)},
-            {"content": "I'm fine thanks!", "sender_type": "CONTACT", "created_at": datetime.now(timezone.utc)},
-            {"content": "What do you do?", "sender_type": "USER", "created_at": datetime.now(timezone.utc)},
+            {"content": "Hello", "sender_type": "USER", "created_at": datetime.now(UTC)},
+            {"content": "Hi", "sender_type": "CONTACT", "created_at": datetime.now(UTC)},
+            {"content": "How are you?", "sender_type": "USER", "created_at": datetime.now(UTC)},
+            {"content": "I'm fine thanks!", "sender_type": "CONTACT", "created_at": datetime.now(UTC)},
+            {"content": "What do you do?", "sender_type": "USER", "created_at": datetime.now(UTC)},
         ]
         chunks = chunk_messages(messages, max_tokens=500)
         # All 5 messages should fit in 1 chunk (~50 chars total)
@@ -37,7 +37,7 @@ class TestMemoryAgentHelpers:
     def test_chunk_messages_long(self):
         # Create messages that exceed max_tokens
         messages = [
-            {"content": "x" * 2000, "sender_type": "USER", "created_at": datetime.now(timezone.utc)}
+            {"content": "x" * 2000, "sender_type": "USER", "created_at": datetime.now(UTC)}
             for _ in range(3)
         ]
         chunks = chunk_messages(messages, max_tokens=500)
@@ -47,7 +47,7 @@ class TestMemoryAgentHelpers:
     def test_format_conversation(self):
         messages = [
             {"content": "Hello", "sender_type": "USER", "created_at": None},
-            {"content": "Hi there", "sender_type": "CONTACT", "created_at": datetime(2026, 8, 3, 10, 0, 0, tzinfo=timezone.utc)},
+            {"content": "Hi there", "sender_type": "CONTACT", "created_at": datetime(2026, 8, 3, 10, 0, 0, tzinfo=UTC)},
         ]
         text = format_conversation_for_prompt(messages)
         assert "[USER]" in text
@@ -76,8 +76,8 @@ class TestMemoryAgent:
 
     def test_calculate_relationship_score_low(self, agent):
         messages = [
-            {"content": "Hi", "sender_type": "USER", "created_at": datetime.now(timezone.utc)},
-            {"content": "Hello", "sender_type": "CONTACT", "created_at": datetime.now(timezone.utc)},
+            {"content": "Hi", "sender_type": "USER", "created_at": datetime.now(UTC)},
+            {"content": "Hello", "sender_type": "CONTACT", "created_at": datetime.now(UTC)},
         ]
         score = agent.calculate_relationship_score(messages)
         assert 0 <= score <= 100
@@ -89,7 +89,7 @@ class TestMemoryAgent:
             {
                 "content": f"Message {i} - cảm ơn bạn rất nhiều!",
                 "sender_type": "USER" if i % 2 == 0 else "CONTACT",
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
             }
             for i in range(20)
         ]
@@ -105,17 +105,17 @@ class TestMemoryAgent:
             {
                 "content": "Hello",
                 "sender_type": "USER",
-                "created_at": datetime(2026, 8, 1, 10, 0, 0, tzinfo=timezone.utc),
+                "created_at": datetime(2026, 8, 1, 10, 0, 0, tzinfo=UTC),
             },
             {
                 "content": "Hi",
                 "sender_type": "CONTACT",
-                "created_at": datetime(2026, 8, 1, 10, 5, 0, tzinfo=timezone.utc),
+                "created_at": datetime(2026, 8, 1, 10, 5, 0, tzinfo=UTC),
             },
             {
                 "content": "How are you?",
                 "sender_type": "USER",
-                "created_at": datetime(2026, 8, 2, 11, 0, 0, tzinfo=timezone.utc),
+                "created_at": datetime(2026, 8, 2, 11, 0, 0, tzinfo=UTC),
             },
         ]
         timeline = agent.build_timeline(messages)
@@ -175,12 +175,12 @@ class TestMemoryAgent:
             {
                 "content": "Tôi là sinh viên năm 3 tại VinUni",
                 "sender_type": "USER",
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
             },
             {
                 "content": "Bạn học ngành gì?",
                 "sender_type": "CONTACT",
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
             },
         ]
 

@@ -1,23 +1,21 @@
+import datetime
 import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from src.agents.insight.agent import InsightAgent
 from src.api.deps import get_db, get_event_bus
+from src.core.security import get_current_user
 from src.events.bus import EventBus
 from src.events.types import EventType
-
-from src.core.security import get_current_user
 from src.models.user import User
 from src.repositories.contact import ContactRepository
 from src.schemas.contact import ContactCreate, ContactResponse, ContactUpdate
 from src.schemas.pagination import PaginatedResponse, Pagination
 from src.services.contact import ContactNotFoundError, ContactOwnershipError, ContactService
-from src.agents.insight.agent import InsightAgent
-from pydantic import BaseModel, Field
-import datetime
-
 
 router = APIRouter()
 
@@ -136,10 +134,10 @@ def get_contact_insights(
 ):
     # Verify ownership
     _get_owned_contact(service, db, current_user.id, contact_id)
-    
+
     from src.services.memory import MemoryService
     memory = MemoryService.get_by_contact(db, contact_id)
-    
+
     insights = []
     if memory and memory.insights:
         generated_at = memory.updated_at.isoformat() if memory.updated_at else datetime.datetime.now().isoformat()
@@ -149,7 +147,7 @@ def get_contact_insights(
                 description=i.get("description", ""),
                 generated_at=generated_at
             ))
-            
+
     return InsightListResponse(insights=insights)
 
 @router.post("/{contact_id}/insights/refresh", status_code=status.HTTP_202_ACCEPTED)
@@ -255,7 +253,7 @@ def remove_contact_tag(
     """Xóa một tag khỏi contact."""
     _get_owned_contact(service, db, current_user.id, contact_id)
 
-    from src.models.contact import Tag, Contact
+    from src.models.contact import Contact
     contact = db.get(Contact, contact_id)
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")

@@ -5,8 +5,6 @@ Tests cho AI Tools (WS-05 TASK-COP-02).
 import uuid
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 
 class TestSearchTools:
     """Test search tools."""
@@ -127,7 +125,7 @@ class TestToolRegistry:
 
         for tool in TOOL_REGISTRY:
             # LangChain @tool returns StructuredTool, not raw callable
-            assert hasattr(tool, "name"), f"Tool has no name attribute"
+            assert hasattr(tool, "name"), "Tool has no name attribute"
             assert hasattr(tool, "invoke"), f"Tool {tool.name} has no invoke method"
             # invoke should be callable
             assert callable(tool.invoke), f"Tool.invoke is not callable for {tool.name}"

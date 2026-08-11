@@ -1,10 +1,9 @@
-from typing import Annotated
-from datetime import datetime
 import uuid
+from datetime import datetime
+from typing import Annotated
 
-from sqlalchemy import String, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
-from sqlalchemy import create_engine
+from sqlalchemy import String, create_engine, func
+from sqlalchemy.orm import DeclarativeBase, mapped_column, sessionmaker
 
 from src.config import get_settings
 

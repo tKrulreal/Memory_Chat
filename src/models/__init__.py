@@ -1,8 +1,8 @@
-from src.models.database import Base, engine, SessionLocal
-from src.models.user import User, Setting, SearchHistory, Notification
-from src.models.contact import Contact, ContactMemory, Tag, contact_tag_table
+from src.models.ai import EventLog, Recommendation
 from src.models.chat import Conversation, Message
-from src.models.ai import Recommendation, EventLog
+from src.models.contact import Contact, ContactMemory, Tag, contact_tag_table
+from src.models.database import Base, SessionLocal, engine
+from src.models.user import Notification, SearchHistory, Setting, User
 
 __all__ = [
     "Base",

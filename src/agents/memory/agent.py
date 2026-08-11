@@ -17,7 +17,6 @@ from datetime import datetime
 from typing import Any
 
 from src.gateways.llm import LLMGateway
-from src.models.contact import ContactMemory
 
 logger = logging.getLogger(__name__)
 

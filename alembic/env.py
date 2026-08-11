@@ -1,7 +1,6 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
@@ -22,8 +21,8 @@ import sys
 # Ensure src is in the python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.models import Base
 from src.config import get_settings
+from src.models import Base
 
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.database_url)

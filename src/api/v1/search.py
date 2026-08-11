@@ -1,12 +1,10 @@
-import json
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from typing import Any
 
+from src.agents.search import SearchAgent
 from src.api.deps import get_db
 from src.core.security import get_current_user
-from src.models.user import User, SearchHistory
-from src.agents.search import SearchAgent
+from src.models.user import SearchHistory, User
 from src.schemas.search import SearchAPIResponse
 
 router = APIRouter()
@@ -25,7 +23,7 @@ async def semantic_search(
     """Semantic search across memories and contacts."""
     try:
         results = await agent.search(q, limit=limit)
-    except Exception as e:
+    except Exception:
         # Tạm thời log exception hoặc bọc lại, ở đây nếu lỗi trả [] theo requirement
         results = []
 
@@ -33,7 +31,7 @@ async def semantic_search(
     try:
         # Serialize list of SearchResult to dict
         results_json = [r.model_dump() for r in results]
-        
+
         history_record = SearchHistory(
             user_id=current_user.id,
             query=q,
@@ -42,7 +40,7 @@ async def semantic_search(
         )
         db.add(history_record)
         db.commit()
-    except Exception as e:
+    except Exception:
         db.rollback()
         # Vẫn trả kết quả search cho user kể cả khi log lỗi
 

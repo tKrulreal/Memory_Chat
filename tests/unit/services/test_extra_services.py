@@ -1,7 +1,7 @@
-import pytest
+from src.services.event_log import EventLogService
 from src.services.memory import MemoryService
 from src.services.recommendation import RecommendationService
-from src.services.event_log import EventLogService
+
 
 def test_extra_services():
     assert MemoryService is not None
