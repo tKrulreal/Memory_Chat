@@ -23,9 +23,10 @@
 
 - ✅ `src/api/chat.py` skeleton (gọi LangGraph `analyze` + `respond`).
 - ✅ `src/agents/graph.py` skeleton (LangGraph demo).
-- ✅ Contact / Conversation / Message API đã có.
-- ✅ WebSocket endpoint đã có.
-- ✅ Event Bus đã có.
+- ✅ Contact / Conversation / Message API đã có (WS-01).
+- ✅ WebSocket endpoint đã có (`src/api/ws.py` + `src/ws/manager.py`).
+- ✅ Event Bus đã có (`src/events/bus.py` + `src/events/types.py`).
+- ✅ Memory Worker subscribe EventBus (trong `src/workers/memory_worker.py`).
 
 ---
 
@@ -142,7 +143,7 @@ DELETE /api/v1/messages/{id}                        — Xoá Message
 - [x] Sinh Event `SEND_MESSAGE` mỗi khi có message mới
 - [x] Update `Conversation.last_message_at` mỗi khi gửi
 - [x] Pagination: `?page=1&limit=50`
-- [ ] Trigger Memory Worker qua EventBus (chuẩn bị cho WS-03)
+- [x] Trigger Memory Worker qua EventBus (chuẩn bị cho WS-03) — Event SEND_MESSAGE được publish qua event_bus
 - [x] Response bao gồm `id`, `role`, `content`, `created_at`
 
 **Commands:**

@@ -77,12 +77,25 @@ class ConnectionAgent:
                 parts.append(f"Company: {memory.company}")
             if memory.summary:
                 parts.append(f"Summary: {memory.summary}")
+
+            # Unwrap dict if skills/interest are stored as {"skills": [...]} or {"interests": [...]}
             if memory.skills:
-                skills = memory.skills if isinstance(memory.skills, list) else list(memory.skills)
-                parts.append(f"Skills: {', '.join(skills)}")
+                if isinstance(memory.skills, dict):
+                    skills_list = memory.skills.get("skills", [])
+                elif isinstance(memory.skills, list):
+                    skills_list = memory.skills
+                else:
+                    skills_list = []
+                parts.append(f"Skills: {', '.join(skills_list)}")
+
             if memory.interest:
-                interests = memory.interest if isinstance(memory.interest, list) else list(memory.interest)
-                parts.append(f"Interests: {', '.join(interests)}")
+                if isinstance(memory.interest, dict):
+                    interests_list = memory.interest.get("interests", [])
+                elif isinstance(memory.interest, list):
+                    interests_list = memory.interest
+                else:
+                    interests_list = []
+                parts.append(f"Interests: {', '.join(interests_list)}")
         else:
             parts.append("No memory available")
 
@@ -270,14 +283,26 @@ class ConnectionAgent:
         """Count shared skills/interests between two memories."""
         count = 0
 
+        # Helper to unwrap dict format {"skills": [...]} or {"interests": [...]}
+        def unwrap_to_list(value):
+            if isinstance(value, dict):
+                # Try common keys
+                for key in ["skills", "interests"]:
+                    if key in value:
+                        return value[key]
+                return []
+            elif isinstance(value, list):
+                return value
+            return []
+
         if mem_a.skills and mem_b.skills:
-            skills_a = set(s.lower() for s in (mem_a.skills if isinstance(mem_a.skills, list) else []))
-            skills_b = set(s.lower() for s in (mem_b.skills if isinstance(mem_b.skills, list) else []))
+            skills_a = set(s.lower() for s in unwrap_to_list(mem_a.skills))
+            skills_b = set(s.lower() for s in unwrap_to_list(mem_b.skills))
             count += len(skills_a & skills_b)
 
         if mem_a.interest and mem_b.interest:
-            interests_a = set(s.lower() for s in (mem_a.interest if isinstance(mem_a.interest, list) else []))
-            interests_b = set(s.lower() for s in (mem_b.interest if isinstance(mem_b.interest, list) else []))
+            interests_a = set(s.lower() for s in unwrap_to_list(mem_a.interest))
+            interests_b = set(s.lower() for s in unwrap_to_list(mem_b.interest))
             count += len(interests_a & interests_b)
 
         return count

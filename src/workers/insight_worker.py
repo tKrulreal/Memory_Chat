@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 from src.agents.insight.agent import InsightAgent
 from src.events.bus import EventBus
@@ -23,6 +24,13 @@ class InsightWorker:
         try:
             contact_id = event.payload.get("contact_id")
             if contact_id:
+                # Convert string to UUID if needed
+                if isinstance(contact_id, str):
+                    try:
+                        contact_id = uuid.UUID(contact_id)
+                    except ValueError:
+                        logger.warning(f"InsightWorker: invalid contact_id format: {contact_id}")
+                        return
                 logger.info(f"InsightWorker triggered by {event.event_type} for contact {contact_id}")
                 insights = await self._agent.generate_insights(contact_id=contact_id)
                 logger.info(f"Generated {len(insights)} insights for contact {contact_id}.")

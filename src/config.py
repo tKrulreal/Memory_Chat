@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     model_name: str = "gpt-4o-mini"
     llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     llm_timeout: int = 30
+    embedding_model: str = "text-embedding-3-small"
 
     # Database
     database_url: str = "sqlite:///./data/app.db"

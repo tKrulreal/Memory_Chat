@@ -21,7 +21,7 @@ class LLMGateway:
             request_timeout=30.0
         )
         self.embed_model = OpenAIEmbeddings(
-            model="text-embedding-3-small",
+            model=self.settings.embedding_model,
             api_key=self.settings.openai_api_key
         )
         self.log_dir = ".ai-log"

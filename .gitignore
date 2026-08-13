@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 *.py[cod]
+*.pyo
 *.so
 *.egg-info/
 dist/
@@ -60,4 +61,9 @@ out/
 .ai-log/archive/
 .vibecoding
 *.jsonl
-.ai-log
+!data/.gitkeep
+!backup/.gitkeep
+
+# Local backup files
+backup/*.tar.gz
+backup/latest.tar.gz

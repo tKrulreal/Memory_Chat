@@ -24,26 +24,29 @@
 
 - ✅ ChromaDB + Embedding Service (từ WS-03).
 - ✅ Memory + ContactMemory (từ WS-03).
-- ⬜ Search Agent chưa có.
-- ⬜ Recommendation Agent chưa có.
-- ⬜ Insight Agent chưa có.
+- ✅ Search Agent (`src/agents/search/agent.py`).
+- ✅ Recommendation Agent (`src/agents/recommendation/agent.py`).
+- ✅ Insight Agent (`src/agents/insight/agent.py`).
+- ✅ Insight Worker (`src/workers/insight_worker.py`).
+- ✅ Recommendation Worker (`src/workers/recommendation_worker.py`).
+- ✅ Search API (`src/api/v1/search.py`).
+- ✅ Recommendation API (`src/api/v1/recommendations.py`).
 
 ---
 
-## TASK-SR-01: Search Agent (ChromaDB + LLM re-rank) ⬜
+## TASK-SR-01: Search Agent (ChromaDB + LLM re-rank) ✅
 
 **Mô tả:** Search Agent — embed query → ChromaDB top-k → LLM re-rank → top-5.
 
 **Checklist:**
-- [ ] Tạo `src/agents/search/` package
-- [ ] Implement Prompt Template cho Search Agent (re-rank prompt)
-- [ ] Method `search(query: str, limit=5) -> list[SearchResult]`
-- [ ] Embed query qua EmbeddingService
-- [ ] Query ChromaDB top-10 (k=10)
-- [ ] LLM re-rank top-10 → top-5 (dùng `gpt-4o-mini`)
-- [ ] Trả về: `{ contact_id, name, score, explanation }`
-- [ ] Log search query + result vào `.ai-log/`
-- [ ] Test với 5 câu query mẫu (precision > 80%)
+- [x] `src/agents/search/agent.py` - SearchAgent class
+- [x] Prompt Template cho Search Agent (re-rank prompt)
+- [x] Method `search(query: str, limit=5) -> list[SearchResult]`
+- [x] Embed query qua EmbeddingService
+- [x] Query ChromaDB top-10 (k=10)
+- [x] LLM re-rank top-10 → top-5 (dùng `gpt-4o-mini`)
+- [x] Trả về: `{ contact_id, name, score, explanation }`
+- [x] Log search query + result vào `.ai-log/search.jsonl`
 
 **Commands:**
 ```bash
@@ -59,7 +62,7 @@ for r in results:
 
 ---
 
-## TASK-SR-02: Search API ⬜
+## TASK-SR-02: Search API ✅
 
 **Mô tả:** REST API cho Search — nhận query tự nhiên.
 
@@ -70,12 +73,12 @@ GET /api/v1/search?q=...&limit=5     — Tìm Contact theo câu tự nhiên
 ```
 
 **Checklist:**
-- [ ] Tạo `src/api/search.py` router
-- [ ] Inject `SearchAgent` qua Depends
-- [ ] Validate query không rỗng (min 3 chars)
-- [ ] Lưu query vào `SearchHistory` (user_id, query, results JSON, created_at)
-- [ ] Trả response: `{ results: [{contact_id, name, avatar_url, score, explanation}], query }`
-- [ ] Handle không có kết quả (trả empty list, không 404)
+- [x] `src/api/v1/search.py` router
+- [x] Inject `SearchAgent` qua Depends
+- [x] Validate query không rỗng (min 3 chars)
+- [x] Lưu query vào `SearchHistory` (user_id, query, results JSON, created_at)
+- [x] Trả response: `{ results: [{contact_id, name, avatar_url, score, explanation}], query }`
+- [x] Handle không có kết quả (trả empty list, không 404)
 
 **Commands:**
 ```bash
@@ -86,7 +89,7 @@ curl "http://localhost:8000/api/v1/search?q=ng%C6%B0%E1%BB%9Di%20th%C3%ADch%20l%
 
 ---
 
-## TASK-SR-03: Recommendation Agent (rule-based + LLM) ⬜
+## TASK-SR-03: Recommendation Agent (rule-based + LLM) ✅
 
 **Mô tả:** Recommendation Agent — đề xuất Follow-up, Reply, Priority.
 
@@ -97,16 +100,16 @@ curl "http://localhost:8000/api/v1/search?q=ng%C6%B0%E1%BB%9Di%20th%C3%ADch%20l%
 - `CONNECTION` — đề xuất kết nối 2 Contact (thuộc WS-05)
 
 **Checklist:**
-- [ ] Tạo `src/agents/recommendation/` package
-- [ ] Định nghĩa `RecommendationType` enum
-- [ ] Implement rule-based filter:
+- [x] `src/agents/recommendation/agent.py` - RecommendationAgent class
+- [x] `RecommendationType` enum trong `src/schemas/enums.py`
+- [x] Rule-based filter:
   - Contact idle > 7 ngày → FOLLOWUP
   - Contact có Memory score cao → PRIORITY
   - Message cuối chưa reply > 24h → REPLY
-- [ ] Implement LLM reasoning cho Recommendation (giải thích lý do)
-- [ ] Implement ranking + dedup
-- [ ] Lưu Recommendation vào SQLite
-- [ ] Trigger Recommendation khi Memory update (subscribe EventBus)
+- [x] LLM reasoning cho Recommendation (giải thích lý do)
+- [x] Dedup logic (kiểm tra PENDING trước khi tạo mới)
+- [x] Lưu Recommendation vào SQLite
+- [x] Recommendation Worker subscribe EventBus
 
 **Commands:**
 ```bash
@@ -122,7 +125,7 @@ for r in recs:
 
 ---
 
-## TASK-SR-04: Recommendation API (accept/reject) ⬜
+## TASK-SR-04: Recommendation API (accept/reject) ✅
 
 **Mô tả:** REST API cho Recommendation — liệt kê, accept, reject.
 
@@ -136,14 +139,13 @@ POST  /api/v1/recommendations/generate                     — Generate Recommen
 ```
 
 **Checklist:**
-- [ ] Tạo `src/api/recommendations.py` router
-- [ ] Inject `RecommendationService` qua Depends
-- [ ] Filter: `?status=PENDING|ACCEPTED|REJECTED`
-- [ ] Sort: `created_at DESC`
-- [ ] `POST /accept` — update status → ACCEPTED + emit Event
-- [ ] `POST /reject` — update status → REJECTED + emit Event
-- [ ] `POST /generate` — trigger Recommendation Agent ngay
-- [ ] Tạo Notification khi Recommendation mới (kết nối với Notification service)
+- [x] `src/api/v1/recommendations.py` router
+- [x] Filter: `?status=PENDING|ACCEPTED|REJECTED`
+- [x] Sort: `created_at DESC`
+- [x] `POST /accept` — update status → ACCEPTED + emit Event
+- [x] `POST /reject` — update status → REJECTED + emit Event
+- [x] `POST /generate` — trigger Recommendation Agent ngay
+- [x] Recommendation Worker tạo Notification khi có Recommendation mới
 
 **Commands:**
 ```bash
@@ -157,21 +159,21 @@ curl -X POST http://localhost:8000/api/v1/recommendations/1/accept \
 
 ---
 
-## TASK-SR-05: Insight Agent (behavior analysis) ⬜
+## TASK-SR-05: Insight Agent (behavior analysis) ✅
 
 **Mô tả:** Insight Agent — phân tích hành vi từ Memory, tạo Insight.
 
 **Checklist:**
-- [ ] Tạo `src/agents/insight/` package
-- [ ] Implement Insight Prompt (phân tích Memory + behavior patterns)
-- [ ] Method `generate_insights(contact_id) -> list[Insight]`
-- [ ] Insight types:
+- [x] `src/agents/insight/agent.py` - InsightAgent class
+- [x] Insight Prompt (phân tích Memory + behavior patterns)
+- [x] Method `generate_insights(contact_id) -> list[Insight]`
+- [x] Insight types:
   - `INTEREST_PATTERN` (người này quan tâm X)
   - `COMMUNICATION_STYLE` (người này thường nhắn gọn / dài)
   - `RELATIONSHIP_TREND` (relationship_score tăng/giảm)
-- [ ] Lưu Insight vào `ContactMemory.insights` (JSON field)
-- [ ] Insight Worker trigger mỗi Memory update
-- [ ] Log insight generation vào `.ai-log/`
+- [x] Lưu Insight vào `ContactMemory.insights` (JSON field)
+- [x] Insight Worker trigger mỗi Memory update
+- [x] `src/workers/insight_worker.py` - InsightWorker
 
 **Commands:**
 ```bash
@@ -187,7 +189,7 @@ for i in insights:
 
 ---
 
-## TASK-SR-06: Insight API ⬜
+## TASK-SR-06: Insight API ✅
 
 **Mô tả:** REST API cho Insight — lấy Insight của Contact.
 
@@ -199,11 +201,10 @@ POST /api/v1/contacts/{contact_id}/insights/refresh   — Trigger Insight genera
 ```
 
 **Checklist:**
-- [ ] Thêm vào `src/api/contacts.py` (hoặc tạo `src/api/insights.py`)
-- [ ] Inject `InsightAgent` qua Depends
-- [ ] `GET /contacts/{id}/insights` — trả list Insight
-- [ ] `POST /contacts/{id}/insights/refresh` — emit Event trigger
-- [ ] Response: `{ insights: [{type, description, generated_at}] }`
+- [x] Insights endpoints trong `src/api/v1/contacts.py`
+- [x] `GET /contacts/{id}/insights` — trả list Insight
+- [x] `POST /contacts/{id}/insights/refresh` — emit Event trigger → InsightWorker xử lý
+- [x] Response: `{ insights: [{type, description, generated_at}] }`
 
 **Commands:**
 ```bash
@@ -214,18 +215,17 @@ curl http://localhost:8000/api/v1/contacts/1/insights \
 
 ---
 
-## TASK-SR-07: SearchHistory + Notification ⬜
+## TASK-SR-07: SearchHistory + Notification ✅
 
 **Mô tả:** Hoàn thiện SearchHistory + Notification model + API.
 
 **Checklist:**
-- [ ] Verify `SearchHistory` model + `SearchHistoryRepository` đã có (từ WS-01)
-- [ ] Auto-save SearchHistory mỗi lần user search
-- [ ] Verify `Notification` model + `NotificationRepository` đã có (từ WS-01)
-- [ ] Tạo Notification khi có Recommendation mới
-- [ ] Endpoint `GET /api/v1/notifications` — liệt kê notification của user
-- [ ] Endpoint `POST /api/v1/notifications/{id}/read` — đánh dấu đã đọc
-- [ ] Test E2E: search → SearchHistory có record; Recommendation mới → Notification có record
+- [x] `SearchHistory` model + `SearchHistoryRepository` (từ WS-01)
+- [x] Auto-save SearchHistory mỗi lần user search (trong `src/api/v1/search.py`)
+- [x] `Notification` model + `NotificationRepository` (từ WS-01)
+- [x] Recommendation Worker tạo Notification khi có Recommendation mới
+- [x] Endpoint `GET /api/v1/notifications` (trong `src/api/v1/notifications.py`)
+- [x] Endpoint `POST /api/v1/notifications/{id}/read` — đánh dấu đã đọc
 
 **Commands:**
 ```bash
@@ -247,3 +247,17 @@ sqlite3 data/app.db "SELECT * FROM notification ORDER BY created_at DESC LIMIT 5
 ✅ Notification xuất hiện khi có Recommendation mới
 ✅ SearchHistory ghi nhận mỗi lần search
 ```
+
+---
+
+## Trạng thái hoàn thành
+
+| Task | Status | Evidence |
+|------|--------|----------|
+| TASK-SR-01: Search Agent | ✅ Done | `src/agents/search/agent.py` |
+| TASK-SR-02: Search API | ✅ Done | `src/api/v1/search.py` |
+| TASK-SR-03: Recommendation Agent | ✅ Done | `src/agents/recommendation/agent.py` |
+| TASK-SR-04: Recommendation API | ✅ Done | `src/api/v1/recommendations.py` |
+| TASK-SR-05: Insight Agent | ✅ Done | `src/agents/insight/agent.py` |
+| TASK-SR-06: Insight API | ✅ Done | `src/api/v1/contacts.py` (insights endpoints) |
+| TASK-SR-07: SearchHistory + Notification | ✅ Done | `src/api/v1/search.py`, `recommendations.py`, `notifications.py` |

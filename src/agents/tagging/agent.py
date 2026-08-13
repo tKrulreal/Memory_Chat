@@ -58,13 +58,24 @@ class TaggingAgent:
         if memory.company:
             parts.append(f"Company: {memory.company}")
 
+        # Unwrap dict if skills/interest are stored as {"skills": [...]} or {"interests": [...]}
         if memory.skills:
-            skills = memory.skills if isinstance(memory.skills, list) else list(memory.skills)
-            parts.append(f"Skills: {', '.join(skills)}")
+            if isinstance(memory.skills, dict):
+                skills_list = memory.skills.get("skills", [])
+            elif isinstance(memory.skills, list):
+                skills_list = memory.skills
+            else:
+                skills_list = []
+            parts.append(f"Skills: {', '.join(skills_list)}")
 
         if memory.interest:
-            interests = memory.interest if isinstance(memory.interest, list) else list(memory.interest)
-            parts.append(f"Interests: {', '.join(interests)}")
+            if isinstance(memory.interest, dict):
+                interests_list = memory.interest.get("interests", [])
+            elif isinstance(memory.interest, list):
+                interests_list = memory.interest
+            else:
+                interests_list = []
+            parts.append(f"Interests: {', '.join(interests_list)}")
 
         if memory.timeline:
             parts.append(f"Timeline: {memory.timeline}")

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from src.agents.recommendation.agent import RecommendationAgent
 from src.api.deps import get_db
 from src.core.security import get_current_user
+from src.events.types import EventType
 from src.models.ai import Recommendation
 from src.models.contact import Contact
 from src.models.user import User
@@ -14,7 +15,7 @@ from src.schemas.recommendation import RecommendationResponse
 
 router = APIRouter()
 
-@router.get("/", response_model=list[RecommendationResponse])
+@router.get("", response_model=list[RecommendationResponse])
 async def get_recommendations(
     status: str = Query("PENDING", description="Lọc theo trạng thái: PENDING, ACCEPTED, REJECTED"),
     skip: int = Query(0, ge=0),
@@ -82,7 +83,8 @@ async def accept_recommendation(
     # Emit event
     if hasattr(request.app.state, "event_bus"):
         await request.app.state.event_bus.publish(
-            "recommendation_accepted",
+            EventType.MEMORY_UPDATED,
+            current_user.id,
             {"recommendation_id": str(rec.id), "user_id": str(current_user.id), "contact_id": str(rec.contact_id)}
         )
 
@@ -116,7 +118,8 @@ async def reject_recommendation(
     # Emit event
     if hasattr(request.app.state, "event_bus"):
         await request.app.state.event_bus.publish(
-            "recommendation_rejected",
+            EventType.MEMORY_UPDATED,
+            current_user.id,
             {"recommendation_id": str(rec.id), "user_id": str(current_user.id), "contact_id": str(rec.contact_id)}
         )
 

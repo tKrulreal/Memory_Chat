@@ -7,7 +7,7 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.agents.search.schemas import SearchResult
-from src.services.llm import LLMGateway
+from src.gateways.llm import LLMGateway
 from src.services.vector_store import VectorStoreService
 
 logger = logging.getLogger(__name__)

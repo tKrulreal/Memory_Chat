@@ -174,12 +174,19 @@ Chỉ trả về MỘT câu reply ngắn gọn (dưới 50 từ), không cần g
 
         memory_context = ""
         if memory:
+            # Unwrap dict if skills/interest are stored as {"skills": [...]} or {"interests": [...]}
+            interests_list = []
+            if memory.interest:
+                if isinstance(memory.interest, dict):
+                    interests_list = memory.interest.get("interests", [])
+                elif isinstance(memory.interest, list):
+                    interests_list = memory.interest
             memory_context = f"""
 Thông tin về contact:
 - Tên: {contact.display_name}
 - Nghề nghiệp: {memory.profession or 'Chưa biết'}
 - Công ty: {memory.company or 'Chưa biết'}
-- Sở thích: {', '.join(memory.interest) if memory.interest else 'Chưa biết'}
+- Sở thích: {', '.join(interests_list) if interests_list else 'Chưa biết'}
 """
 
         user_prompt = f"""Cuộc trò chuyện gần đây:

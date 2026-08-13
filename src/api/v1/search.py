@@ -12,7 +12,7 @@ router = APIRouter()
 def get_search_agent() -> SearchAgent:
     return SearchAgent()
 
-@router.get("/", response_model=SearchAPIResponse)
+@router.get("", response_model=SearchAPIResponse)
 async def semantic_search(
     q: str = Query(..., min_length=3, description="Search query"),
     limit: int = Query(5, ge=1, le=20, description="Max results to return"),

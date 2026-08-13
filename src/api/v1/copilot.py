@@ -158,7 +158,7 @@ def _emit_open_ai_event(
     if contact_id:
         payload["contact_id"] = str(contact_id)
 
-    if hasattr(request.app.state, "event_bus"):
+    if request is not None and hasattr(request, "app") and hasattr(request.app.state, "event_bus"):
         import asyncio
         try:
             loop = asyncio.get_event_loop()

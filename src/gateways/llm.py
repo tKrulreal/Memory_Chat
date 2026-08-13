@@ -10,20 +10,77 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 VN_TZ = timezone(timedelta(hours=7))
 
+
 class LLMGateway:
-    def __init__(self):
-        self.timeout = int(os.getenv("LLM_TIMEOUT", "30"))
-        self.model_name = "gpt-4o-mini"
-        self.log_dir = os.getenv("AI_LOG_DIR", ".ai-log")
+    def __init__(
+        self,
+        model_name: str | None = None,
+        temperature: float = 0.7,
+        api_key: str | None = None,
+        base_url: str | None = None,
+    ):
+        """
+        Initialize LLM Gateway with flexible provider support.
+
+        Supports:
+        - OpenAI (default)
+        - OpenRouter (https://openrouter.ai)
+        - Other OpenAI-compatible APIs
+
+        Args:
+            model_name: Model to use (default: gpt-4o-mini)
+            temperature: Sampling temperature (default: 0.7)
+            api_key: API key (falls back to environment)
+            base_url: Custom API base URL (for OpenRouter or proxies)
+        """
         from src.config import get_settings
         settings = get_settings()
-        self.llm = ChatOpenAI(
-            model=self.model_name,
-            temperature=0.7,
-            request_timeout=self.timeout,
-            api_key=settings.openai_api_key
-        )
-        self.embed_model = OpenAIEmbeddings(api_key=settings.openai_api_key)
+
+        self.timeout = int(os.getenv("LLM_TIMEOUT", "30"))
+        self.temperature = temperature
+        self.log_dir = os.getenv("AI_LOG_DIR", ".ai-log")
+
+        # Determine provider
+        use_openrouter = os.getenv("USE_OPENROUTER", "false").lower() == "true"
+        openrouter_key = os.getenv("OPENROUTER_API_KEY", "")
+
+        if use_openrouter and openrouter_key:
+            # OpenRouter configuration
+            self.base_url = "https://openrouter.ai/api/v1"
+            self.api_key = openrouter_key
+            self.model_name = model_name or os.getenv("OPENROUTER_MODEL", "anthropic/claude-3-haiku")
+            self.provider = "openrouter"
+        elif base_url:
+            # Custom base URL
+            self.base_url = base_url
+            self.api_key = api_key or settings.openai_api_key
+            self.model_name = model_name or "gpt-4o-mini"
+            self.provider = "custom"
+        else:
+            # Default OpenAI
+            self.base_url = None
+            self.api_key = api_key or settings.openai_api_key
+            self.model_name = model_name or "gpt-4o-mini"
+            self.provider = "openai"
+
+        # Initialize LLM
+        llm_kwargs = {
+            "model": self.model_name,
+            "temperature": self.temperature,
+            "request_timeout": self.timeout,
+            "api_key": self.api_key,
+        }
+        if self.base_url:
+            llm_kwargs["base_url"] = self.base_url
+
+        self.llm = ChatOpenAI(**llm_kwargs)
+
+        # Initialize embeddings (use OpenAI for now, can be extended)
+        embed_kwargs = {"api_key": self.api_key}
+        if self.base_url and self.provider == "openrouter":
+            embed_kwargs["base_url"] = "https://openai.com/v1"  # OpenRouter doesn't support embeddings well
+        self.embed_model = OpenAIEmbeddings(**embed_kwargs)
+
         os.makedirs(self.log_dir, exist_ok=True)
 
     def _log_interaction(self, prompt: str, response: str, method: str):

@@ -74,7 +74,7 @@ class InsightAgent:
                 insights = [Insight(**item) for item in data]
 
                 # Update ContactMemory with new insights
-                memory.insights = [insight.dict() for insight in insights]
+                memory.insights = [insight.model_dump() for insight in insights]
                 db.commit()
 
                 return insights

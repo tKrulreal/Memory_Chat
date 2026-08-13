@@ -10,10 +10,17 @@ services:
     env_file:
       - .env
     volumes:
+      # SQLite database persistence
       - ./data:/app/data
+      # AI prompt/response logs persistence
+      - ./.ai-log:/app/.ai-log
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - APP_ENV=${APP_ENV:-development}
