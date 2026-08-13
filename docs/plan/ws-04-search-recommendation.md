@@ -13,6 +13,11 @@
 | Phụ thuộc | WS-03 (AI Memory) |
 | Unblock | WS-05, WS-06 |
 
+> **Specification Reference:** 
+> - [AI Agents - Search Agent](../specs/ai-agents.md#5-search-agent)
+> - [AI Agents - Recommendation Agent](../specs/ai-agents.md#6-recommendation-agent)
+> - [AI Agents - Insight Agent](../specs/ai-agents.md#9-insight-agent)
+
 ---
 
 ## Trạng thái hiện tại

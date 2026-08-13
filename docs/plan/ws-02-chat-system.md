@@ -13,6 +13,10 @@
 | Phụ thuộc | WS-01 (Backend Foundation) |
 | Unblock | WS-03, WS-04, WS-05, WS-06 |
 
+> **Specification Reference:**
+> - [API - WebSocket API](../specs/api.md#11-websocket-api)
+> - [Architecture - Data Flow](../specs/architecture.md#3-data-flow-architecture)
+
 ---
 
 ## Trạng thái hiện tại

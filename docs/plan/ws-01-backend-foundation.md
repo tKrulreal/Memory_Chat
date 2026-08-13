@@ -29,7 +29,9 @@
 
 ## TASK-BE-01: Database Models (SQLAlchemy) ✅
 
-**Mô tả:** Định nghĩa 11 bảng schema theo `docs/general overview/04_Database_Design.md`.
+**Mô tả:** Định nghĩa 11 bảng schema theo [`docs/specs/database.md`](../specs/database.md).
+
+> **Reference:** Xem chi tiết schema tại [Database Schema Specification](../specs/database.md#3-table-schemas)
 
 **Checklist:**
 - [x] Tạo `src/models/__init__.py` + base class `Base` (SQLAlchemy 2.x DeclarativeBase)
@@ -125,6 +127,8 @@ pytest tests/unit/services -v
 ## TASK-BE-05: LLM Gateway (retry + log) ✅
 
 **Mô tả:** Chuẩn hoá `src/services/llm.py` thành LLM Gateway có retry, logging, fallback.
+
+> **Reference:** Xem chi tiết tại [AI Agents Architecture - LLM Gateway](../specs/ai-agents.md#11-llm-gateway)
 
 **Checklist:**
 - [x] Refactor `src/services/llm.py` thành class `LLMGateway`
@@ -326,4 +330,6 @@ cat README.md
 ✅ Swagger UI tại /docs hiển thị đầy đủ endpoints (dù placeholder)
 ✅ make test pass
 ✅ Code theo Clean Architecture: main.py → api/ → services/ → repositories/ → models/
+
+> **Architecture Reference:** Xem chi tiết tại [System Architecture](../specs/architecture.md) và [Tech Stack](../specs/techstack.md)
 ```

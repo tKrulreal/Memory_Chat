@@ -11,16 +11,40 @@
 | Layer | Technology |
 |-------|-----------|
 | API | FastAPI + Uvicorn |
-| LLM | OpenAI `gpt-4o-mini` (LangChain) |
-| Agent | LangGraph |
-| Database | SQLite (SQLAlchemy) |
+| LLM | OpenAI `gpt-4o-mini` (LangChain/LangGraph) |
+| Agent | LangGraph Orchestrator |
+| Database | SQLite (SQLAlchemy 2.0) |
 | Vector DB | ChromaDB (local persist) |
+| Cache | In-Memory |
 | Validation | Pydantic v2 |
-| Frontend | React + Vite + TypeScript + TailwindCSS |
+| Frontend | React + Vite + TypeScript + TailwindCSS + Zustand + TanStack Query |
 | Container | Docker (single service) |
-| Dev Tool | Makefile |
+| Dev Tool | Makefile, Alembic |
 
 **Tech Stack tương lai (sau MVP):** PostgreSQL, Qdrant, Neo4j, Redis, Celery.
+
+---
+
+## Documentation
+
+| Type | Location | Description |
+|------|----------|-------------|
+| Specs | [docs/specs/](./specs/) | Technical specifications |
+| Plans | [docs/plan/](./) | Workstream plans |
+| General Overview | [docs/general overview/](../general%20overview/) | Original architecture docs |
+
+### Specs Files
+
+| File | Description |
+|------|-------------|
+| [SPEC.md](../specs/SPEC.md) | Project specifications - core features, acceptance criteria |
+| [techstack.md](../specs/techstack.md) | Complete technology stack + migration path |
+| [architecture.md](../specs/architecture.md) | System architecture diagrams + data flow |
+| [database.md](../specs/database.md) | Database schema - SQLite, PostgreSQL, ChromaDB, Neo4j |
+| [ai-agents.md](../specs/ai-agents.md) | AI Agent architecture - Memory, Search, Recommendation, Copilot |
+| [api.md](../specs/api.md) | REST API + WebSocket endpoints specification |
+| [frontend.md](../specs/frontend.md) | Frontend architecture - Design System, Components, Pages |
+| [deployment.md](../specs/deployment.md) | Infrastructure - Docker, CI/CD, Monitoring, Backup |
 
 **Template nền:** AI20K Agent Template (VinUni AI Thực Chiến starter).
 

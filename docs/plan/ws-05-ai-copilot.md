@@ -13,6 +13,13 @@
 | Phụ thuộc | WS-03 (AI Memory), WS-04 (Search & Recommendation) |
 | Unblock | WS-06 (Frontend) |
 
+> **Specification Reference:**
+> - [AI Agents - Assistant Orchestrator](../specs/ai-agents.md#3-assistant-orchestrator)
+> - [AI Agents - Tool Registry](../specs/ai-agents.md#10-tool-registry)
+> - [AI Agents - Tagging Agent](../specs/ai-agents.md#7-tagging-agent)
+> - [AI Agents - Connection Agent](../specs/ai-agents.md#8-connection-agent)
+> - [API - Copilot Endpoints](../specs/api.md#9-copilot-api)
+
 ---
 
 ## Trạng thái hiện tại

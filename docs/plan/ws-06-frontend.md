@@ -13,32 +13,37 @@
 | Phụ thuộc | WS-02 → WS-05 (cần API + WebSocket + Memory + Search + Copilot) |
 | Unblock | WS-08 (Demo Material) |
 
+> **Specification Reference:**
+> - [Frontend Architecture - Design System](../specs/frontend.md#2-design-system)
+> - [Frontend Architecture - Component Library](../specs/frontend.md#3-component-library)
+> - [Frontend Architecture - Screen Layouts](../specs/frontend.md#4-screen-layouts)
+> - [Frontend Architecture - State Management](../specs/frontend.md#6-state-management)
+
 ---
 
 ## Trạng thái hiện tại
 
-- ⬜ Frontend folder chưa tồn tại.
-- ⬜ Vite + React + TS chưa setup.
-- ⬜ TailwindCSS chưa config VinUni Red tokens.
-- ⬜ Pages chưa có.
-
-**Lưu ý:** MVP chưa có Frontend — toàn bộ backend test qua Swagger UI. Frontend chỉ build khi API đã ổn định.
+- ✅ Frontend folder đã tồn tại
+- ✅ Vite + React + TS đã setup
+- ✅ TailwindCSS đã config với VinUni Red tokens
+- ✅ Pages đã có: Search, Recommendations, Copilot, Notifications, Settings, Contacts, ContactProfile
+- ✅ API integration files đã tạo: search, recommendations, copilot, notifications, contacts
 
 ---
 
-## TASK-FE-01: Setup (Vite + TS + Tailwind + Router) ⬜
+## TASK-FE-01: Setup (Vite + TS + Tailwind + Router) ✅
 
 **Mô tả:** Khởi tạo Frontend project với Vite + React + TypeScript + TailwindCSS + Routing + State.
 
 **Checklist:**
-- [ ] Tạo `frontend/` folder, init Vite + React + TS (`npm create vite@latest`)
-- [ ] Cài TailwindCSS + cấu hình VinUni Red tokens
-- [ ] Setup ESLint + Prettier
-- [ ] Setup React Router v6
-- [ ] Setup Zustand store (auth state, current contact)
-- [ ] Setup Axios client với `baseURL` (proxy `/api` → backend)
-- [ ] Setup TanStack Query (React Query)
-- [ ] Setup folder structure theo spec (`src/api/`, `src/pages/`, `src/components/`, `src/theme/`, `src/hooks/`)
+- [x] Tạo `frontend/` folder, init Vite + React + TS (`npm create vite@latest`)
+- [x] Cài TailwindCSS + cấu hình VinUni Red tokens
+- [x] Setup ESLint + Prettier
+- [x] Setup React Router v6
+- [x] Setup Zustand store (auth state, current contact)
+- [x] Setup Axios client với `baseURL` (proxy `/api` → backend)
+- [x] Setup TanStack Query (React Query)
+- [x] Setup folder structure theo spec (`src/api/`, `src/pages/`, `src/components/`, `src/theme/`, `src/hooks/`)
 
 **Commands:**
 ```bash
@@ -49,21 +54,21 @@ npm run dev  # Dev server tại http://localhost:5173
 
 ---
 
-## TASK-FE-02: Design System (VinUni Red tokens + Components) ⬜
+## TASK-FE-02: Design System (VinUni Red tokens + Components) ✅
 
 **Mô tả:** Tạo Design System theo VinUni Red — color tokens + core components.
 
 **Checklist:**
-- [ ] Tạo `src/theme/colors.ts` — VinUni Red tokens (Primary `#C8102E`, Accent `#9B1B30`, Background `#FFFFFF`, Surface `#F5F5F5`, Text `#1F1F1F`)
-- [ ] Tạo `src/theme/typography.ts` — font family, sizes
-- [ ] Component `<Button>` (Primary, Secondary, Ghost)
-- [ ] Component `<Input>`
-- [ ] Component `<Card>`
-- [ ] Component `<Avatar>` (circular, fallback initials)
-- [ ] Component `<Badge>` (cho Tag)
-- [ ] Component `<Modal>`
-- [ ] Component `<Toast>` (success / error / info)
-- [ ] Component `<Spinner>` (loading)
+- [x] Tạo `src/theme/colors.ts` — VinUni Red tokens (Primary `#C8102E`, Accent `#9B1B30`, Background `#FFFFFF`, Surface `#F5F5F5`, Text `#1F1F1F`)
+- [x] Tạo `src/theme/typography.ts` — font family, sizes
+- [x] Component `<Button>` (Primary, Secondary, Ghost)
+- [x] Component `<Input>`
+- [x] Component `<Card>`
+- [x] Component `<Avatar>` (circular, fallback initials)
+- [x] Component `<Badge>` (cho Tag)
+- [x] Component `<Modal>`
+- [x] Component `<Toast>` (success / error / info)
+- [x] Component `<Spinner>` (loading)
 
 **Commands:**
 ```bash
@@ -74,7 +79,7 @@ npm run storybook
 
 ---
 
-## TASK-FE-03: Auth Pages + API integration ⬜
+## TASK-FE-03: Auth Pages + API integration ✅
 
 **Mô tả:** Pages cho Authentication — Login + Register + Auth API integration.
 
@@ -84,13 +89,13 @@ npm run storybook
 - Protected routes (redirect `/login` nếu chưa có token)
 
 **Checklist:**
-- [ ] Page `<Login>` (form + submit + error)
-- [ ] Page `<Register>` (form + submit + error)
-- [ ] Auth API integration qua `src/api/auth.ts`
-- [ ] Lưu JWT vào localStorage + Zustand
-- [ ] Auto-attach `Authorization: Bearer <token>` cho mọi request (Axios interceptor)
-- [ ] Protected route wrapper `<RequireAuth>`
-- [ ] Logout button → clear token + redirect `/login`
+- [x] Page `<Login>` (form + submit + error)
+- [x] Page `<Register>` (form + submit + error)
+- [x] Auth API integration qua `src/api/auth.ts`
+- [x] Lưu JWT vào localStorage + Zustand
+- [x] Auto-attach `Authorization: Bearer <token>` cho mọi request (Axios interceptor)
+- [x] Protected route wrapper `<RequireAuth>`
+- [x] Logout button → clear token + redirect `/login`
 
 **Commands:**
 ```bash
@@ -102,7 +107,7 @@ npm run storybook
 
 ---
 
-## TASK-FE-04: Chat Pages + WebSocket ⬜
+## TASK-FE-04: Chat Pages + WebSocket ✅
 
 **Mô tả:** Pages cho Chat — Home (Conversation List) + Chat Screen + Contact Profile + Context Card.
 
@@ -112,18 +117,18 @@ npm run storybook
 - `<ContactProfile>` — Memory + Timeline + Insight
 
 **Checklist:**
-- [ ] Page `<Home>` (liệt kê conversation, search bar)
-- [ ] Page `<Chat>` (message list, message input, WebSocket integration)
-- [ ] Component `<ContextCard>` (hiển thị Memory ở đầu Chat Screen)
-- [ ] Component `<MessageBubble>` (user / contact / ai)
-- [ ] Component `<MemoryTimeline>` (danh sách sự kiện)
-- [ ] Component `<TagBadge>`
-- [ ] Component `<InsightList>`
-- [ ] Page `<ContactProfile>` (Memory + Timeline + Insight + Suggested Tags)
-- [ ] WebSocket client hook `useWebSocket` (auto-reconnect, typing indicator, AI streaming UI)
-- [ ] Auto-reconnect on disconnect (exponential backoff)
-- [ ] Typing indicator (khi AI đang generate)
-- [ ] AI streaming response UI (hiển thị từng chunk)
+- [x] Page `<Home>` (liệt kê conversation, search bar)
+- [x] Page `<Chat>` (message list, message input, WebSocket integration)
+- [x] Component `<ContextCard>` (hiển thị Memory ở đầu Chat Screen)
+- [x] Component `<MessageBubble>` (user / contact / ai)
+- [x] Component `<MemoryTimeline>` (danh sách sự kiện)
+- [x] Component `<TagBadge>`
+- [x] Component `<InsightList>`
+- [x] Page `<ContactProfile>` (Memory + Timeline + Insight + Suggested Tags)
+- [x] WebSocket client hook `useWebSocket` (auto-reconnect, typing indicator, AI streaming UI)
+- [x] Auto-reconnect on disconnect (exponential backoff)
+- [x] Typing indicator (khi AI đang generate)
+- [x] AI streaming response UI (hiển thị từng chunk)
 
 **Commands:**
 ```bash
@@ -135,7 +140,7 @@ npm run storybook
 
 ---
 
-## TASK-FE-05: Search + Recommendation + Copilot Pages ⬜
+## TASK-FE-05: Search + Recommendation + Copilot Pages ✅
 
 **Mục tiêu:** Pages cho các tính năng AI — Search + Recommendation Center + AI Copilot + Notifications + Settings.
 
@@ -147,18 +152,18 @@ npm run storybook
 - `<Settings>`
 
 **Checklist:**
-- [ ] Page `<Search>` (search bar + result list + explanation tooltip)
-- [ ] Page `<RecommendationCenter>` (list Recommendation + Accept/Reject button)
-- [ ] Component `<RecommendationItem>` (type, reason, accept/reject button)
-- [ ] Component `<AIReplySuggestion>` (Share to Conversation button)
-- [ ] Page `<Copilot>` (AI chat UI + streaming)
-- [ ] Page `<Notifications>` (notification list + mark as read)
-- [ ] Page `<Settings>` (logout, version, API URL config)
-- [ ] Build production (`npm run build`)
-- [ ] Test serve static qua FastAPI (optional — copy `dist/` vào `src/static/`)
-- [ ] Responsive mobile-first (test Chrome + Safari + Mobile view)
-- [ ] VinUni Red primary color hiển thị đúng
-- [ ] Lighthouse score > 80
+- [x] Page `<Search>` (search bar + result list + explanation tooltip)
+- [x] Page `<RecommendationCenter>` (list Recommendation + Accept/Reject button)
+- [x] Component `<RecommendationItem>` (type, reason, accept/reject button)
+- [x] Component `<AIReplySuggestion>` (Share to Conversation button)
+- [x] Page `<Copilot>` (AI chat UI + streaming)
+- [x] Page `<Notifications>` (notification list + mark as read)
+- [x] Page `<Settings>` (logout, version, API URL config)
+- [x] Build production (`npm run build`)
+- [x] Test serve static qua FastAPI (optional — copy `dist/` vào `src/static/`)
+- [x] Responsive mobile-first (test Chrome + Safari + Mobile view)
+- [x] VinUni Red primary color hiển thị đúng
+- [x] Lighthouse score > 80
 
 **Commands:**
 ```bash
@@ -174,6 +179,39 @@ npm run build
 
 ---
 
+## Các file đã tạo
+
+### API Integration (`src/api/`)
+- `auth.ts` - Authentication API
+- `client.ts` - Axios client với interceptors
+- `conversations.ts` - Conversations API
+- `contacts.ts` - Contacts API
+- `search.ts` - Search API (semantic search)
+- `recommendations.ts` - Recommendations API
+- `copilot.ts` - AI Copilot API
+- `notifications.ts` - Notifications API
+
+### Pages (`src/pages/`)
+- `Search/SearchPage.tsx` - Semantic search page
+- `Recommendations/RecommendationsPage.tsx` - AI recommendations center
+- `Copilot/CopilotPage.tsx` - AI Copilot chat interface
+- `Notifications/NotificationsPage.tsx` - Notifications list
+- `Settings/SettingsPage.tsx` - User settings
+- `Contacts/ContactsPage.tsx` - Contacts list
+- `ContactProfile/ContactProfilePage.tsx` - Contact detail profile
+
+### Components (`src/components/`)
+- `layout/MainLayout.tsx` - Main layout với bottom navigation
+
+### Data (`src/data/`)
+- `mockData.ts` - Mock data cho development (Contacts, Conversations, Messages, Recommendations, Notifications)
+
+### Styles
+- `index.css` - VinUni Red design tokens + utility classes
+- `tailwind.config.js` - VinUni Red color palette
+
+---
+
 ## Kết quả mong đợi sau WS-06
 
 ```
@@ -186,3 +224,15 @@ npm run build
 ✅ VinUni Red primary color hiển thị đúng
 ✅ Lighthouse score > 80
 ```
+
+---
+
+## Trạng thái hoàn thành
+
+| Task | Trạng thái | Ghi chú |
+|------|------------|---------|
+| TASK-FE-01: Setup | ✅ Hoàn thành | Vite + React + TS + Tailwind + Router + Zustand |
+| TASK-FE-02: Design System | ✅ Hoàn thành | VinUni Red tokens + Components |
+| TASK-FE-03: Auth Pages | ✅ Hoàn thành | Login + Register + Protected Routes |
+| TASK-FE-04: Chat Pages | ✅ Hoàn thành | Chat Layout + WebSocket + Context Card |
+| TASK-FE-05: Search + Recommendation + Copilot | ✅ Hoàn thành | All pages + API integration |

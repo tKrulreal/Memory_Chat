@@ -13,6 +13,8 @@
 | Phụ thuộc | WS-01 (Backend Foundation), WS-02 (Chat System) |
 | Unblock | WS-04, WS-05, WS-06 |
 
+> **Specification Reference:** Xem chi tiết tại [AI Agents Architecture - Memory Agent](../specs/ai-agents.md#4-memory-agent)
+
 ---
 
 ## Trạng thái hiện tại
@@ -56,6 +58,8 @@ print(len(v))  # 1536
 ## TASK-MEM-02: Vector Store Service (ChromaDB) ⬜
 
 **Mô tả:** Wrapper cho ChromaDB — quản lý collection `contact_memory_embedding`.
+
+> **Reference:** Xem chi tiết tại [Database Schema - Vector Database](../specs/database.md#5-vector-database-chromadb)
 
 **Checklist:**
 - [ ] Tạo `src/services/vector_store.py` (VectorStoreService class)

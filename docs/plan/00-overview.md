@@ -96,20 +96,21 @@ Mapping chỉ để tham khảo, không ràng buộc. Workstream là đơn vị 
 
 ## 5. Deliverables Tracking
 
-| Hạng mục | File | Trạng thái |
-|----------|------|------------|
-| Spec | `docs/general overview/01-10` | ✅ |
-| Plan | `docs/plan/00-ws-XX` | ✅ |
-| Backend Skeleton | `src/` | ✅ (sẵn từ AI20K) |
-| Database Schema | `src/models/` | ⬜ |
-| Repository Layer | `src/repositories/` | ⬜ |
-| Service Layer | `src/services/` | 🟡 (skeleton) |
-| AI Agent | `src/agents/` | 🟡 (skeleton) |
-| LLM Gateway | `src/services/llm.py` | ✅ |
-| ChromaDB | `data/chroma/` | ⬜ |
-| Frontend | `frontend/` | ⬜ |
-| Docker | `docker-compose.yml` | ✅ |
-| Demo Video | `demo/` | ⬜ |
+| Hạng mục | File | Trạng thái | Spec Reference |
+|----------|------|------------|---------------|
+| Spec | `docs/general overview/01-10` | ✅ | [docs/specs/](../specs/) |
+| Specs (Tech) | `docs/specs/*.md` | ✅ | [docs/specs/README.md](../specs/README.md) |
+| Plan | `docs/plan/00-ws-XX` | ✅ | |
+| Backend Skeleton | `src/` | ✅ (sẵn từ AI20K) | [Architecture](../specs/architecture.md) |
+| Database Schema | `src/models/` | ⬜ | [Database Schema](../specs/database.md) |
+| Repository Layer | `src/repositories/` | ⬜ | |
+| Service Layer | `src/services/` | 🟡 (skeleton) | |
+| AI Agent | `src/agents/` | 🟡 (skeleton) | [AI Agents](../specs/ai-agents.md) |
+| LLM Gateway | `src/services/llm.py` | ✅ | [LLM Gateway](../specs/ai-agents.md#11-llm-gateway) |
+| ChromaDB | `data/chroma/` | ⬜ | [Vector DB](../specs/database.md#5-vector-database-chromadb) |
+| Frontend | `frontend/` | ⬜ | [Frontend](../specs/frontend.md) |
+| Docker | `docker-compose.yml` | ✅ | [Deployment](../specs/deployment.md) |
+| Demo Video | `demo/` | ⬜ | |
 
 ---
 
