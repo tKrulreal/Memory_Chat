@@ -1,6 +1,6 @@
 # WS-02 — Chat System
 
-> **Mục tiêu:** Hoàn thiện Chat (REST + WebSocket), Contact Management, Event Bus in-process.
+> **Mục tiêu:** Hoàn thiện Chat (REST + WebSocket), Contact Management, Friends System, Event Bus.
 
 ---
 
@@ -13,212 +13,328 @@
 | Phụ thuộc | WS-01 (Backend Foundation) |
 | Unblock | WS-03, WS-04, WS-05, WS-06 |
 
-> **Specification Reference:**
-> - [API - WebSocket API](../specs/api.md#11-websocket-api)
-> - [Architecture - Data Flow](../specs/architecture.md#3-data-flow-architecture)
-
 ---
 
 ## Trạng thái hiện tại
 
-- ✅ `src/api/chat.py` skeleton (gọi LangGraph `analyze` + `respond`).
-- ✅ `src/agents/graph.py` skeleton (LangGraph demo).
-- ✅ Contact / Conversation / Message API đã có (WS-01).
-- ✅ WebSocket endpoint đã có (`src/api/ws.py` + `src/ws/manager.py`).
-- ✅ Event Bus đã có (`src/events/bus.py` + `src/events/types.py`).
-- ✅ Memory Worker subscribe EventBus (trong `src/workers/memory_worker.py`).
+| Component | Status | File |
+|-----------|--------|------|
+| Pydantic Schemas | ✅ Done | `src/schemas/` |
+| Contact API | ✅ Done | `src/api/v1/contacts.py` |
+| Conversation API | ✅ Done | `src/api/v1/conversations.py` |
+| Message API | ✅ Done | `src/api/v1/messages.py` |
+| Friends API | ✅ Done | `src/api/v1/friends.py` |
+| WebSocket Manager | ✅ Done | `src/ws/manager.py` |
+| WebSocket Endpoint | ✅ Done | `src/api/ws.py` |
+| Event Bus | ✅ Done | `src/events/bus.py` |
 
 ---
 
-## TASK-CHAT-01: Pydantic Schemas (Contact/Conversation/Message) ✅
+## Multi-User Chat Architecture
 
-**Mô tả:** Định nghĩa request/response schemas cho Contact, Conversation, Message.
+### Real-time Message Flow
 
-**Checklist:**
-- [x] Tạo `src/schemas/__init__.py`
-- [x] `ContactBase`, `ContactCreate`, `ContactUpdate`, `ContactResponse`
-- [x] `ConversationBase`, `ConversationCreate`, `ConversationResponse`
-- [x] `MessageBase`, `MessageCreate`, `MessageResponse`
-- [x] `MessageRole` enum (`USER`, `CONTACT`, `AI`)
-- [x] `ConversationStatus` enum (`OPEN`, `CLOSED`, `ARCHIVED`)
-- [x] Validation: `name` không rỗng, `content` không rỗng
-- [x] Config ORM mode cho Pydantic v2
+```
+User A sends message
+        │
+        ▼
+┌─────────────────┐
+│  POST /messages │
+└────────┬────────┘
+         │
+         ├──────────────────────────────────────┐
+         │                                      │
+         ▼                                      ▼
+┌─────────────────┐              ┌─────────────────┐
+│  Save to DB     │              │  Find ConversationPair │
+└────────┬────────┘              └────────┬────────┘
+         │                                      │
+         │                                      ▼
+         │              ┌─────────────────────────────┐
+         │              │  Get other user's conversation │
+         │              └─────────────┬───────────────┘
+         │                                │
+         │                                ▼
+         │              ┌─────────────────────────────┐
+         │              │  Save to OTHER user's DB    │
+         │              │  (via ConversationPair)      │
+         │              └─────────────┬───────────────┘
+         │                                │
+         │                                ▼
+         │              ┌─────────────────────────────┐
+         │              │  WebSocket broadcast to      │
+         │              │  OTHER user                 │
+         │              └─────────────────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│  WebSocket      │
+│  broadcast to    │
+│  User A (self)  │
+└─────────────────┘
+```
 
-**Commands:**
-```bash
-mkdir -p src/schemas
-pytest tests/unit/schemas -v
+### ConversationPair Design
+
+```python
+# When User A and User B become friends:
+# 1. Create ConversationPair
+# 2. Create Conversation for User A (belongs to User A's contacts)
+# 3. Create Conversation for User B (belongs to User B's contacts)
+# 4. Both conversations reference the same conversation_pair_id
+
+ConversationPair:
+  id = uuid
+  user_1_id = A
+  user_2_id = B
+
+Conversation (for A):
+  id = uuid_A
+  user_id = A
+  contact_id = A's_contact_for_B
+  conversation_pair_id = pair.id
+
+Conversation (for B):
+  id = uuid_B
+  user_id = B
+  contact_id = B's_contact_for_A
+  conversation_pair_id = pair.id
+
+# Message sent from A:
+# 1. Save to conversation uuid_A with sender_id = A
+# 2. WebSocket notify A (self)
+# 3. Lookup conversation with same conversation_pair_id for B
+# 4. Save to conversation uuid_B with sender_id = A
+# 5. WebSocket notify B (real-time)
 ```
 
 ---
 
-## TASK-CHAT-02: Contact API (CRUD) ✅
+## TASK-CHAT-01: Pydantic Schemas ✅
 
-**Mô tả:** REST API cho Contact — tạo, liệt kê, sửa, xoá.
+**Mô tả:** Định nghĩa request/response schemas.
+
+**Files Created:**
+
+- `src/schemas/auth.py` — Auth schemas
+- `src/schemas/contact.py` — Contact schemas
+- `src/schemas/conversation.py` — Conversation schemas
+- `src/schemas/message.py` — Message schemas
+- `src/schemas/friend.py` — Friend request schemas
+- `src/schemas/memory.py` — Memory schemas
+- `src/schemas/recommendation.py` — Recommendation schemas
+- `src/schemas/search.py` — Search schemas
+- `src/schemas/copilot.py` — Copilot schemas
+- `src/schemas/common.py` — Common schemas (pagination, response wrapper)
+
+**Schemas:**
+
+```python
+# Contact
+ContactBase, ContactCreate, ContactUpdate, ContactResponse
+FriendRequestCreate, FriendRequestResponse
+FriendResponse
+
+# Conversation
+ConversationBase, ConversationCreate, ConversationResponse
+ConversationWithMessages
+
+# Message
+MessageBase, MessageCreate, MessageResponse
+MessageListResponse
+```
+
+---
+
+## TASK-CHAT-02: Contact API ✅
+
+**Mô tả:** REST API cho Contact + Friends System.
 
 **Endpoints:**
 
 ```
-GET    /api/v1/contacts          — Liệt kê Contact của user
-POST   /api/v1/contacts          — Tạo Contact mới
-GET    /api/v1/contacts/{id}     — Chi tiết Contact
-PUT    /api/v1/contacts/{id}     — Cập nhật Contact
-DELETE /api/v1/contacts/{id}     — Xoá Contact
-```
+# Contact CRUD
+GET    /api/v1/contacts              — List contacts
+POST   /api/v1/contacts              — Create contact
+GET    /api/v1/contacts/{id}        — Get contact
+PATCH  /api/v1/contacts/{id}        — Update contact
+DELETE /api/v1/contacts/{id}        — Delete contact
 
-**Checklist:**
-- [x] Tạo `src/api/contacts.py` router
-- [x] Inject `ContactService` qua Depends
-- [x] Apply `get_current_user` (auth)
-- [x] Pagination: `?page=1&limit=20`
-- [x] Filter: `?search=keyword`
-- [x] Response shape chuẩn: `{ data, pagination }`
-- [x] Error handling: 404 nếu không tìm thấy, 403 nếu không phải owner
-
-**Commands:**
-```bash
-# Test API
-curl -X POST http://localhost:8000/api/v1/contacts \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Nguyễn Văn A","avatar_url":"https://..."}'
-
-curl http://localhost:8000/api/v1/contacts \
-  -H "Authorization: Bearer $TOKEN"
+# Friends System (search by phone, request/accept)
+GET    /api/v1/friends/search        — Search by phone number
+POST   /api/v1/friends/request       — Send friend request
+GET    /api/v1/friends/requests     — List incoming requests
+POST   /api/v1/friends/request/{id}/accept  — Accept request
+POST   /api/v1/friends/request/{id}/reject  — Reject request
+GET    /api/v1/friends              — List friends
 ```
 
 ---
 
-## TASK-CHAT-03: Conversation API (CRUD) ✅
+## TASK-CHAT-03: Conversation API ✅
 
-**Mô tả:** REST API cho Conversation — tạo, liệt kê, lấy chi tiết.
+**Mô tả:** REST API cho Conversation.
 
 **Endpoints:**
 
 ```
-GET    /api/v1/conversations              — Liệt kê Conversation của user
-POST   /api/v1/conversations              — Tạo Conversation mới với Contact
-GET    /api/v1/conversations/{id}         — Chi tiết Conversation
-PATCH  /api/v1/conversations/{id}         — Cập nhật (title, status)
-DELETE /api/v1/conversations/{id}         — Xoá Conversation
-```
-
-**Checklist:**
-- [x] Tạo `src/api/conversations.py` router
-- [x] Inject `ConversationService` qua Depends
-- [x] Apply `get_current_user` (auth)
-- [x] Sinh Event `OPEN_CHAT` khi tạo conversation
-- [x] Sinh Event `CLOSE_CHAT` khi status → CLOSED
-- [x] Filter: `?status=OPEN&contact_id=...`
-- [x] Sort: `last_message_at DESC`
-- [x] Include `last_message` preview trong list response
-
-**Commands:**
-```bash
-# Test API
-curl -X POST http://localhost:8000/api/v1/conversations \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"contact_id":1,"title":"Chat với A"}'
+GET    /api/v1/conversations              — List conversations
+POST   /api/v1/conversations              — Create conversation
+GET    /api/v1/conversations/{id}         — Get conversation
+PATCH  /api/v1/conversations/{id}         — Update (title, status)
+DELETE /api/v1/conversations/{id}        — Delete conversation
 ```
 
 ---
 
-## TASK-CHAT-04: Message API (CRUD) ✅ (Memory Worker deferred to WS-03)
+## TASK-CHAT-04: Message API ✅
 
-**Mô tả:** REST API cho Message — gửi, liệt kê, lấy chi tiết.
+**Mô tả:** REST API cho Message.
 
 **Endpoints:**
 
 ```
-GET  /api/v1/conversations/{id}/messages           — Liệt kê Message trong conversation
-POST /api/v1/conversations/{id}/messages           — Gửi Message mới
-GET  /api/v1/messages/{id}                          — Chi tiết Message
-DELETE /api/v1/messages/{id}                        — Xoá Message
+GET    /api/v1/conversations/{id}/messages  — List messages
+POST   /api/v1/conversations/{id}/messages  — Send message
+PATCH  /api/v1/messages/{id}/read           — Mark as read
+DELETE /api/v1/messages/{id}               — Delete message
 ```
 
-**Checklist:**
-- [x] Tạo `src/api/messages.py` router
-- [x] Inject `MessageService` qua Depends
-- [x] Sinh Event `SEND_MESSAGE` mỗi khi có message mới
-- [x] Update `Conversation.last_message_at` mỗi khi gửi
-- [x] Pagination: `?page=1&limit=50`
-- [x] Trigger Memory Worker qua EventBus (chuẩn bị cho WS-03) — Event SEND_MESSAGE được publish qua event_bus
-- [x] Response bao gồm `id`, `role`, `content`, `created_at`
+**Flow:**
 
-**Commands:**
-```bash
-# Test gửi message
-curl -X POST http://localhost:8000/api/v1/conversations/1/messages \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"content":"Xin chào!","role":"USER"}'
-```
+1. Save message to sender's conversation
+2. Lookup ConversationPair
+3. Save to receiver's conversation (via ConversationPair)
+4. Emit SEND_MESSAGE event
+5. Broadcast via WebSocket to both users
 
 ---
 
 ## TASK-CHAT-05: WebSocket + Connection Manager ✅
 
-**Mô tả:** WebSocket endpoint cho realtime chat + Connection Manager (in-memory dict).
+**Mô tả:** WebSocket endpoint cho realtime chat.
 
-**WebSocket endpoint:**
+**WebSocket Endpoint:**
 
 ```
-WS /ws/chat/{conversation_id}        — Realtime chat (gửi/nhận Message)
+WS /ws/{token}        — Real-time chat (auth via token)
 ```
 
-**Checklist:**
-- [x] Tạo `src/api/ws.py` (WebSocket endpoint)
-- [x] Tạo `src/ws/manager.py` (ConnectionManager class)
-- [x] Method `connect(websocket, conversation_id)` — accept + lưu vào dict
-- [x] Method `disconnect(websocket, conversation_id)` — remove khỏi dict
-- [x] Method `broadcast(conversation_id, message)` — gửi cho tất cả client cùng conversation
-- [x] Khi nhận message qua WS → lưu DB + broadcast
-- [x] Khi nhận message qua WS → emit Event `SEND_MESSAGE` qua EventBus
-- [x] Heartbeat ping/pong mỗi 30s
-- [x] Auto-reconnect support (client side)
-- [x] Test với 2 client giả lập (WebSocketTest client)
+**Features:**
 
-**Commands:**
-```bash
-# Test WebSocket với wscat
-wscat -c ws://localhost:8000/ws/chat/1 \
-  -H "Authorization: Bearer $TOKEN"
-# Gửi: {"content":"Hello"}
+- JWT authentication via query param or header
+- Connection per conversation
+- Broadcast to all users in conversation
+- Auto-reconnect support
+- Heartbeat ping/pong
+
+**Manager Features:**
+
+```python
+class ConnectionManager:
+    # Track connections per conversation
+    active_connections: dict[str, list[WebSocket]]
+    
+    async def connect(ws: WebSocket, conversation_id: str, user_id: str)
+    async def disconnect(ws: WebSocket, conversation_id: str, user_id: str)
+    async def broadcast(conversation_id: str, message: dict)
+    async def send_personal(user_id: str, message: dict)
 ```
 
 ---
 
-## TASK-CHAT-06: Event Bus (asyncio + EventLog) ✅
+## TASK-CHAT-06: Event Bus ✅
 
-**Mô tả:** Event Bus đơn giản — ghi vào `EventLog` + asyncio dispatcher loop.
+**Mô tả:** Event Bus cho async processing.
 
-**Checklist:**
-- [x] Tạo `src/events/bus.py` (EventBus singleton)
-- [x] Method `publish(event_type, payload)` — enqueue vào asyncio.Queue
-- [x] Method `subscribe(event_type, handler)` — đăng ký handler
-- [x] Background task `dispatcher_loop()` chạy trong lifespan
-- [x] Mỗi event ghi vào `EventLog` (event_type, payload, created_at)
-- [x] Gọi các handler đã subscribe
-- [x] Handler fail không crash dispatcher (log + skip)
-- [x] Event types: `SEND_MESSAGE`, `OPEN_CHAT`, `CLOSE_CHAT`, `MEMORY_REFRESH`, `OPEN_AI`
-- [x] Test E2E: gửi message → EventBus ghi EventLog → handler nhận
+**Event Types:**
 
-**Commands:**
-```bash
-# Test EventBus
-python -c "
-import asyncio
-from src.events.bus import EventBus
+```python
+class EventType(str, Enum):
+    # Chat Events
+    SEND_MESSAGE = "SEND_MESSAGE"
+    RECEIVE_MESSAGE = "RECEIVE_MESSAGE"
+    READ_MESSAGE = "READ_MESSAGE"
+    OPEN_CHAT = "OPEN_CHAT"
+    CLOSE_CHAT = "CLOSE_CHAT"
+    
+    # Friend Events
+    FRIEND_REQUEST_SENT = "FRIEND_REQUEST_SENT"
+    FRIEND_REQUEST_RECEIVED = "FRIEND_REQUEST_RECEIVED"
+    FRIEND_REQUEST_ACCEPTED = "FRIEND_REQUEST_ACCEPTED"
+    FRIEND_REQUEST_REJECTED = "FRIEND_REQUEST_REJECTED"
+    
+    # AI Events
+    OPEN_AI = "OPEN_AI"
+    MEMORY_UPDATED = "MEMORY_UPDATED"
+    RECOMMENDATION_CREATED = "RECOMMENDATION_CREATED"
+```
 
-async def main():
-    bus = EventBus()
-    await bus.publish('SEND_MESSAGE', {'msg': 'hello'})
-    await asyncio.sleep(0.5)
-    print(await bus.list_recent())
+**Bus Features:**
 
-asyncio.run(main())
-"
+- Asyncio-based dispatcher
+- Event persistence to EventLog table
+- Subscribe/unsubscribe pattern
+- Graceful error handling
+- Background dispatch loop
+
+---
+
+## Friends System Flow
+
+```
+User A searches by phone number
+        │
+        ▼
+┌─────────────────┐
+│ GET /friends/   │
+│ search?phone=  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Find User B     │
+│ by phone        │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ POST /friends/  │
+│ request         │
+└────────┬────────┘
+         │
+         ├──────────────────────────────────────┐
+         │                                      │
+         ▼                                      ▼
+┌─────────────────┐              ┌─────────────────┐
+│ Create          │              │ Notify User B   │
+│ FriendRequest   │              │ (notification)  │
+└─────────────────┘              └─────────────────┘
+
+User B views requests
+        │
+        ▼
+┌─────────────────┐
+│ GET /friends/   │
+│ requests        │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ POST /friends/ │
+│ request/accept │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────┐
+│ 1. Create ConversationPair                  │
+│ 2. Create Contact for A in B's contact list │
+│ 3. Create Contact for B in A's contact list│
+│ 4. Create Conversation for A               │
+│ 5. Create Conversation for B               │
+│ 6. Both reference same conversation_pair_id│
+│ 7. Notify both users                      │
+└─────────────────────────────────────────────┘
 ```
 
 ---
@@ -227,9 +343,35 @@ asyncio.run(main())
 
 ```
 ✅ APIs Contact/Conversation/Message hoạt động qua Swagger
-✅ WebSocket gửi/nhận realtime giữa 2 client
+✅ Friends System (search by phone, request/accept/reject)
+✅ WebSocket gửi/nhận realtime giữa 2 users
+✅ ConversationPair syncs messages giữa 2 users
 ✅ EventBus ghi nhận event và dispatch được
-✅ Sau mỗi message, Event SEND_MESSAGE có trong EventLog
 ✅ Test API + WebSocket pass
-✅ Không ảnh hưởng endpoint /api/v1/chat hiện tại (giữ nguyên LangGraph demo)
 ```
+
+---
+
+## Trạng thái hoàn thành
+
+| Task | Status | Evidence |
+|------|--------|----------|
+| TASK-CHAT-01: Pydantic Schemas | ✅ Done | `src/schemas/` |
+| TASK-CHAT-02: Contact API | ✅ Done | `src/api/v1/contacts.py`, `friends.py` |
+| TASK-CHAT-03: Conversation API | ✅ Done | `src/api/v1/conversations.py` |
+| TASK-CHAT-04: Message API | ✅ Done | `src/api/v1/messages.py` |
+| TASK-CHAT-05: WebSocket | ✅ Done | `src/api/ws.py`, `src/ws/manager.py` |
+| TASK-CHAT-06: Event Bus | ✅ Done | `src/events/bus.py` |
+
+---
+
+## Reference
+
+- [API Documentation](../specs/api.md)
+- [Architecture - Data Flow](../specs/architecture.md#3-data-flow-architecture)
+- [Database Schema](../specs/database.md)
+
+---
+
+*Version: 2.0 (Specv2 aligned)*
+*Last Updated: 2026-08-14*

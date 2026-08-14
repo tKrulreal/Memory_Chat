@@ -13,186 +13,316 @@
 | Phụ thuộc | WS-03 (AI Memory), WS-04 (Search & Recommendation) |
 | Unblock | WS-06 (Frontend) |
 
-> **Specification Reference:**
-> - [AI Agents - Assistant Orchestrator](../specs/ai-agents.md#3-assistant-orchestrator)
-> - [AI Agents - Tool Registry](../specs/ai-agents.md#10-tool-registry)
-> - [AI Agents - Tagging Agent](../specs/ai-agents.md#7-tagging-agent)
-> - [AI Agents - Connection Agent](../specs/ai-agents.md#8-connection-agent)
-> - [API - Copilot Endpoints](../specs/api.md#9-copilot-api)
-
 ---
 
 ## Trạng thái hiện tại
 
-- ✅ `src/agents/graph.py` skeleton (LangGraph `analyze` + `respond`).
-- ✅ Memory Agent, Search Agent, Recommendation Agent (từ WS-03, WS-04).
-- ✅ Assistant Orchestrator (`src/agents/orchestrator.py`).
-- ✅ Tools layer (`src/agents/tools/`).
-- ✅ Tagging Agent (`src/agents/tagging/agent.py`).
-- ✅ Connection Agent (`src/agents/connection/agent.py`).
-- ✅ Copilot API (`src/api/v1/copilot.py`).
+| Component | Status | File |
+|-----------|--------|------|
+| Assistant Orchestrator | ✅ Done | `src/agents/orchestrator.py` |
+| Tools layer | ✅ Done | `src/agents/tools/` |
+| Tagging Agent | ✅ Done | `src/agents/tagging/agent.py` |
+| Connection Agent | ✅ Done | `src/agents/connection/agent.py` |
+| Copilot API | ✅ Done | `src/api/v1/copilot.py` |
 
 ---
 
-## TASK-COP-01: Assistant Orchestrator (LangGraph) ✅
+## Orchestrator Architecture
 
-**Mô tả:** Refactor `src/agents/graph.py` thành Assistant Orchestrator hoàn chỉnh với nhiều node.
+### LangGraph StateGraph
 
-**Checklist:**
-- [x] `src/agents/orchestrator.py` - Assistant Orchestrator hoàn chỉnh
-- [x] `AgentState` TypedDict: `{ query, user_id, context, intent, tools_to_call, agent_response, final_response }`
-- [x] Node `intent_detection` (rule-based + LLM: SEARCH/MEMORY/RECOMMENDATION/CHITCHAT/REPLY_SUGGEST/TAG_SUGGEST/CONNECTION)
-- [x] Node `context_builder` (lấy Memory + recent messages)
-- [x] Node `tool_selection` (chọn tool dựa trên intent)
-- [x] Node `agent_execution` (gọi các Agent con)
-- [x] Node `response_validator` (kiểm tra output hợp lệ)
-- [x] Kết nối các node thành StateGraph
-- [x] Fallback nếu LLM fail (graceful error)
-- [x] ✅ FIX: Programmatic data leak detection
-- [x] ✅ FIX: Prompt injection detection
-- [x] Giữ endpoint `/api/v1/chat` hoạt động (backward compat)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 ASSISTANT ORCHESTRATOR                          │
+│                    (LangGraph StateGraph)                        │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ Intent Detection → Context Builder → Agent Selection     │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│                    │                                             │
+│  ┌─────────────────┼─────────────────┐                       │
+│  │                 │                 │                       │
+│  ▼                 ▼                 ▼                       │
+│ ┌───────────┐ ┌───────────┐ ┌───────────────┐               │
+│ │  Memory   │ │  Search   │ │ Recommendation│               │
+│ │  Agent    │ │  Agent    │ │    Agent      │               │
+│ └─────┬─────┘ └─────┬─────┘ └───────┬───────┘               │
+│       │             │               │                       │
+│       └─────────────┼───────────────┘                       │
+│                     │                                        │
+│                     ▼                                        │
+│           ┌─────────────────┐                                │
+│           │  Merge Results   │                                │
+│           └────────┬─────────┘                                │
+│                    │                                          │
+│                    ▼                                          │
+│           ┌─────────────────┐                                │
+│           │ Response         │                                │
+│           │ Validator        │                                │
+│           └────────┬─────────┘                                │
+│                    │                                          │
+│                    ▼                                          │
+│           ┌─────────────────┐                                │
+│           │  Return to User │                                │
+│           └─────────────────┘                                │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-**Commands:**
-```bash
-# Test Orchestrator
-python -c "
-from src.agents.graph import AssistantOrchestrator
-orch = AssistantOrchestrator()
-result = await orch.run(user_id=1, query='Người này là ai?')
-print(result.final_response)
-"
+### Agent State
+
+```python
+# src/agents/orchestrator.py
+class AgentState(TypedDict, total=False):
+    # User info
+    user_id: str
+    conversation_id: str
+    contact_id: str
+    
+    # Input
+    user_message: str
+    
+    # Processing
+    intent: Optional[AgentIntent]
+    selected_agents: list[str]
+    context: dict
+    
+    # Agent outputs
+    memory: Optional[dict]
+    search_results: Optional[list[dict]]
+    recommendations: Optional[list[dict]]
+    tags: Optional[list[dict]]
+    connections: Optional[list[dict]]
+    insights: Optional[list[dict]]
+    
+    # Final output
+    response: Optional[str]
+    error: Optional[str]
+    
+    # Metadata
+    token_usage: dict
+    latency_ms: int
 ```
 
 ---
 
-## TASK-COP-02: Tools layer (search, memory, recommendation) ✅
+## TASK-COP-01: Assistant Orchestrator ✅
 
-**Mô tả:** Tạo Tools layer — mỗi tool wrap một Agent con.
+**Mô tả:** LangGraph StateGraph orchestrator.
 
-**Checklist:**
-- [x] `src/agents/tools/` package
-- [x] `search_contact(query, limit)` — gọi SearchAgent
-- [x] `get_contact_memory(user_id, contact_id)` — lấy ContactMemory
-- [x] `get_recent_messages(user_id, conversation_id, limit)` — lấy Message gần nhất
-- [x] `recommend_reply(user_id, contact_id)` — gợi ý reply qua LLM
-- [x] `get_recommendations(user_id, status, limit)` — lấy Recommendation pending
-- [x] `get_contact_insights(user_id, contact_id)` — lấy Insight
-- [x] Mỗi tool có docstring mô tả rõ
-- [x] Helper functions trong `orchestrator.py` để load tools
+**Features:**
 
-**Commands:**
-```bash
-# Test tool
-python -c "
-from src.agents.tools import search_contact
-result = await search_contact.ainvoke({'query': 'lập trình viên'})
-print(result)
-"
+```python
+# src/agents/orchestrator.py
+class AssistantOrchestrator:
+    async def process(self, message: str, context: CopilotContext) -> CopilotResponse:
+        """
+        1. Intent Detection (rule-based + LLM)
+        2. Context Builder (Memory + recent messages)
+        3. Agent Selection (based on intent)
+        4. Agent Execution (parallel)
+        5. Merge Results
+        6. Response Generation
+        7. Response Validation (security check)
+        """
+```
+
+**Intent Types:**
+
+```python
+class AgentIntent(str, Enum):
+    MEMORY_QUERY = "memory_query"     # "Who is this person?"
+    SEARCH = "search"                # "Find AI engineers"
+    RECOMMEND = "recommend"         # "Should I follow up?"
+    TAG = "tag"                     # "Add tag for this contact"
+    CONNECT = "connect"              # "Introduce these people"
+    INSIGHT = "insight"             # "What do I know about them?"
+    GENERAL = "general"              # "Hello", "Thanks"
+    REPLY_SUGGEST = "reply_suggest" # "Suggest a reply"
 ```
 
 ---
 
-## TASK-COP-03: Tagging Agent + API ✅
+## TASK-COP-02: Tools Layer ✅
 
-**Mô tả:** Tagging Agent — đề xuất Tag mới cho Contact từ Memory.
+**Mô tả:** Tools cho agents.
 
-**Checklist:**
-- [x] `src/agents/tagging/agent.py` - TaggingAgent class
-- [x] Method `suggest_tags(contact_id, db)` → đề xuất 3-5 tags
-- [x] LLM với prompt: tags ngắn gọn, lowercase, no space
-- [x] Method `approve_tags(db, contact_id, tag_names)` — user approve
-- [x] Method `get_contact_tags(db, contact_id)` — lấy tags hiện tại
-- [x] Endpoints trong `src/api/v1/contacts.py`:
-  - `GET /contacts/{id}/tags` — lấy tags hiện tại
-  - `GET /contacts/{id}/suggested-tags` — trả gợi ý
-  - `POST /contacts/{id}/tags` — user approve
-  - `DELETE /contacts/{id}/tags/{tag_name}` — xóa tag
+**Available Tools:**
 
-**Commands:**
-```bash
-# Test Tagging Agent
-python -c "
-from src.agents.tagging import TaggingAgent
-agent = TaggingAgent()
-tags = await agent.suggest_tags(contact_id=1)
-print(tags)
-"
-
-# Test API
-curl http://localhost:8000/api/v1/contacts/1/suggested-tags \
-  -H "Authorization: Bearer $TOKEN"
+```python
+# src/agents/tools/
+class SearchTool:
+    name = "search_contact"
+    description = "Search contacts using natural language"
+    
+class MemoryTool:
+    name = "get_contact_memory"
+    description = "Get the memory/knowledge about a contact"
+    
+class ConversationTool:
+    name = "get_recent_messages"
+    description = "Get recent messages from a conversation"
+    
+class RecommendationTool:
+    name = "get_recommendations"
+    description = "Get AI recommendations for contacts"
+    
+class TagTool:
+    name = "suggest_tags"
+    description = "Suggest tags for a contact"
 ```
 
 ---
 
-## TASK-COP-04: Connection Agent + API ✅
+## TASK-COP-03: Tagging Agent ✅
 
-**Mô tả:** Connection Agent — đề xuất kết nối giữa 2 Contact dựa trên Memory + Embedding.
+**Mô tả:** Entity extraction và tag suggestion.
 
-**Checklist:**
-- [x] `src/agents/connection/agent.py` - ConnectionAgent class
-- [x] Method `find_connections(user_id, top_k=5)` → list[ConnectionPair]
-- [x] Method `suggest_connections_for_contact(contact_id, top_k=3)` → list[ConnectionPair]
-- [x] LLM reasoning cho top pairs (giải thích vì sao kết nối)
-- [x] Endpoints trong `src/api/v1/connections.py`:
-  - `GET /connections/suggested` — trả top 5 cặp Contact
-  - `GET /connections/contact/{id}` — connections cho một contact cụ thể
+**Features:**
 
-**Commands:**
-```bash
-# Test Connection Agent
-python -c "
-from src.agents.connection import ConnectionAgent
-agent = ConnectionAgent()
-pairs = await agent.find_connections(contact_id=1)
-for p in pairs:
-    print(p.contact_a, '<->', p.contact_b, ':', p.reason)
-"
-
-# Test API
-curl http://localhost:8000/api/v1/connections/suggested \
-  -H "Authorization: Bearer $TOKEN"
+```python
+# src/agents/tagging/agent.py
+class TaggingAgent:
+    async def suggest_tags(self, contact_id: str) -> list[TagSuggestion]:
+        """
+        1. Get recent messages
+        2. LLM extract entities:
+           - companies
+           - professions
+           - skills
+           - interests
+           - topics
+        3. Compare with existing tags
+        4. Return new tag suggestions
+        """
 ```
-
----
-
-## TASK-COP-05: Copilot API + Share-to-Conversation ✅
-
-**Mô tả:** REST API cho AI Copilot + Share-to-Conversation flow.
 
 **Endpoints:**
 
 ```
-POST /api/v1/copilot                      — Hỏi Copilot (gọi Assistant Orchestrator)
-POST /api/v1/copilot/stream               — Streaming response
-POST /api/v1/copilot/share                — Share AI response vào conversation input box
-GET  /api/v1/copilot/intents              — Danh sách intents được hỗ trợ
+GET  /api/v1/contacts/{id}/tags         — Get current tags
+GET  /api/v1/contacts/{id}/suggested-tags — Get AI suggestions
+POST /api/v1/contacts/{id}/tags          — Add tag
+DELETE /api/v1/contacts/{id}/tags/{tag_id} — Remove tag
 ```
 
-**Checklist:**
-- [x] `src/api/v1/copilot.py` router
-- [x] Pydantic schemas: `CopilotRequest { query, context? }`, `CopilotResponse { response, sources, tools_used }`
-- [x] Endpoint `POST /copilot` — gọi Assistant Orchestrator
-- [x] Endpoint `POST /copilot/stream` — Streaming response
-- [x] Endpoint `POST /copilot/share` — tạo draft message trong conversation
-- [x] Endpoint `GET /copilot/intents` — danh sách intents
-- [x] Emit event `OPEN_AI` khi user hỏi Copilot
-- [x] Log prompt + response vào `.ai-log/copilot.jsonl`
-- [x] Validation: output không leak Memory của Contact khác user (security checks)
+---
 
-**Commands:**
-```bash
-# Test Copilot API
-curl -X POST http://localhost:8000/api/v1/copilot \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"query":"Người này là ai?","context":{"contact_id":1}}'
+## TASK-COP-04: Connection Agent ✅
 
-# Test Share to Conversation
-curl -X POST http://localhost:8000/api/v1/copilot/share \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"conversation_id":1,"content":"Gợi ý reply..."}'
+**Mô tả:** Contact matching và introduction suggestions.
+
+**Features:**
+
+```python
+# src/agents/connection/agent.py
+class ConnectionAgent:
+    async def find_connections(self, user_id: str, top_k: int = 5) -> list[ConnectionSuggestion]:
+        """
+        1. Get all contacts with memory
+        2. Find similar pairs based on:
+           - Shared interests
+           - Shared skills
+           - Shared company
+           - Professional complementarity
+        3. LLM reason about connection
+        4. Return top suggestions
+        """
+```
+
+**Endpoints:**
+
+```
+GET /api/v1/connections/suggested   — Get connection suggestions
+GET /api/v1/connections/contact/{id} — Get connections for contact
+```
+
+---
+
+## TASK-COP-05: Copilot API ✅
+
+**Mô tả:** REST API cho AI Copilot.
+
+**Endpoints:**
+
+```
+POST /api/v1/copilot                              — Chat with Copilot
+POST /api/v1/copilot/stream                       — Streaming response
+POST /api/v1/copilot/share                        — Share to conversation
+GET  /api/v1/copilot/intents                      — Supported intents
+```
+
+**Request/Response:**
+
+```python
+# Request
+class CopilotRequest(BaseModel):
+    query: str                    # User message
+    context: CopilotContext | None  # Optional context
+    
+class CopilotContext(BaseModel):
+    conversation_id: UUID | None
+    contact_id: UUID | None
+    include_recent_messages: bool = False
+    include_memory: bool = True
+    include_recommendations: bool = False
+
+# Response
+class CopilotResponse(BaseModel):
+    response: str                    # AI response
+    intent: str                     # Detected intent
+    sources: list[Source] | None    # Evidence
+    tools_used: list[str]           # Which tools were called
+    token_usage: dict | None
+```
+
+**Security Features:**
+
+- Data leak detection (prevent leaking other users' memory)
+- Prompt injection detection
+- Output validation
+
+---
+
+## Copilot Use Cases
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      COPILOT USE CASES                           │
+│                                                                 │
+│  "Người này là ai?" ──────────────────────────────────► Memory │
+│  "Tìm người làm AI" ──────────────────────────────► Search │
+│  "Tôi nên reply thế nào?" ──────────────────────► Reply Suggest │
+│  "Có ai tôi nên giới thiệu?" ──────────────────► Connection │
+│  "Gợi ý tags cho người này" ─────────────────────► Tagging │
+│  "Họ có gì đáng chú ý?" ────────────────────────► Insight │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Response Validation
+
+```python
+# Validation rules
+class ResponseValidator:
+    async def validate(self, response: str, context: AgentContext) -> ValidationResult:
+        issues = []
+        
+        # Check for data leakage
+        if self._contains_other_user_data(response, context.user_id):
+            issues.append(ValidationIssue(type="data_leakage", severity="high"))
+        
+        # Check for prompt injection
+        if self._contains_injection_patterns(response):
+            issues.append(ValidationIssue(type="prompt_injection", severity="high"))
+        
+        return ValidationResult(
+            is_valid=len([i for i in issues if i.severity == "high"]) == 0,
+            issues=issues
+        )
 ```
 
 ---
@@ -200,13 +330,13 @@ curl -X POST http://localhost:8000/api/v1/copilot/share \
 ## Kết quả mong đợi sau WS-05
 
 ```
-✅ LangGraph Orchestrator đầy đủ chạy được (5 node)
-✅ Copilot trả lời đúng 5 câu hỏi mẫu
-✅ Tagging Agent đề xuất đúng Tag cho 5 Contact mẫu
-✅ Connection Agent đề xuất đúng cặp Contact liên quan
+✅ LangGraph Orchestrator đầy đủ chạy được
+✅ Copilot trả lời đúng các câu hỏi mẫu
+✅ Tagging Agent đề xuất đúng tags
+✅ Connection Agent đề xuất đúng cặp contacts
 ✅ Share to Conversation hoạt động
-✅ Không leak Memory của Contact khác user
-✅ Test E2E Copilot pass
+✅ Không leak memory của user khác
+✅ Response validation hoạt động
 ```
 
 ---
@@ -217,6 +347,21 @@ curl -X POST http://localhost:8000/api/v1/copilot/share \
 |------|--------|----------|
 | TASK-COP-01: Assistant Orchestrator | ✅ Done | `src/agents/orchestrator.py` |
 | TASK-COP-02: Tools layer | ✅ Done | `src/agents/tools/*.py` |
-| TASK-COP-03: Tagging Agent | ✅ Done | `src/agents/tagging/agent.py` + contacts API |
-| TASK-COP-04: Connection Agent | ✅ Done | `src/agents/connection/agent.py` + connections API |
+| TASK-COP-03: Tagging Agent | ✅ Done | `src/agents/tagging/agent.py` |
+| TASK-COP-04: Connection Agent | ✅ Done | `src/agents/connection/agent.py` |
 | TASK-COP-05: Copilot API | ✅ Done | `src/api/v1/copilot.py` |
+
+---
+
+## Reference
+
+- [AI Agents - Assistant Orchestrator](../specs/ai-agents.md#3-assistant-orchestrator)
+- [AI Agents - Tool Registry](../specs/ai-agents.md#10-tool-registry)
+- [AI Agents - Tagging Agent](../specs/ai-agents.md#7-tagging-agent)
+- [AI Agents - Connection Agent](../specs/ai-agents.md#8-connection-agent)
+- [API - Copilot Endpoints](../specs/api.md#9-copilot-api)
+
+---
+
+*Version: 2.0 (Specv2 aligned)*
+*Last Updated: 2026-08-14*

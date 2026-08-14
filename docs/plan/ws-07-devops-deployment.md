@@ -13,150 +13,284 @@
 | Phụ thuộc | Không có |
 | Unblock | WS-08 (Test + Demo) |
 
-> **Specification Reference:**
-> - [Deployment - MVP Deployment](../specs/deployment.md#2-mvp-deployment)
-> - [Deployment - Phase 2 Deployment](../specs/deployment.md#3-phase-2-deployment-docker-compose)
-> - [Deployment - Environment Configuration](../specs/deployment.md#5-environment-configuration)
-
 ---
 
 ## Trạng thái hiện tại
 
-- ✅ `Dockerfile` - Multi-stage build với non-root user, healthcheck
-- ✅ `docker-compose.yml` - Volumes, healthcheck, restart policy
-- ✅ `Makefile` - Đầy đủ targets (run, test, backup, restore, logs, shell, etc.)
-- ✅ `.env.example` - Đã cập nhật với config mới
-- ✅ Health check endpoint - `/health` trả về status, version, db
-- ✅ Structured logging - JSON output với structlog
-- ✅ Backup/restore scripts - `scripts/backup.sh`, `scripts/restore.sh`
-- ✅ Seed script - `scripts/seed.py` với demo user + 5 contacts
+| Component | Status | File |
+|-----------|--------|------|
+| Dockerfile | ✅ Done | `Dockerfile` |
+| docker-compose.yml | ✅ Done | `docker-compose.yml` |
+| Makefile | ✅ Done | `Makefile` |
+| .env.example | ✅ Done | `.env.example` |
+| Health endpoint | ✅ Done | `/health` |
+| Structured logging | ✅ Done | `src/core/logging.py` |
+| Middleware | ✅ Done | `src/core/middlewares.py` |
+| Backup scripts | ✅ Done | `scripts/backup.sh`, `scripts/restore.sh` |
+| Seed script | ✅ Done | `scripts/seed.py` |
 
 ---
 
-## TASK-OPS-01: Dockerfile review + multi-stage ✅
+## Tech Stack Deployment
 
-**Mục tiêu:** Hoàn thiện Dockerfile — multi-stage build, non-root user, pinned version.
+### MVP Stack
 
-**Checklist:**
-- [x] Review Dockerfile hiện tại
-- [x] Multi-stage build (builder stage + runtime stage)
-- [x] Non-root user trong container (`appuser`)
-- [x] Pin Python version 3.11-slim
-- [x] Cài `requirements.txt` từ freeze
-- [x] `HEALTHCHECK` directive (gọi `/health` mỗi 30s)
-- [x] Copy source code sau khi install deps (tận dụng cache)
-- [x] Giảm image size (clean apt, no cache)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    DEPLOYMENT STACK (MVP)                         │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    Docker Container                      │   │
+│  │                                                         │   │
+│  │  ┌────────────┐ ┌────────────┐ ┌────────────┐         │   │
+│  │  │  FastAPI  │ │   LangGraph│ │   Workers  │         │   │
+│  │  │  (Uvicorn)│ │   Agents   │ │  (asyncio)│         │   │
+│  │  └─────┬──────┘ └────────────┘ └────────────┘         │   │
+│  │        │                                               │   │
+│  │  ┌─────┴─────────────────────────────────────────┐    │   │
+│  │  │              Shared Volume                      │    │   │
+│  │  │  ┌─────────────┐       ┌──────────────┐     │    │   │
+│  │  │  │   SQLite    │       │   ChromaDB   │     │    │   │
+│  │  │  │   app.db    │       │   /data      │     │    │   │
+│  │  │  └─────────────┘       └──────────────┘     │    │   │
+│  │  └─────────────────────────────────────────────────┘    │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                   External Services                      │   │
+│  │  ┌────────────┐ ┌────────────┐ ┌────────────┐         │   │
+│  │  │  OpenAI   │ │ OpenRouter │ │  Internet  │         │   │
+│  │  │   API      │ │   API      │ │            │         │   │
+│  │  └────────────┘ └────────────┘ └────────────┘         │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-**Files created/modified:**
-- [Dockerfile](Dockerfile) - Multi-stage build với curl cho healthcheck
+### Future Stack (Post-MVP)
 
----
-
-## TASK-OPS-02: Docker Compose + Volume ✅
-
-**Mục tiêu:** Hoàn thiện `docker-compose.yml` — single service + persistent volume.
-
-**Checklist:**
-- [x] Review `docker-compose.yml` hiện tại
-- [x] Mount volume `./data:/app/data` (SQLite + ChromaDB persist)
-- [x] Mount volume `./.ai-log:/app/.ai-log` (AI prompt log)
-- [x] Env vars từ `.env` (hoặc inline defaults)
-- [x] Auto-restart policy (`restart: unless-stopped`)
-- [x] Port mapping `8000:8000`
-- [x] Health check trong compose (`healthcheck:` block)
-- [x] Start period configuration
-
-**Files created/modified:**
-- [docker-compose.yml](docker-compose.yml) - Thêm volumes, healthcheck, environment
-
----
-
-## TASK-OPS-03: Makefile targets (run/test/lint/backup) ✅
-
-**Mục tiêu:** Mở rộng Makefile — bổ sung các target tiện ích.
-
-**Checklist:**
-- [x] Review Makefile hiện tại
-- [x] Thêm target `make backup` → gọi `scripts/backup.sh`
-- [x] Thêm target `make restore` → gọi `scripts/restore.sh`
-- [x] Thêm target `make logs` → `docker compose logs -f`
-- [x] Thêm target `make shell` → `docker compose exec backend bash`
-- [x] Thêm target `make migrate` → `alembic upgrade head`
-- [x] Thêm target `make seed` → `python scripts/seed.py`
-- [x] Thêm target `make test` → `pytest tests/`
-- [x] Thêm target `make lint` → `ruff check src/`
-- [x] Thêm target `make format` → `ruff format src/`
-- [x] Thêm target `make typecheck` → `mypy src/`
-- [x] Thêm target `make clean` → xoá `__pycache__`, `.pytest_cache`, etc.
-- [x] Thêm target `make help` → hiển thị danh sách commands
-- [x] Thêm target `make health` → kiểm tra health endpoint
-
-**Files created/modified:**
-- [Makefile](Makefile) - Mở rộng với ~20 targets
-
----
-
-## TASK-OPS-04: Scripts (backup.sh + restore.sh + seed.py) ✅
-
-**Mục tiêu:** Tạo các script tiện ích cho backup, restore, seed data.
-
-**Checklist:**
-- [x] Tạo `scripts/backup.sh` — `tar -czf backup/data-$(date +%Y%m%d-%H%M%S).tar.gz ./data/`
-- [x] Tạo `scripts/restore.sh` — extract từ file backup vào `./data/`
-- [x] Tạo `scripts/seed.py` — tạo user demo + Contact mẫu + Conversation mẫu + Memory mẫu
-  - Demo user: `demo@example.com` / `demo123`
-  - 5 Contact: Nguyễn Văn A (giáo viên), Trần Thị B (lập trình viên), Lê Văn C (bác sĩ), Phạm Thị D (kế toán), Hoàng Văn E (kiến trúc sư)
-  - 5 Conversation mẫu
-  - 5 ContactMemory mẫu
-- [x] Verify scripts chạy được cả local và trong Docker container
-
-**Files created:**
-- [scripts/backup.sh](scripts/backup.sh) - Backup script với timestamp
-- [scripts/restore.sh](scripts/restore.sh) - Restore script với dry-run support
-- [scripts/seed.py](scripts/seed.py) - Seed script với demo data
-
----
-
-## TASK-OPS-05: Health check + Structured logging ✅
-
-**Mục tiêu:** Health endpoint + JSON logging chuẩn production.
-
-**Checklist:**
-- [x] Endpoint `GET /health` — trả 200 OK + `{ status: "ok", version: "1.0-mvp", db: "ok" }`
-- [x] Check DB connection trong `/health`
-- [x] Cấu hình `structlog` cho JSON output (stdout + file `.ai-log/app.log`)
-- [x] Log request ID cho mỗi request (middleware tạo UUID + attach vào context)
-- [x] Log AI prompt + response riêng vào `.ai-log/ai-{date}.jsonl`
-- [x] Log level config từ env: `LOG_LEVEL=INFO`
-- [x] Verify log JSON parse được bằng `jq`
-
-**Files created/modified:**
-- [src/core/logging.py](src/core/logging.py) - Structured logging module
-- [src/core/middlewares.py](src/core/middlewares.py) - Request logging middleware với request ID
-- [src/main.py](src/main.py) - Health endpoint và logging setup
-- [requirements.txt](requirements.txt) - Thêm structlog
-
-**Verified:**
-```bash
-$ curl http://localhost:8000/health
-{"status":"ok","version":"1.0.0-mvp","db":"ok"}
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  DEPLOYMENT STACK (Future)                       │
+│                                                                 │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐       │
+│  │ FastAPI │  │ FastAPI │  │ FastAPI │  │ Workers │       │
+│  │   1     │  │   2     │  │   3     │  │ (Celery)│       │
+│  └───┬─────┘  └───┬─────┘  └───┬─────┘  └───┬─────┘       │
+│      └─────────────┼─────────────┼─────────────┘              │
+│                    │             │                              │
+│                    ▼             ▼                              │
+│            ┌───────────────┬───────────────┐                  │
+│            │    Load Balancer (Nginx)       │                  │
+│            └───────────────┬───────────────┘                  │
+│                            │                                  │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐           │
+│  │ PostgreSQL │  │   Redis    │  │   Qdrant   │           │
+│  │  Primary   │  │  (Queue)  │  │  (Vector) │           │
+│  └────────────┘  └────────────┘  └────────────┘           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Verification
+## TASK-OPS-01: Dockerfile ✅
+
+**Mô tả:** Multi-stage build Dockerfile.
+
+**Features:**
+
+- Python 3.11-slim base
+- Non-root user (`appuser`)
+- Multi-stage build (builder + runtime)
+- Healthcheck directive
+- Pin dependencies
+
+**Dockerfile Structure:**
+
+```dockerfile
+# Builder stage
+FROM python:3.11-slim as builder
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Runtime stage
+FROM python:3.11-slim
+RUN useradd -m appuser
+WORKDIR /app
+COPY --from=builder /usr/local/lib/python3.11/site-packages ./site-packages
+COPY --from=builder /usr/local/bin ./bin
+COPY . .
+RUN chown -R appuser:appuser /app
+USER appuser
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s \
+  CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+---
+
+## TASK-OPS-02: Docker Compose ✅
+
+**Mô tả:** Docker Compose cho development.
+
+**Features:**
+
+- Single service (FastAPI + SQLite + ChromaDB)
+- Persistent volumes
+- Environment from .env
+- Healthcheck
+- Restart policy
+
+**docker-compose.yml:**
+
+```yaml
+version: '3.8'
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./.ai-log:/app/.ai-log
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+```
+
+---
+
+## TASK-OPS-03: Makefile ✅
+
+**Mô tả:** Development commands.
+
+**Targets:**
 
 ```bash
-# 1. Build Docker image
+# Development
+make run          # Run locally
+make dev          # Run with hot reload
+make test         # Run tests
+make test-watch   # Run tests with watch
+make lint         # Lint code
+make format       # Format code
+
+# Docker
+make build        # Build Docker image
+make up           # Start services
+make down         # Stop services
+make logs         # View logs
+make shell        # Shell into container
+
+# Database
+make migrate      # Run migrations
+make rollback     # Rollback migration
+make seed         # Seed data
+
+# Utilities
+make backup       # Backup data
+make restore      # Restore data
+make clean        # Clean temp files
+make health       # Check health
+make help         # Show help
+```
+
+---
+
+## TASK-OPS-04: Scripts ✅
+
+**Mô tả:** Utility scripts.
+
+**Scripts Created:**
+
+- `scripts/backup.sh` — Backup data directory
+- `scripts/restore.sh` — Restore from backup
+- `scripts/seed.py` — Seed demo data
+
+**Seed Data:**
+
+```python
+# Demo user
+demo@example.com / demo123
+
+# 5 Contacts with profiles:
+# - Nguyễn Văn A (Giáo viên)
+# - Trần Thị B (Lập trình viên)
+# - Lê Văn C (Bác sĩ)
+# - Phạm Thị D (Kế toán)
+# - Hoàng Văn E (Kiến trúc sư)
+
+# Each contact has:
+# - 10-20 messages
+# - ContactMemory
+# - Tags
+# - Recommendations
+```
+
+---
+
+## TASK-OPS-05: Health Check + Logging ✅
+
+**Mô tả:** Health endpoint + structured logging.
+
+**Health Endpoint:**
+
+```
+GET /health
+
+Response:
+{
+  "status": "ok",
+  "version": "2.0.0-mvp",
+  "db": "ok"
+}
+```
+
+**Logging:**
+
+- JSON format (stdout)
+- Request ID tracking
+- AI prompt/response logging
+- Log level from env
+
+**Log Format:**
+
+```json
+{
+  "event": "request",
+  "request_id": "uuid",
+  "method": "POST",
+  "path": "/api/v1/chat",
+  "status_code": 200,
+  "duration_ms": 123,
+  "timestamp": "2026-08-14T10:00:00Z"
+}
+```
+
+---
+
+## Deployment Commands
+
+```bash
+# 1. Build
 docker build -t memorychat:latest .
 
-# 2. Start services
+# 2. Start
 docker compose up -d
 
-# 3. Verify health
+# 3. Check health
 curl http://localhost:8000/health
 
-# 4. Run tests (158 tests pass)
+# 4. Run tests
 make test
 
 # 5. Seed data
@@ -165,7 +299,7 @@ make seed
 # 6. Create backup
 make backup
 
-# 7. Check logs
+# 7. View logs
 make logs
 ```
 
@@ -180,29 +314,31 @@ make logs
 ✅ Volume persist qua lần restart
 ✅ make backup + make restore hoạt động
 ✅ Health check /health trả 200 OK + JSON body
-✅ Log JSON chuẩn cho mỗi request (parse được bằng jq)
+✅ Log JSON chuẩn cho mỗi request
 ✅ .ai-log/ chứa JSON Lines của AI prompt + response
-✅ Seed data tạo user demo + 5 Contact + 5 Conversation mẫu
+✅ Seed data tạo user demo + 5 Contact + messages
 ✅ Tài liệu trong README đầy đủ
 ```
 
 ---
 
-## Files Changed Summary
+## Trạng thái hoàn thành
 
-| File | Change |
-|------|--------|
-| `Dockerfile` | Multi-stage build, non-root user, curl for healthcheck |
-| `docker-compose.yml` | Volumes, healthcheck, environment |
-| `Makefile` | 20+ targets for dev ops |
-| `.env.example` | Updated with current config |
-| `.gitignore` | Keep data/backup directories structure |
-| `requirements.txt` | Added structlog |
-| `src/main.py` | Health endpoint với DB check, logging setup |
-| `src/core/logging.py` | NEW - Structured logging module |
-| `src/core/middlewares.py` | Request ID tracking, structured logging |
-| `scripts/backup.sh` | NEW - Backup script |
-| `scripts/restore.sh` | NEW - Restore script với dry-run |
-| `scripts/seed.py` | NEW - Seed script với 5 demo contacts |
-| `data/.gitkeep` | NEW - Preserve data directory |
-| `backup/.gitkeep` | NEW - Preserve backup directory |
+| Task | Status | Evidence |
+|------|--------|----------|
+| TASK-OPS-01: Dockerfile | ✅ Done | `Dockerfile` |
+| TASK-OPS-02: Docker Compose | ✅ Done | `docker-compose.yml` |
+| TASK-OPS-03: Makefile | ✅ Done | `Makefile` |
+| TASK-OPS-04: Scripts | ✅ Done | `scripts/` |
+| TASK-OPS-05: Health + Logging | ✅ Done | `src/main.py`, `src/core/logging.py` |
+
+---
+
+## Reference
+
+- [Deployment Architecture](../specs/architecture.md#8-deployment-architecture)
+
+---
+
+*Version: 2.0 (Specv2 aligned)*
+*Last Updated: 2026-08-14*

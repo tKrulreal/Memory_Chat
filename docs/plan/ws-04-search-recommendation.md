@@ -1,6 +1,6 @@
 # WS-04 — Search & Recommendation
 
-> **Mục tiêu:** Thêm Search Agent + Recommendation Agent + Insight Agent — tìm Contact theo ngữ nghĩa và nhận đề xuất.
+> **Mục tiêu:** Semantic Search + Recommendation System + Insight Analysis.
 
 ---
 
@@ -13,225 +13,320 @@
 | Phụ thuộc | WS-03 (AI Memory) |
 | Unblock | WS-05, WS-06 |
 
-> **Specification Reference:** 
-> - [AI Agents - Search Agent](../specs/ai-agents.md#5-search-agent)
-> - [AI Agents - Recommendation Agent](../specs/ai-agents.md#6-recommendation-agent)
-> - [AI Agents - Insight Agent](../specs/ai-agents.md#9-insight-agent)
-
 ---
 
 ## Trạng thái hiện tại
 
-- ✅ ChromaDB + Embedding Service (từ WS-03).
-- ✅ Memory + ContactMemory (từ WS-03).
-- ✅ Search Agent (`src/agents/search/agent.py`).
-- ✅ Recommendation Agent (`src/agents/recommendation/agent.py`).
-- ✅ Insight Agent (`src/agents/insight/agent.py`).
-- ✅ Insight Worker (`src/workers/insight_worker.py`).
-- ✅ Recommendation Worker (`src/workers/recommendation_worker.py`).
-- ✅ Search API (`src/api/v1/search.py`).
-- ✅ Recommendation API (`src/api/v1/recommendations.py`).
+| Component | Status | File |
+|-----------|--------|------|
+| Search Agent | ✅ Done | `src/agents/search/agent.py` |
+| Search API | ✅ Done | `src/api/v1/search.py` |
+| Recommendation Agent | ✅ Done | `src/agents/recommendation/agent.py` |
+| Recommendation API | ✅ Done | `src/api/v1/recommendations.py` |
+| Recommendation Worker | ✅ Done | `src/workers/recommendation_worker.py` |
+| Insight Agent | ✅ Done | `src/agents/insight/agent.py` |
+| Insight Worker | ✅ Done | `src/workers/insight_worker.py` |
+| SearchHistory tracking | ✅ Done | `src/services/search.py` |
 
 ---
 
-## TASK-SR-01: Search Agent (ChromaDB + LLM re-rank) ✅
+## Search Architecture
 
-**Mô tả:** Search Agent — embed query → ChromaDB top-k → LLM re-rank → top-5.
+### Search Flow
 
-**Checklist:**
-- [x] `src/agents/search/agent.py` - SearchAgent class
-- [x] Prompt Template cho Search Agent (re-rank prompt)
-- [x] Method `search(query: str, limit=5) -> list[SearchResult]`
-- [x] Embed query qua EmbeddingService
-- [x] Query ChromaDB top-10 (k=10)
-- [x] LLM re-rank top-10 → top-5 (dùng `gpt-4o-mini`)
-- [x] Trả về: `{ contact_id, name, score, explanation }`
-- [x] Log search query + result vào `.ai-log/search.jsonl`
-
-**Commands:**
-```bash
-# Test Search Agent
-python -c "
-from src.agents.search import SearchAgent
-agent = SearchAgent()
-results = await agent.search('người thích lập trình Python', limit=5)
-for r in results:
-    print(r.contact_id, r.name, r.score)
-"
 ```
+┌─────────────────────────────────────────────────────────────────┐
+│                      SEMANTIC SEARCH FLOW                        │
+│                                                                 │
+│  User enters natural query                                       │
+│       │                                                         │
+│       ▼                                                         │
+│  ┌─────────────┐                                               │
+│  │  Embed     │  ── text-embedding-3-small ──► 1536 dim     │
+│  │  Query     │                                               │
+│  └──────┬──────┘                                               │
+│         │                                                         │
+│         ▼                                                         │
+│  ┌─────────────┐                                               │
+│  │  ChromaDB  │  ── cosine similarity ──► Top-K candidates  │
+│  │  Search    │                                               │
+│  └──────┬──────┘                                               │
+│         │                                                         │
+│         ▼                                                         │
+│  ┌─────────────┐                                               │
+│  │  Get       │  ── fetch contact details ──► enriched list  │
+│  │  Details   │                                               │
+│  └──────┬──────┘                                               │
+│         │                                                         │
+│         ▼                                                         │
+│  ┌─────────────┐                                               │
+│  │  LLM       │  ── re-rank + explain ──► Final results     │
+│  │  Re-rank   │                                               │
+│  └──────┬──────┘                                               │
+│         │                                                         │
+│         ▼                                                         │
+│  ┌─────────────┐                                               │
+│  │  Save to    │  ── SearchHistory table ──► audit log       │
+│  │  History   │                                               │
+│  └─────────────┘                                               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## TASK-SR-01: Search Agent ✅
+
+**Mô tả:** Semantic search với ChromaDB + LLM re-rank.
+
+**Features:**
+
+```python
+# src/agents/search/agent.py
+class SearchAgent:
+    async def search(self, query: str, user_id: str, limit: int = 5) -> SearchResponse:
+        """
+        1. Embed query
+        2. Query ChromaDB top-K
+        3. Get contact details
+        4. LLM re-rank to top-5
+        5. Generate explanation
+        """
+```
+
+**Example Queries:**
+
+| Query | Meaning | Result |
+|-------|---------|--------|
+| "Find AI engineers" | Semantic: skills ∝ "AI" | Contacts with AI skill |
+| "People I met at startup event" | Semantic: context ∝ "startup" | Relevant contacts |
+| "Who wants to hire?" | Semantic: interest ∝ "hiring" | Contacts hiring |
 
 ---
 
 ## TASK-SR-02: Search API ✅
 
-**Mô tả:** REST API cho Search — nhận query tự nhiên.
+**Mô tả:** REST API cho Search.
 
 **Endpoints:**
 
 ```
-GET /api/v1/search?q=...&limit=5     — Tìm Contact theo câu tự nhiên
+GET /api/v1/search?q=...&limit=5   — Semantic search
+GET /api/v1/search/history          — Search history
 ```
 
-**Checklist:**
-- [x] `src/api/v1/search.py` router
-- [x] Inject `SearchAgent` qua Depends
-- [x] Validate query không rỗng (min 3 chars)
-- [x] Lưu query vào `SearchHistory` (user_id, query, results JSON, created_at)
-- [x] Trả response: `{ results: [{contact_id, name, avatar_url, score, explanation}], query }`
-- [x] Handle không có kết quả (trả empty list, không 404)
+**Features:**
 
-**Commands:**
-```bash
-# Test Search API
-curl "http://localhost:8000/api/v1/search?q=ng%C6%B0%E1%BB%9Di%20th%C3%ADch%20l%E1%BA%ADp%20tr%C3%ACnh&limit=5" \
-  -H "Authorization: Bearer $TOKEN"
+- Validate query (min 3 chars)
+- Save to SearchHistory
+- Return results with explanation
+
+---
+
+## Recommendation Architecture
+
+### Recommendation Types
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   RECOMMENDATION TYPES                            │
+│                                                                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │  FOLLOWUP   │  │    REPLY    │  │   PRIORITY  │         │
+│  │─────────────│  │─────────────│  │─────────────│         │
+│  │ Re-contact  │  │ Suggest     │  │ High-value  │         │
+│  │ after X    │  │ response    │  │ contacts    │         │
+│  │ days       │  │ for message │  │             │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+│                                                                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │ CONNECTION  │  │     TAG     │  │    MERGE    │         │
+│  │─────────────│  │─────────────│  │─────────────│         │
+│  │ Introduce   │  │ Suggest     │  │ Potential   │         │
+│  │ two people │  │ tags for    │  │ duplicate   │         │
+│  │             │  │ contact     │  │ contacts    │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## TASK-SR-03: Recommendation Agent (rule-based + LLM) ✅
+## TASK-SR-03: Recommendation Agent ✅
 
-**Mô tả:** Recommendation Agent — đề xuất Follow-up, Reply, Priority.
+**Mô tả:** Rule-based + LLM recommendation generation.
 
-**Recommendation types:**
-- `FOLLOWUP` — liên hệ lại sau X ngày idle
-- `REPLY` — gợi ý reply cho message cuối
-- `PRIORITY` — đánh dấu Contact quan trọng
-- `CONNECTION` — đề xuất kết nối 2 Contact (thuộc WS-05)
+**Features:**
 
-**Checklist:**
-- [x] `src/agents/recommendation/agent.py` - RecommendationAgent class
-- [x] `RecommendationType` enum trong `src/schemas/enums.py`
-- [x] Rule-based filter:
-  - Contact idle > 7 ngày → FOLLOWUP
-  - Contact có Memory score cao → PRIORITY
-  - Message cuối chưa reply > 24h → REPLY
-- [x] LLM reasoning cho Recommendation (giải thích lý do)
-- [x] Dedup logic (kiểm tra PENDING trước khi tạo mới)
-- [x] Lưu Recommendation vào SQLite
-- [x] Recommendation Worker subscribe EventBus
-
-**Commands:**
-```bash
-# Test Recommendation Agent
-python -c "
-from src.agents.recommendation import RecommendationAgent
-agent = RecommendationAgent()
-recs = await agent.generate(user_id=1)
-for r in recs:
-    print(r.type, r.reason)
-"
+```python
+# src/agents/recommendation/agent.py
+class RecommendationAgent:
+    async def generate(self, user_id: str) -> list[Recommendation]:
+        """
+        1. Get all contacts with memory
+        2. Rule-based candidate generation:
+           - FOLLOWUP: idle > 14 days
+           - REPLY: last message from contact > 24h
+           - PRIORITY: high relationship_score
+        3. LLM reasoning for explanation
+        4. Dedup (check PENDING)
+        5. Save to DB
+        """
 ```
 
 ---
 
-## TASK-SR-04: Recommendation API (accept/reject) ✅
+## TASK-SR-04: Recommendation API ✅
 
-**Mô tả:** REST API cho Recommendation — liệt kê, accept, reject.
+**Mô tả:** REST API cho Recommendation.
 
 **Endpoints:**
 
 ```
-GET   /api/v1/recommendations?status=PENDING                — Liệt kê Recommendation của user
-POST  /api/v1/recommendations/{id}/accept                  — Accept Recommendation
-POST  /api/v1/recommendations/{id}/reject                  — Reject Recommendation
-POST  /api/v1/recommendations/generate                     — Generate Recommendation mới
+GET    /api/v1/recommendations            — List recommendations
+POST   /api/v1/recommendations/generate  — Generate new recommendations
+POST   /api/v1/recommendations/{id}/accept  — Accept
+POST   /api/v1/recommendations/{id}/reject   — Reject
 ```
 
-**Checklist:**
-- [x] `src/api/v1/recommendations.py` router
-- [x] Filter: `?status=PENDING|ACCEPTED|REJECTED`
-- [x] Sort: `created_at DESC`
-- [x] `POST /accept` — update status → ACCEPTED + emit Event
-- [x] `POST /reject` — update status → REJECTED + emit Event
-- [x] `POST /generate` — trigger Recommendation Agent ngay
-- [x] Recommendation Worker tạo Notification khi có Recommendation mới
+**Features:**
 
-**Commands:**
-```bash
-# Test Recommendation API
-curl http://localhost:8000/api/v1/recommendations?status=PENDING \
-  -H "Authorization: Bearer $TOKEN"
-
-curl -X POST http://localhost:8000/api/v1/recommendations/1/accept \
-  -H "Authorization: Bearer $TOKEN"
-```
+- Filter by status (PENDING, ACCEPTED, REJECTED)
+- Sort by created_at DESC
+- Accept/Reject updates status and emits event
+- Notification on new recommendation
 
 ---
 
-## TASK-SR-05: Insight Agent (behavior analysis) ✅
+## TASK-SR-05: Insight Agent ✅
 
-**Mô tả:** Insight Agent — phân tích hành vi từ Memory, tạo Insight.
+**Mô tả:** Behavioral analysis từ contact data.
 
-**Checklist:**
-- [x] `src/agents/insight/agent.py` - InsightAgent class
-- [x] Insight Prompt (phân tích Memory + behavior patterns)
-- [x] Method `generate_insights(contact_id) -> list[Insight]`
-- [x] Insight types:
-  - `INTEREST_PATTERN` (người này quan tâm X)
-  - `COMMUNICATION_STYLE` (người này thường nhắn gọn / dài)
-  - `RELATIONSHIP_TREND` (relationship_score tăng/giảm)
-- [x] Lưu Insight vào `ContactMemory.insights` (JSON field)
-- [x] Insight Worker trigger mỗi Memory update
-- [x] `src/workers/insight_worker.py` - InsightWorker
+**Insight Types:**
 
-**Commands:**
-```bash
-# Test Insight Agent
-python -c "
-from src.agents.insight import InsightAgent
-agent = InsightAgent()
-insights = await agent.generate_insights(contact_id=1)
-for i in insights:
-    print(i.type, i.description)
-"
+```python
+class InsightType(str, Enum):
+    BEHAVIOR = "behavior"           # "Responds quickly in mornings"
+    PATTERN = "pattern"           # "Discusses AI every week"
+    PREFERENCE = "preference"      # "Prefers concise messages"
+    OPPORTUNITY = "opportunity"   # "Might be interested in X"
+    RISK = "risk"                # "Less engaged recently"
+    FACT = "fact"                # "Works at VinAI as AI Engineer"
+```
+
+**Features:**
+
+```python
+# src/agents/insight/agent.py
+class InsightAgent:
+    async def generate_insights(self, contact_id: str) -> list[Insight]:
+        """
+        1. Get contact memory
+        2. Get recent messages
+        3. Analyze patterns:
+           - Communication frequency
+           - Topic trends
+           - Engagement levels
+        4. Generate insights via LLM
+        5. Save to ContactMemory.insights
+        """
 ```
 
 ---
 
 ## TASK-SR-06: Insight API ✅
 
-**Mô tả:** REST API cho Insight — lấy Insight của Contact.
+**Mô tả:** REST API cho Insights.
 
 **Endpoints:**
 
 ```
-GET /api/v1/contacts/{contact_id}/insights    — Lấy Insight của Contact
-POST /api/v1/contacts/{contact_id}/insights/refresh   — Trigger Insight generation
-```
-
-**Checklist:**
-- [x] Insights endpoints trong `src/api/v1/contacts.py`
-- [x] `GET /contacts/{id}/insights` — trả list Insight
-- [x] `POST /contacts/{id}/insights/refresh` — emit Event trigger → InsightWorker xử lý
-- [x] Response: `{ insights: [{type, description, generated_at}] }`
-
-**Commands:**
-```bash
-# Test Insight API
-curl http://localhost:8000/api/v1/contacts/1/insights \
-  -H "Authorization: Bearer $TOKEN"
+GET    /api/v1/contacts/{id}/insights           — Get insights
+POST   /api/v1/contacts/{id}/insights/refresh   — Trigger refresh
 ```
 
 ---
 
 ## TASK-SR-07: SearchHistory + Notification ✅
 
-**Mô tả:** Hoàn thiện SearchHistory + Notification model + API.
+**Mô tả:** Audit logging + User notifications.
 
-**Checklist:**
-- [x] `SearchHistory` model + `SearchHistoryRepository` (từ WS-01)
-- [x] Auto-save SearchHistory mỗi lần user search (trong `src/api/v1/search.py`)
-- [x] `Notification` model + `NotificationRepository` (từ WS-01)
-- [x] Recommendation Worker tạo Notification khi có Recommendation mới
-- [x] Endpoint `GET /api/v1/notifications` (trong `src/api/v1/notifications.py`)
-- [x] Endpoint `POST /api/v1/notifications/{id}/read` — đánh dấu đã đọc
+**SearchHistory:**
 
-**Commands:**
-```bash
-# Test SearchHistory + Notification
-sqlite3 data/app.db "SELECT * FROM search_history ORDER BY created_at DESC LIMIT 5;"
-sqlite3 data/app.db "SELECT * FROM notification ORDER BY created_at DESC LIMIT 5;"
+```python
+class SearchHistory(Base):
+    id: UUID
+    user_id: FK(users.id)
+    query: str
+    result_count: int
+    created_at: datetime
+```
+
+**Notification:**
+
+```python
+class Notification(Base):
+    id: UUID
+    user_id: FK(users.id)
+    type: str  # RECOMMENDATION, FOLLOWUP, MEMORY_UPDATED
+    title: str
+    content: str
+    status: str  # UNREAD, READ
+    created_at: datetime
+```
+
+**Endpoints:**
+
+```
+GET    /api/v1/notifications              — List notifications
+PATCH  /api/v1/notifications/{id}/read   — Mark as read
+GET    /api/v1/search/history            — Search history
+```
+
+---
+
+## Recommendation Worker Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                RECOMMENDATION WORKER FLOW                       │
+│                                                                 │
+│  Trigger: MEMORY_UPDATED event OR periodic (daily)            │
+│       │                                                         │
+│       ▼                                                         │
+│  ┌─────────────┐                                               │
+│  │  Get all   │                                               │
+│  │  contacts  │                                               │
+│  └──────┬──────┘                                               │
+│         │                                                         │
+│         ▼                                                         │
+│  ┌─────────────┐                                               │
+│  │  Analyze   │                                               │
+│  │  each     │                                               │
+│  │  contact  │                                               │
+│  └──────┬──────┘                                               │
+│         │                                                         │
+│         ▼                                                         │
+│  ┌─────────────┐    ┌─────────────┐                           │
+│  │  Generate  │───►│  Dedup      │                           │
+│  │  candidates│    │  (PENDING)  │                           │
+│  └──────┬──────┘    └──────┬──────┘                           │
+│         │                    │                                  │
+│         └──────────┬─────────┘                                  │
+│                    │                                            │
+│                    ▼                                            │
+│  ┌─────────────┐                                               │
+│  │  Save to   │                                               │
+│  │  DB        │                                               │
+│  └──────┬──────┘                                               │
+│         │                                                         │
+│         ▼                                                         │
+│  ┌─────────────┐                                               │
+│  │  Create   │                                               │
+│  │  Notification │                                            │
+│  └─────────────┘                                               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -239,12 +334,11 @@ sqlite3 data/app.db "SELECT * FROM notification ORDER BY created_at DESC LIMIT 5
 ## Kết quả mong đợi sau WS-04
 
 ```
-✅ Search hoạt động với câu tự nhiên (precision > 80% với 5 câu mẫu)
-✅ Recommendation list hiển thị mỗi khi user mở app
-✅ Recommendation tự sinh sau mỗi Memory update
-✅ Accept/Reject Recommendation cập nhật DB đúng
+✅ Search hoạt động với câu tự nhiên
+✅ Recommendation list hiển thị (PENDING)
+✅ Accept/Reject cập nhật DB đúng
 ✅ Insight xuất hiện trong ContactMemory
-✅ Notification xuất hiện khi có Recommendation mới
+✅ Notification khi có Recommendation mới
 ✅ SearchHistory ghi nhận mỗi lần search
 ```
 
@@ -260,4 +354,17 @@ sqlite3 data/app.db "SELECT * FROM notification ORDER BY created_at DESC LIMIT 5
 | TASK-SR-04: Recommendation API | ✅ Done | `src/api/v1/recommendations.py` |
 | TASK-SR-05: Insight Agent | ✅ Done | `src/agents/insight/agent.py` |
 | TASK-SR-06: Insight API | ✅ Done | `src/api/v1/contacts.py` (insights endpoints) |
-| TASK-SR-07: SearchHistory + Notification | ✅ Done | `src/api/v1/search.py`, `recommendations.py`, `notifications.py` |
+| TASK-SR-07: SearchHistory + Notification | ✅ Done | `src/api/v1/search.py`, `notifications.py` |
+
+---
+
+## Reference
+
+- [AI Agents - Search Agent](../specs/ai-agents.md#5-search-agent)
+- [AI Agents - Recommendation Agent](../specs/ai-agents.md#6-recommendation-agent)
+- [AI Agents - Insight Agent](../specs/ai-agents.md#9-insight-agent)
+
+---
+
+*Version: 2.0 (Specv2 aligned)*
+*Last Updated: 2026-08-14*

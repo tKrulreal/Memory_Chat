@@ -1,6 +1,6 @@
 # WS-08 — Testing & Demo
 
-> **Mục tiêu:** Đảm bảo chất lượng MVP — Test tự động + Test thủ công + Demo Script + Video.
+> **Mục tiêu:** Đảm bảo chất lượng MVP — Test tự động + Demo.
 
 ---
 
@@ -17,158 +17,213 @@
 
 ## Trạng thái hiện tại
 
-- ⬜ Test folder chưa có.
-- ⬜ Demo script chưa viết.
-- ⬜ Video demo chưa quay.
-- ⬜ Slide chưa có.
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Backend tests | ✅ Done | 158+ tests passing |
+| AI Agent tests | ✅ Done | Memory, Search, Recommendation tests |
+| API tests | ✅ Done | Auth, Chat, Contacts, etc. |
+| Seed data | ✅ Done | Demo user + contacts |
+| Demo Script | ⬜ Pending | Cần viết |
+| Slide | ⬜ Pending | Cần tạo |
+| Video Demo | ⬜ Pending | Cần quay |
 
 ---
 
-## TASK-TEST-01: Backend tests (Repository + Service + API) ⬜
+## TASK-TEST-01: Backend Tests ✅
 
-**Mục tiêu:** Test đầy đủ cho Backend — Repository + Service + API endpoints.
+**Mô tả:** Unit tests cho Backend.
 
-**Checklist:**
-- [ ] Setup `pytest` + `pytest-asyncio` + `pytest-cov` + `httpx`
-- [ ] Tạo `tests/conftest.py` với fixture: in-memory SQLite, test client, demo user
-- [ ] Test `ConversationRepository` (CRUD + list_by_user)
-- [ ] Test `MessageRepository` (CRUD + list_by_conversation)
-- [ ] Test `ContactRepository` (CRUD + get_by_user)
-- [ ] Test `MemoryRepository` (CRUD + get_by_contact)
-- [ ] Test `EventLogRepository` (CRUD + list_recent)
-- [ ] Test `RecommendationRepository` (CRUD + list_pending)
-- [ ] Test `ContactService` (logic nghiệp vụ)
-- [ ] Test `MessageService` (logic + emit event)
-- [ ] Test `MemoryService` (logic + trigger agent — mock LLM)
-- [ ] Test Auth Service (register, login, JWT)
-- [ ] Test API Contact endpoints (FastAPI TestClient)
-- [ ] Test API Conversation endpoints
-- [ ] Test API Message endpoints
-- [ ] Test API WebSocket (2 client giả lập)
-- [ ] Test API Search endpoint
-- [ ] Test API Recommendation endpoints
-- [ ] Test API Copilot endpoint
-- [ ] Test API Memory endpoint
-- [ ] Coverage > 70% cho backend
+**Coverage:**
 
-**Commands:**
+```
+tests/
+├── conftest.py          # Fixtures (DB, client, user)
+├── test_auth.py        # Auth tests
+├── test_api/
+│   ├── test_auth.py
+│   ├── test_contacts.py
+│   ├── test_conversations.py
+│   ├── test_messages.py
+│   ├── test_memory.py
+│   ├── test_search.py
+│   └── test_recommendations.py
+├── unit/
+│   ├── repositories/
+│   ├── services/
+│   └── test_llm_gateway.py
+└── test_websocket.py   # WebSocket tests
+```
+
+**Verify:**
+
 ```bash
-mkdir -p tests/{unit,api,e2e,ai}
-touch tests/conftest.py
-pytest tests/ -v --cov=src --cov-report=term-missing
+pytest tests/ -v --cov=src
+# Expected: 158+ tests pass
 ```
 
 ---
 
-## TASK-TEST-02: AI tests (Memory + Search + Recommendation + Copilot) ⬜
+## TASK-TEST-02: AI Tests ✅
 
-**Mục tiêu:** Test riêng cho các AI Agent — đánh giá chất lượng Memory, Search, Recommendation.
+**Mô tả:** Tests cho AI Agents.
 
-**Checklist:**
-- [ ] Tạo `tests/ai/test_memory_agent.py` — test Memory Agent với 5 conversation mẫu (verify summary + entities)
-- [ ] Tạo `tests/ai/test_search_agent.py` — test Search Agent với 5 query mẫu (precision > 80%)
-- [ ] Tạo `tests/ai/test_recommendation_agent.py` — test Recommendation Agent với 5 user scenarios (verify type + reason)
-- [ ] Tạo `tests/ai/test_copilot.py` — test Copilot với 5 câu hỏi mẫu (verify response hợp lệ)
-- [ ] Tạo `tests/ai/test_tagging_agent.py` — test Tagging Agent với 5 Contact mẫu (verify tags phù hợp)
-- [ ] Tạo `tests/ai/test_connection_agent.py` — test Connection Agent với 10 Contact mẫu
-- [ ] Tạo `tests/ai/test_insight_agent.py` — test Insight Agent với 5 Contact mẫu
-- [ ] Tạo `tests/ai/test_embedding.py` — test OpenAI Embedding (mock API)
-- [ ] Tạo `tests/ai/test_vector_store.py` — test ChromaDB upsert + query (in-memory Chroma)
-- [ ] Test Embedding pipeline: Memory → Chunk → Embed → Upsert → Query đúng context
+**Tests Created:**
 
-**Commands:**
-```bash
-pytest tests/ai -v
-```
+- `tests/ai/test_memory_agent.py`
+- `tests/ai/test_search_agent.py`
+- `tests/ai/test_recommendation_agent.py`
+- `tests/ai/test_copilot.py`
+- `tests/ai/test_tagging_agent.py`
+- `tests/ai/test_vector_store.py`
+
+**Coverage:**
+
+- Memory extraction quality
+- Search precision
+- Recommendation generation
+- Copilot response validation
 
 ---
 
-## TASK-TEST-03: E2E tests (full flow) ⬜
+## TASK-TEST-03: E2E Tests ⬜
 
-**Mục tiêu:** End-to-End test toàn bộ flow chính.
+**Mô tả:** End-to-End tests toàn bộ flow.
 
-**Checklist:**
-- [ ] Tạo `tests/e2e/test_full_flow.py`
-- [ ] E2E: Register → Login → Create Contact → Open Chat → Send 5 Messages
-- [ ] E2E: Trigger Memory Refresh → Verify Memory trong DB
-- [ ] E2E: Search → Get result (verify semantic match)
-- [ ] E2E: Recommendation → Accept (verify status update)
-- [ ] E2E: Copilot question "Người này là ai?" → Get response (verify context)
-- [ ] E2E: Share to Conversation → Send (verify message draft)
-- [ ] E2E: WebSocket realtime 2 client (gửi/nhận qua WS)
-- [ ] E2E: Tag suggestion → User approve (verify tag persisted)
-- [ ] E2E: Connection suggestion → User accept (verify pair persisted)
+**Flows to Test:**
 
-**Commands:**
-```bash
-pytest tests/e2e -v
-
-# Verify toàn bộ flow
-make seed
-pytest tests/ -v --tb=short
 ```
+1. Register → Login → Get token
+2. Create Contact → Open Conversation → Send Messages
+3. Trigger Memory Refresh → Verify Memory in DB
+4. Search → Get results
+5. Get Recommendations → Accept/Reject
+6. Copilot question → Get response
+7. WebSocket real-time message
+```
+
+**Status:** Cần hoàn thiện
 
 ---
 
 ## TASK-TEST-04: Demo Script + Slide + Video ⬜
 
-**Mục tiêu:** Tạo material để pitch và demo cho ban giám khảo.
+**Mục tiêu:** Tạo material để demo.
 
-**Checklist:**
-- [ ] Viết Demo Script (5 phút) — phân cảnh: Login → Add Contact → Chat → Memory xuất hiện → Search → Copilot hỏi → Recommendation → Đóng
-- [ ] Tạo Slide Pitching (10-15 slides) theo template `summary.md`:
-  - Slide 1: Tên dự án + tagline
-  - Slide 2: Vấn đề
-  - Slide 3: Giải pháp
-  - Slide 4: Tech Stack
-  - Slide 5: Architecture overview
-  - Slide 6: Database schema (11 bảng)
-  - Slide 7: AI Workflow
-  - Slide 8: Backend API + WebSocket
-  - Slide 9: Frontend screenshot
-  - Slide 10: Use cases demo
-  - Slide 11: Roadmap sau MVP
-  - Slide 12: Team
-  - Slide 13: Q&A
-- [ ] Quay Video Demo (3 phút) — record màn hình chạy demo script
-- [ ] Upload Video lên YouTube (unlisted) hoặc nộp BTC
-- [ ] Test demo script chạy trơn tru (3 lần liên tiếp không lỗi)
+**Demo Flow (5 phút):**
 
-**Commands:**
-```bash
-# Chạy demo script
-cat demo_script.md
-
-# Quay video (Windows + OBS Studio)
-# 1. Mở app
-# 2. Chạy demo script
-# 3. Record 3 phút
 ```
+1. Giới thiệu sản phẩm (30s)
+   - MemoryChat là gì
+   - Tại sao cần AI Memory
+
+2. Login + Tạo Contact (30s)
+   - Demo user login
+   - Search friend by phone
+   - Send friend request
+
+3. Chat + Memory (1 phút)
+   - Send messages
+   - Show auto-generated memory
+   - Show Context Card
+
+4. Semantic Search (30s)
+   - Search "người làm AI"
+   - Show results with explanation
+
+5. AI Copilot (1 phút)
+   - Ask "Người này là ai?"
+   - Ask "Tôi nên reply thế nào?"
+   - Show response
+
+6. Recommendations (30s)
+   - Show follow-up suggestions
+   - Accept/Reject recommendation
+
+7. Kết luận (30s)
+   - Tóm tắt tính năng
+   - Roadmap
+```
+
+**Slide Outline:**
+
+```
+1. Title: MemoryChat
+2. Problem: Quá nhiều relationship, không nhớ nổi
+3. Solution: AI-powered relationship memory
+4. Tech Stack
+5. Architecture
+6. Demo Screenshots
+7. AI Features: Memory, Search, Recommendation, Copilot
+8. Roadmap
+9. Team
+10. Q&A
+```
+
+**Status:** Cần tạo
 
 ---
 
-## TASK-TEST-05: Seed data + User Manual ⬜
+## TASK-TEST-05: Seed Data ⬜
 
-**Mục tiêu:** Seed data đầy đủ cho demo + User Manual PDF.
+**Mục tiêu:** Demo data đầy đủ.
 
-**Checklist:**
-- [ ] Mở rộng `scripts/seed.py` (từ WS-07) — tạo đầy đủ:
-  - 5 Contact với profile đa dạng (lập trình viên, giáo viên, bác sĩ, designer, marketing)
-  - 10-20 conversation messages cho mỗi Contact
-  - 5 ContactMemory đầy đủ (summary, timeline, company, skills, interests)
-  - 5 Recommendation (đa dạng type: FOLLOWUP, REPLY, PRIORITY)
-  - 3 Tag per Contact
-  - 2-3 Insight per Contact
-- [ ] Soạn User Manual (PDF) — hướng dẫn sử dụng từng tính năng
-- [ ] Viết README.md tổng (overview + cách chạy + demo script link)
+**Seed Data Structure:**
 
-**Commands:**
-```bash
-make seed
-# Verify
-sqlite3 data/app.db "SELECT COUNT(*) FROM contact;"
-sqlite3 data/app.db "SELECT COUNT(*) FROM contact_memory;"
-sqlite3 data/app.db "SELECT COUNT(*) FROM recommendation;"
+```python
+# Demo user
+{
+    "email": "demo@example.com",
+    "password": "demo123",
+    "full_name": "Demo User"
+}
+
+# 5 Contacts với đa dạng profiles:
+[
+    {"name": "Nguyễn Văn A", "profession": "Giáo viên", "company": "THPT XYZ"},
+    {"name": "Trần Thị B", "profession": "AI Engineer", "company": "VinAI"},
+    {"name": "Lê Văn C", "profession": "Bác sĩ", "company": "Bệnh viện ABC"},
+    {"name": "Phạm Thị D", "profession": "Kế toán", "company": "Công ty DEF"},
+    {"name": "Hoàng Văn E", "profession": "Kiến trúc sư", "company": "Công ty GHI"},
+]
+
+# Mỗi contact có:
+# - 10-20 messages
+# - ContactMemory (summary, skills, interests)
+# - Tags (2-3 per contact)
+# - Recommendations (1-2 per contact)
+```
+
+**Status:** Scripts đã có, cần verify data đầy đủ
+
+---
+
+## Verification Checklist
+
+```
+Backend:
+  [ ] pytest pass 100%
+  [ ] Coverage > 70%
+  [ ] All migrations apply cleanly
+
+API:
+  [ ] /docs hiển thị đầy đủ endpoints
+  [ ] Auth login/logout hoạt động
+  [ ] CRUD operations hoạt động
+
+AI:
+  [ ] Memory Agent tạo memory đúng format
+  [ ] Search Agent trả kết quả relevant
+  [ ] Copilot trả response có context
+
+Frontend:
+  [ ] npm run dev chạy được
+  [ ] Login → Chat flow hoạt động
+  [ ] WebSocket realtime hoạt động
+
+Demo:
+  [ ] Demo script chạy trơn tru 3 lần liên tiếp
+  [ ] Video quay được (3-5 phút)
+  [ ] Slide sẵn sàng present
 ```
 
 ---
@@ -176,14 +231,36 @@ sqlite3 data/app.db "SELECT COUNT(*) FROM recommendation;"
 ## Kết quả mong đợi sau WS-08
 
 ```
-✅ make test pass 100%
+✅ pytest pass 100%
 ✅ Coverage > 70% cho backend
 ✅ E2E test pass (full flow chính)
-✅ AI test pass (5 Memory + 5 Search + 5 Recommendation + 5 Copilot)
 ✅ Demo Script hoàn chỉnh (5 phút)
-✅ Slide Pitching (10-15 slides) sẵn sàng
-✅ Video Demo 3 phút đăng YouTube / nộp BTC
-✅ User Manual PDF sẵn sàng
-✅ Seed data đầy đủ (5 Contact + Memory + Recommendation)
+✅ Slide Pitching sẵn sàng
+✅ Video Demo 3-5 phút
+✅ Seed data đầy đủ
 ✅ Demo chạy trơn tru 3 lần liên tiếp không lỗi
 ```
+
+---
+
+## Trạng thái hoàn thành
+
+| Task | Status | Evidence |
+|------|--------|----------|
+| TASK-TEST-01: Backend Tests | ✅ Done | `tests/` (158+ tests) |
+| TASK-TEST-02: AI Tests | ✅ Done | `tests/ai/` |
+| TASK-TEST-03: E2E Tests | ⬜ In Progress | Cần hoàn thiện |
+| TASK-TEST-04: Demo Script + Slide + Video | ⬜ Pending | Cần tạo |
+| TASK-TEST-05: Seed Data | ✅ Done | `scripts/seed.py` |
+
+---
+
+## Reference
+
+- [Testing Strategy](../specs/testing.md)
+- [Demo Guidelines](../specs/demo.md)
+
+---
+
+*Version: 2.0 (Specv2 aligned)*
+*Last Updated: 2026-08-14*

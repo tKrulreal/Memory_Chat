@@ -6,80 +6,98 @@
 
 **Mục tiêu MVP:** Chứng minh rằng hội thoại có thể được AI "nhớ" và "hiểu" để hỗ trợ người dùng nhắn tin hiệu quả hơn (semantic search, recommendation, AI copilot).
 
-**Tech Stack MVP:**
+**Product Positioning:**
 
-| Layer | Technology |
-|-------|-----------|
-| API | FastAPI + Uvicorn |
-| LLM | OpenAI `gpt-4o-mini` (LangChain/LangGraph) |
-| Agent | LangGraph Orchestrator |
-| Database | SQLite (SQLAlchemy 2.0) |
-| Vector DB | ChromaDB (local persist) |
-| Cache | In-Memory |
-| Validation | Pydantic v2 |
-| Frontend | React + Vite + TypeScript + TailwindCSS + Zustand + TanStack Query |
-| Container | Docker (single service) |
-| Dev Tool | Makefile, Alembic |
+> **AI-native Messaging Platform with Long-term Relationship Memory**
 
-**Tech Stack tương lai (sau MVP):** PostgreSQL, Qdrant, Neo4j, Redis, Celery.
+AI được định vị như một "Second Brain" cho người dùng — giúp ghi nhớ và hiểu các mối quan hệ theo thời gian.
+
+**Core Product Loop:**
+
+```
+Chat → Data → Memory → Knowledge → Recommendation → Action
+```
 
 ---
 
-## Documentation
+## Tech Stack (MVP)
 
-| Type | Location | Description |
-|------|----------|-------------|
-| Specs | [docs/specs/](./specs/) | Technical specifications |
-| Plans | [docs/plan/](./) | Workstream plans |
-| General Overview | [docs/general overview/](../general%20overview/) | Original architecture docs |
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| **Frontend** | React + Vite + TypeScript | Web App |
+| **API** | FastAPI + Uvicorn | REST + WebSocket |
+| **LLM** | GPT-4o / OpenRouter | Configurable qua .env |
+| **Embedding** | OpenAI text-embedding-3-small | 1536 dimensions |
+| **Agent Framework** | LangGraph | AI Orchestration |
+| **Database** | SQLite | MVP (PostgreSQL future) |
+| **Vector DB** | ChromaDB | Local persist `./data/chroma` |
+| **Validation** | Pydantic v2 | Request/Response schemas |
+| **Cache** | In-Memory | Redis (future) |
+| **Container** | Docker | Single service MVP |
 
-### Specs Files
-
-| File | Description |
-|------|-------------|
-| [SPEC.md](../specs/SPEC.md) | Project specifications - core features, acceptance criteria |
-| [techstack.md](../specs/techstack.md) | Complete technology stack + migration path |
-| [architecture.md](../specs/architecture.md) | System architecture diagrams + data flow |
-| [database.md](../specs/database.md) | Database schema - SQLite, PostgreSQL, ChromaDB, Neo4j |
-| [ai-agents.md](../specs/ai-agents.md) | AI Agent architecture - Memory, Search, Recommendation, Copilot |
-| [api.md](../specs/api.md) | REST API + WebSocket endpoints specification |
-| [frontend.md](../specs/frontend.md) | Frontend architecture - Design System, Components, Pages |
-| [deployment.md](../specs/deployment.md) | Infrastructure - Docker, CI/CD, Monitoring, Backup |
-
-**Template nền:** AI20K Agent Template (VinUni AI Thực Chiến starter).
+**Tech Stack tương lai (sau MVP):** PostgreSQL, Qdrant, Neo4j, Redis/Celery.
 
 ---
 
-## Trạng thái hiện tại
+## Database Schema (12 Tables)
 
-| Component | Trạng thái | Ghi chú |
-|-----------|-----------|---------|
-| `src/main.py` skeleton | ✅ Có sẵn | Từ AI20K template |
-| `src/agents/graph.py` skeleton | ✅ Có sẵn | LangGraph `analyze` + `respond` |
-| `src/services/llm.py` skeleton | ✅ Có sẵn | LLM Gateway placeholder |
-| `docker-compose.yml` | ✅ Có sẵn | Single service |
-| `Makefile` | ✅ Có sẵn | Cần bổ sung target |
-| `Dockerfile` | ✅ Có sẵn | Multi-stage build |
-| Database Schema | ⬜ Chưa bắt đầu | 11 bảng theo spec |
-| Backend API | ⬜ Chưa bắn đầu | REST + WebSocket |
-| AI Memory Agent | ⬜ Chưa bắt đầu | |
-| Frontend | ⬜ Chưa bắt đầu | React + Vite |
-| Demo Video | ⬜ Chưa bắt đầu | |
+| Table | Purpose |
+|-------|---------|
+| `users` | User accounts |
+| `contacts` | Contact list (per user) |
+| `contact_memories` | AI-generated knowledge about contacts |
+| `conversations` | Chat conversations |
+| `conversation_pairs` | Sync between 2 users |
+| `messages` | Chat messages |
+| `tags` | Contact tags |
+| `contact_tags` | Tag assignment (N:N) |
+| `recommendations` | AI suggestions |
+| `event_logs` | Activity tracking |
+| `search_history` | Search queries |
+| `notifications` | User notifications |
+| `settings` | User preferences |
+
+---
+
+## AI Architecture
+
+### AI Agents (5 Core)
+
+| Agent | Responsibility |
+|-------|---------------|
+| **Memory Agent** | Build contact knowledge from conversations |
+| **Search Agent** | Semantic search across contacts |
+| **Recommendation Agent** | Proactive suggestions (follow-up, reply, connection) |
+| **Tagging Agent** | Extract entities and suggest tags |
+| **Insight Agent** | Behavioral analysis |
+
+### Orchestrator
+
+```
+User Query → Intent Detection → Context Builder → Agent Execution → Response
+```
+
+### Memory Architecture
+
+- **Conversation Memory**: Summary, topics, decisions per conversation
+- **Contact Memory**: Long-term knowledge (profession, company, skills, interests)
+- **Incremental Update**: Only process new messages, merge into existing memory
+- **Trigger Conditions**: Idle 5min, 20 new messages, user refresh, nightly sync
 
 ---
 
 ## Workstreams
 
-| # | Workstream | File | Tasks | Độ phức tạp | Phụ thuộc |
-|---|------------|------|-------|-------------|-----------|
-| 1 | Backend Foundation | [ws-01-backend-foundation.md](./ws-01-backend-foundation.md) | 12 | 🟡 Trung bình | — |
-| 2 | Chat System | [ws-02-chat-system.md](./ws-02-chat-system.md) | 6 | 🟡 Trung bình | WS-01 |
-| 3 | AI Memory | [ws-03-ai-memory.md](./ws-03-ai-memory.md) | 5 | 🔴 Cao | WS-01 + WS-02 |
-| 4 | Search & Recommendation | [ws-04-search-recommendation.md](./ws-04-search-recommendation.md) | 7 | 🟡 Trung bình | WS-03 |
-| 5 | AI Copilot | [ws-05-ai-copilot.md](./ws-05-ai-copilot.md) | 5 | 🔴 Cao | WS-03 + WS-04 |
-| 6 | Frontend | [ws-06-frontend.md](./ws-06-frontend.md) | 5 | 🟡 Trung bình | WS-02 → WS-05 |
-| 7 | DevOps & Deployment | [ws-07-devops-deployment.md](./ws-07-devops-deployment.md) | 5 | 🟢 Thấp | — |
-| 8 | Testing & Demo | [ws-08-testing-demo.md](./ws-08-testing-demo.md) | 5 | 🟡 Trung bình | Tất cả WS |
+| # | Workstream | Tasks | Độ phức tạp | Phụ thuộc |
+|---|------------|-------|-------------|-----------|
+| 1 | Backend Foundation | 12 | 🟡 Trung bình | — |
+| 2 | Chat System | 6 | 🟡 Trung bình | WS-01 |
+| 3 | AI Memory | 5 | 🔴 Cao | WS-01 + WS-02 |
+| 4 | Search & Recommendation | 7 | 🟡 Trung bình | WS-03 |
+| 5 | AI Copilot | 5 | 🔴 Cao | WS-03 + WS-04 |
+| 6 | Frontend | 5 | 🟡 Trung bình | WS-02 → WS-05 |
+| 7 | DevOps & Deployment | 5 | 🟢 Thấp | — |
+| 8 | Testing & Demo | 5 | 🟡 Trung bình | Tất cả WS |
 
 ---
 
@@ -108,47 +126,31 @@
 [WS-07: DevOps]  ─── chạy song song với tất cả
 ```
 
-**Ghi chú:**
-- WS-04 và WS-05 có thể chạy **song song** (cùng phụ thuộc WS-03).
-- WS-06 (Frontend) có thể chạy song song với WS-03 → WS-05.
-- WS-07 (DevOps) chạy song song với tất cả.
-- WS-08 (Testing & Demo) là workstream cuối cùng, phụ thuộc tất cả.
+---
+
+## Critical Path
+
+```
+WS-01 (Backend Foundation) → WS-02 (Chat) → WS-03 (Memory) → WS-04+05 (Search+Copilot) → WS-08 (Demo)
+                    ↓
+            WS-06 (Frontend) chạy song song từ WS-02 → WS-05
+```
 
 ---
 
-## Thứ tự thực hiện đề xuất
+## Trạng thái hiện tại
 
-```
-Ngày 1:
-  [Buổi sáng]  WS-01: Models + Repositories + Auth skeleton
-  [Buổi chiều] WS-01: LLM Gateway + Alembic migration
-  [Buổi tối]   WS-07: Dockerfile + docker-compose (chạy song song)
-
-Ngày 2:
-  [Buổi sáng]  WS-02: Contact + Conversation + Message API
-  [Buổi chiều] WS-02: WebSocket + Event Bus
-  [Buổi tối]   WS-06: Vite + Tailwind + Routing (bắt đầu Frontend)
-
-Ngày 3:
-  [Buổi sáng]  WS-03: Embedding service + ChromaDB
-  [Buổi chiều] WS-03: Memory Agent + Worker
-  [Buổi tối]   WS-06: Design System + Components
-
-Ngày 4:
-  [Buổi sáng]  WS-04: Search Agent + Recommendation Agent
-  [Buổi chiều] WS-05: Assistant Orchestrator + Copilot API
-  [Buổi tối]   WS-06: Pages tích hợp API
-
-Ngày 5:
-  [Buổi sáng]  WS-04 + WS-05: Tagging + Connection + Insight
-  [Buổi chiều] WS-08: Unit tests + Integration tests
-  [Buổi tối]   WS-06: Polish UI + Responsive
-
-Ngày 6 (Demo day):
-  [Buổi sáng]  WS-08: E2E tests + Bug fixes
-  [Buổi chiều] WS-08: Demo Script + Slide + Video
-  [Buổi tối]   Rehearsal demo
-```
+| Component | Trạng thái | Ghi chú |
+|-----------|-----------|---------|
+| `src/main.py` skeleton | ✅ Có sẵn | FastAPI app |
+| `src/models/` | ✅ Hoàn chỉnh | 12 bảng đã migrate |
+| `src/agents/` | ✅ Hoàn chỉnh | Memory, Search, Recommendation, Insight |
+| `src/api/v1/` | ✅ Hoàn chỉnh | Auth, Chat, Friends, Copilot |
+| `src/ws/manager.py` | ✅ Hoàn chỉnh | WebSocket real-time |
+| `src/events/bus.py` | ✅ Hoàn chỉnh | Event-driven |
+| `frontend/` | ✅ Hoàn chỉnh | React + TS + Tailwind |
+| Database Schema | ✅ Done | Alembic migrations |
+| Tests | ✅ 158+ tests | Pytest |
 
 ---
 
@@ -201,7 +203,7 @@ Ngày 6 (Demo day):
 
 **WS-06 — Frontend**
 - `TASK-FE-01` Setup (Vite + TS + Tailwind + Router)
-- `TASK-FE-02` Design System (VinUni Red tokens + Components)
+- `TASK-FE-02` Design System (tokens + Components)
 - `TASK-FE-03` Auth Pages + API integration
 - `TASK-FE-04` Chat Pages + WebSocket
 - `TASK-FE-05` Search + Recommendation + Copilot Pages
@@ -219,3 +221,79 @@ Ngày 6 (Demo day):
 - `TASK-TEST-03` E2E tests (full flow)
 - `TASK-TEST-04` Demo Script + Slide + Video
 - `TASK-TEST-05` Seed data + User Manual
+
+---
+
+## Product Philosophy
+
+MemoryChat không cố gắng trở thành một phiên bản khác của Messenger hoặc Zalo.
+
+**Giá trị cốt lõi nằm ở AI Layer.**
+
+Hệ thống phải có khả năng biến:
+
+```
+Raw Conversation → Structured Information → Memory → Knowledge → Recommendation → User Action
+```
+
+**AI chỉ:**
+- hiểu, ghi nhớ, phân tích, tìm kiếm, đề xuất
+
+**AI không tự động:**
+- gửi tin nhắn, kết bạn, giới thiệu người này với người khác
+- merge contact, thực hiện hành động có tác động bên ngoài
+
+**Người dùng luôn giữ quyền quyết định cuối cùng.**
+
+---
+
+## MVP Simplification Rules
+
+Nếu thiếu thời gian, ưu tiên theo thứ tự:
+
+```
+1. Chat
+2. Memory
+3. Context Recall
+4. Search
+5. Recommendation
+6. Copilot
+7. Knowledge Graph enhancement
+```
+
+Không hy sinh:
+- Message persistence
+- Authentication
+- Data isolation
+- Memory correctness
+
+---
+
+## Quick Start
+
+```bash
+# Clone and setup
+cp .env.example .env
+# Edit .env with OPENAI_API_KEY and OPENROUTER_API_KEY
+
+# Run with Docker
+docker compose up -d
+
+# Or run locally
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn src.main:app --reload
+
+# Run tests
+pytest tests/ -v
+
+# Frontend
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
+*Plan Version: 2.0 (Specv2 aligned)*
+*Last Updated: 2026-08-14*

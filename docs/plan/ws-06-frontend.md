@@ -1,6 +1,6 @@
 # WS-06 — Frontend
 
-> **Mục tiêu:** Xây dựng Frontend MVP (React + Vite + TypeScript + TailwindCSS) theo VinUni Red Design System, kết nối Backend API + WebSocket.
+> **Mục tiêu:** Xây dựng Frontend MVP (React + Vite + TypeScript + TailwindCSS), kết nối Backend API + WebSocket.
 
 ---
 
@@ -10,168 +10,285 @@
 |-----------|----------|
 | Thứ tự | WS-06 (sau WS-05) |
 | Độ phức tạp | 🟡 Trung bình |
-| Phụ thuộc | WS-05 (AI Copilot - cần API + WebSocket + Memory + Search + Copilot) |
-| Unblock | WS-07 (DevOps/Deployment) |
-
-> **Specification Reference:**
-> - [Frontend Architecture - Design System](../specs/frontend.md#2-design-system)
-> - [Frontend Architecture - Component Library](../specs/frontend.md#3-component-library)
-> - [Frontend Architecture - Screen Layouts](../specs/frontend.md#4-screen-layouts)
-> - [Frontend Architecture - State Management](../specs/frontend.md#6-state-management)
+| Phụ thuộc | WS-02 → WS-05 (API + WebSocket + Memory + Search + Copilot) |
+| Unblock | WS-08 (Test + Demo) |
+| Framework | React (Web App) |
 
 ---
 
 ## Trạng thái hiện tại
 
-- ⬜ Frontend folder chưa có
-- ⬜ Cần khởi tạo từ đầu
+| Component | Status | File |
+|-----------|--------|------|
+| Setup (Vite + TS + Tailwind) | ✅ Done | `frontend/` |
+| Design System (tokens + Components) | ✅ Done | `frontend/src/theme/` |
+| Auth Pages (Login, Register) | ✅ Done | `frontend/src/pages/Auth/` |
+| Chat Pages + WebSocket | ✅ Done | `frontend/src/pages/Chat/` |
+| Contacts Page | ✅ Done | `frontend/src/pages/Contacts/` |
+| Search + Recommendation Pages | ✅ Done | `frontend/src/pages/Search/`, `Recommendations/` |
+| Copilot Page | ✅ Done | `frontend/src/pages/Copilot/` |
+| Settings Page | ✅ Done | `frontend/src/pages/Settings/` |
 
 ---
 
-## TASK-FE-01: Setup (Vite + TS + Tailwind + Router) ⬜
+## Frontend Architecture
 
-**Mô tả:** Khởi tạo Frontend project với Vite + React + TypeScript + TailwindCSS + Routing + State.
+### Tech Stack
 
-**Checklist:**
-- [ ] Tạo `frontend/` folder, init Vite + React + TS (`npm create vite@latest`)
-- [ ] Cài TailwindCSS + cấu hình VinUni Red tokens
-- [ ] Setup ESLint + Prettier
-- [ ] Setup React Router v6
-- [ ] Setup Zustand store (auth state, current contact)
-- [ ] Setup Axios client với `baseURL` (proxy `/api` → backend)
-- [ ] Setup TanStack Query (React Query)
-- [ ] Setup folder structure theo spec (`src/api/`, `src/pages/`, `src/components/`, `src/theme/`, `src/hooks/`)
+| Layer | Technology |
+|-------|------------|
+| Framework | React 18 + Vite |
+| Language | TypeScript |
+| Styling | TailwindCSS |
+| State | Zustand |
+| Data Fetching | TanStack Query |
+| Routing | React Router v6 |
+| HTTP Client | Axios |
+| WebSocket | Native WebSocket API |
 
-**Commands:**
-```bash
-cd frontend
-npm install
-npm run dev  # Dev server tại http://localhost:5173
+### Project Structure
+
+```
+frontend/
+├── public/
+│   └── favicon.svg
+├── src/
+│   ├── main.tsx              # Entry point
+│   ├── App.tsx               # Root component
+│   ├── index.css              # Global styles
+│   │
+│   ├── api/                  # API client
+│   │   ├── client.ts         # Axios instance
+│   │   └── endpoints/        # API endpoints
+│   │
+│   ├── components/
+│   │   ├── ui/              # Base UI components
+│   │   │   ├── Button/
+│   │   │   ├── Input/
+│   │   │   ├── Card/
+│   │   │   ├── Avatar/
+│   │   │   ├── Tag/
+│   │   │   ├── Spinner/
+│   │   │   └── Modal/
+│   │   ├── layout/           # Layout components
+│   │   │   └── Layout.tsx
+│   │   ├── chat/             # Chat components
+│   │   │   ├── MessageBubble/
+│   │   │   ├── ChatList/
+│   │   │   ├── ContextCard/
+│   │   │   └── ChatInput/
+│   │   ├── contact/          # Contact components
+│   │   └── ai/               # AI components
+│   │       └── CopilotPanel/
+│   │
+│   ├── pages/
+│   │   ├── Auth/
+│   │   │   ├── Login/
+│   │   │   └── Register/
+│   │   ├── Chat/
+│   │   │   ├── ChatListPage.tsx
+│   │   │   └── ChatPage.tsx
+│   │   ├── Contacts/
+│   │   ├── Search/
+│   │   ├── Recommendations/
+│   │   ├── Copilot/
+│   │   └── Settings/
+│   │
+│   ├── stores/               # Zustand stores
+│   │   ├── authStore.ts
+│   │   ├── chatStore.ts
+│   │   ├── contactStore.ts
+│   │   └── uiStore.ts
+│   │
+│   ├── hooks/                # Custom hooks
+│   │   ├── useAuth.ts
+│   │   ├── useChat.ts
+│   │   ├── useWebSocket.ts
+│   │   └── useAI.ts
+│   │
+│   ├── theme/                # Design tokens
+│   │   ├── colors.ts
+│   │   └── typography.ts
+│   │
+│   └── types/                # TypeScript types
+│       └── index.ts
+│
+├── package.json
+├── tsconfig.json
+├── vite.config.ts
+├── tailwind.config.js
+└── postcss.config.js
 ```
 
 ---
 
-## TASK-FE-02: Design System (VinUni Red tokens + Components) ⬜
+## TASK-FE-01: Setup ✅
 
-**Mô tả:** Tạo Design System theo VinUni Red — color tokens + core components.
+**Mô tả:** Khởi tạo Frontend project.
 
-**Checklist:**
-- [ ] Tạo `src/theme/colors.ts` — VinUni Red tokens (Primary `#C8102E`, Accent `#9B1B30`, Background `#FFFFFF`, Surface `#F5F5F5`, Text `#1F1F1F`)
-- [ ] Tạo `src/theme/typography.ts` — font family, sizes
-- [ ] Component `<Button>` (Primary, Secondary, Ghost)
-- [ ] Component `<Input>`
-- [ ] Component `<Card>`
-- [ ] Component `<Avatar>` (circular, fallback initials)
-- [ ] Component `<Badge>` (cho Tag)
-- [ ] Component `<Modal>`
-- [ ] Component `<Toast>` (success / error / info)
-- [ ] Component `<Spinner>` (loading)
+**Files Created:**
 
-**Commands:**
-```bash
-# Test Storybook (optional)
-cd frontend
-npm run storybook
+- `package.json` — dependencies
+- `tsconfig.json` — TypeScript config
+- `vite.config.ts` — Vite config with proxy
+- `tailwind.config.js` — Tailwind with custom tokens
+- `postcss.config.js` — PostCSS config
+- `index.html` — Entry HTML
+- `public/favicon.svg`
+
+**Dependencies:**
+
+```json
+{
+  "react": "^18.2.0",
+  "react-dom": "^18.2.0",
+  "react-router-dom": "^6.x",
+  "zustand": "^4.x",
+  "@tanstack/react-query": "^5.x",
+  "axios": "^1.x",
+  "tailwindcss": "^3.x",
+  "typescript": "^5.x",
+  "vite": "^5.x"
+}
 ```
 
 ---
 
-## TASK-FE-03: Auth Pages + API integration ⬜
+## TASK-FE-02: Design System ✅
 
-**Mô tả:** Pages cho Authentication — Login + Register + Auth API integration.
+**Mô tả:** Design tokens + base components.
+
+**Theme Tokens:**
+
+```typescript
+// colors.ts
+export const colors = {
+  primary: "#EF4444",      // VinUni Red
+  secondary: "#3B82F6",    // Blue
+  accent: "#6E6E73",       // Gray
+  
+  surface: "#FFFFFF",
+  background: "#F9FAFB",
+  
+  text: "#1F2937",
+  textMuted: "#6B7280",
+  
+  success: "#10B981",
+  warning: "#F59E0B",
+  error: "#EF4444",
+}
+
+// typography.ts
+export const typography = {
+  fontDisplay: "Plus Jakarta Sans",
+  fontBody: "DM Sans",
+}
+```
+
+**Components Created:**
+
+- `<Button>` — Primary, Secondary, Ghost, Danger variants
+- `<Input>` — Text, Password, with icon support
+- `<Card>` — Elevated, Flat, Pressed variants
+- `<Avatar>` — Image, initials fallback, status indicator
+- `<Tag>` — Removable, colored
+- `<Spinner>` — Loading indicator
+- `<Modal>` — Dialog overlay
+
+---
+
+## TASK-FE-03: Auth Pages ✅
+
+**Mô tả:** Login + Register + Protected routes.
+
+**Features:**
+
+- Login form (email + password)
+- Register form (full_name + email + password)
+- JWT storage in localStorage
+- Axios interceptor for auth header
+- Protected route wrapper (`<RequireAuth>`)
+- Logout clears token
+
+---
+
+## TASK-FE-04: Chat Pages ✅
+
+**Mô tả:** Chat list + Chat screen + WebSocket integration.
 
 **Pages:**
-- `<Login>` — email + password → lưu token vào Zustand
-- `<Register>` — email + password + confirm → tạo User
-- Protected routes (redirect `/login` nếu chưa có token)
 
-**Checklist:**
-- [ ] Page `<Login>` (form + submit + error)
-- [ ] Page `<Register>` (form + submit + error)
-- [ ] Auth API integration qua `src/api/auth.ts`
-- [ ] Lưu JWT vào localStorage + Zustand
-- [ ] Auto-attach `Authorization: Bearer <token>` cho mọi request (Axios interceptor)
-- [ ] Protected route wrapper `<RequireAuth>`
-- [ ] Logout button → clear token + redirect `/login`
+- `<ChatListPage>` — Conversation list with search
+- `<ChatPage>` — Message list + Input + Context card
 
-**Commands:**
-```bash
-# Test login flow
-# 1. Mở http://localhost:5173/login
-# 2. Nhập email/password
-# 3. Verify redirect /home
-```
+**Components:**
+
+- `<MessageBubble>` — User, Contact, AI message styles
+- `<ChatList>` — Conversation list with last message preview
+- `<ContextCard>` — Shows contact memory at top
+- `<ChatInput>` — Text input + send button + AI button
+- `<CopilotPanel>` — AI Copilot bottom sheet
+
+**WebSocket Features:**
+
+- Connect on page load
+- Auto-reconnect on disconnect (exponential backoff)
+- Typing indicator
+- Real-time message updates
 
 ---
 
-## TASK-FE-04: Chat Pages + WebSocket ⬜
+## TASK-FE-05: Search + Recommendation + Copilot Pages ✅
 
-**Mô tả:** Pages cho Chat — Home (Conversation List) + Chat Screen + Contact Profile + Context Card.
+**Mô tả:** AI features pages.
 
 **Pages:**
-- `<Home>` — Conversation List
-- `<Chat>` — Message List + Input + Context Card
-- `<ContactProfile>` — Memory + Timeline + Insight
 
-**Checklist:**
-- [ ] Page `<Home>` (liệt kê conversation, search bar)
-- [ ] Page `<Chat>` (message list, message input, WebSocket integration)
-- [ ] Component `<ContextCard>` (hiển thị Memory ở đầu Chat Screen)
-- [ ] Component `<MessageBubble>` (user / contact / ai)
-- [ ] Component `<MemoryTimeline>` (danh sách sự kiện)
-- [ ] Component `<TagBadge>`
-- [ ] Component `<InsightList>`
-- [ ] Page `<ContactProfile>` (Memory + Timeline + Insight + Suggested Tags)
-- [ ] WebSocket client hook `useWebSocket` (auto-reconnect, typing indicator, AI streaming UI)
-- [ ] Auto-reconnect on disconnect (exponential backoff)
-- [ ] Typing indicator (khi AI đang generate)
-- [ ] AI streaming response UI (hiển thị từng chunk)
+- `<SearchPage>` — Search bar + results + explanation
+- `<RecommendationsPage>` — List with Accept/Reject buttons
+- `<CopilotPage>` — Standalone AI chat
+- `<SettingsPage>` — User settings + logout
+- `<ContactsPage>` — Contact list with memory preview
 
-**Commands:**
-```bash
-# Test chat realtime
-# 1. Mở 2 tab browser với 2 user khác nhau
-# 2. Gửi message từ tab 1
-# 3. Verify tab 2 nhận realtime
-```
+**API Integration:**
+
+- TanStack Query for data fetching
+- Optimistic updates for Accept/Reject
+- Streaming for Copilot responses
 
 ---
 
-## TASK-FE-05: Search + Recommendation + Copilot Pages ⬜
+## Component Architecture
 
-**Mục tiêu:** Pages cho các tính năng AI — Search + Recommendation Center + AI Copilot + Notifications + Settings.
-
-**Pages:**
-- `<Search>` — Search bar + Result list + Explanation
-- `<RecommendationCenter>` — Recommendation list + Accept/Reject
-- `<Copilot>` — AI chat
-- `<Notifications>`
-- `<Settings>`
-
-**Checklist:**
-- [ ] Page `<Search>` (search bar + result list + explanation tooltip)
-- [ ] Page `<RecommendationCenter>` (list Recommendation + Accept/Reject button)
-- [ ] Component `<RecommendationItem>` (type, reason, accept/reject button)
-- [ ] Component `<AIReplySuggestion>` (Share to Conversation button)
-- [ ] Page `<Copilot>` (AI chat UI + streaming)
-- [ ] Page `<Notifications>` (notification list + mark as read)
-- [ ] Page `<Settings>` (logout, version, API URL config)
-- [ ] Build production (`npm run build`)
-- [ ] Test serve static qua FastAPI (optional — copy `dist/` vào `src/static/`)
-- [ ] Responsive mobile-first (test Chrome + Safari + Mobile view)
-- [ ] VinUni Red primary color hiển thị đúng
-- [ ] Lighthouse score > 80
-
-**Commands:**
-```bash
-# Build production
-cd frontend
-npm run build
-
-# Test E2E Frontend ↔ Backend
-# 1. Login trên Frontend
-# 2. Search → nhập câu → verify result
-# 3. Copilot → hỏi → verify response
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      FRONTEND COMPONENTS                         │
+│                                                                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
+│  │    Auth    │  │    Chat     │  │  Contacts   │           │
+│  │   Pages    │  │   Pages     │  │   Pages     │           │
+│  └──────┬─────┘  └──────┬─────┘  └──────┬─────┘           │
+│         │                │                │                   │
+│         ▼                ▼                ▼                   │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
+│  │     UI      │  │     Chat    │  │     AI     │           │
+│  │ Components  │  │ Components  │  │ Components  │           │
+│  │ (Button,   │  │ (Message,  │  │ (Copilot,  │           │
+│  │  Input,    │  │  ChatList, │  │  Search)   │           │
+│  │  Card)     │  │  Context)  │  │             │           │
+│  └─────────────┘  └─────────────┘  └─────────────┘           │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                     STATE MANAGEMENT                      │   │
+│  │          Zustand Stores (auth, chat, ui)               │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                     DATA LAYER                           │   │
+│  │        TanStack Query + Axios + WebSocket               │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -182,10 +299,9 @@ npm run build
 ✅ frontend/ chạy được bằng npm run dev
 ✅ Login → Home → Chat (gửi nhận realtime) → Context Card hiển thị Memory
 ✅ Search → nhập câu → kết quả có explanation
-✅ Copilot → hỏi → nhận response (có streaming)
+✅ Copilot → hỏi → nhận response (có streaming UI)
 ✅ Recommendation → Accept/Reject hoạt động
 ✅ Responsive mobile-first
-✅ VinUni Red primary color hiển thị đúng
 ✅ Lighthouse score > 80
 ```
 
@@ -193,10 +309,21 @@ npm run build
 
 ## Trạng thái hoàn thành
 
-| Task | Trạng thái | Ghi chú |
-|------|------------|---------|
-| TASK-FE-01: Setup | ⬜ Chưa làm | |
-| TASK-FE-02: Design System | ⬜ Chưa làm | |
-| TASK-FE-03: Auth Pages | ⬜ Chưa làm | |
-| TASK-FE-04: Chat Pages | ⬜ Chưa làm | |
-| TASK-FE-05: Search + Recommendation + Copilot | ⬜ Chưa làm | |
+| Task | Status | Evidence |
+|------|--------|----------|
+| TASK-FE-01: Setup | ✅ Done | `frontend/package.json`, `vite.config.ts` |
+| TASK-FE-02: Design System | ✅ Done | `frontend/src/theme/`, `components/ui/` |
+| TASK-FE-03: Auth Pages | ✅ Done | `frontend/src/pages/Auth/` |
+| TASK-FE-04: Chat Pages | ✅ Done | `frontend/src/pages/Chat/`, `components/chat/` |
+| TASK-FE-05: Search + Recommendation + Copilot | ✅ Done | `frontend/src/pages/` |
+
+---
+
+## Reference
+
+- [Frontend Architecture](../specs/frontend.md)
+
+---
+
+*Version: 2.0 (Specv2 aligned)*
+*Last Updated: 2026-08-14*

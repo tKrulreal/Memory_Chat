@@ -13,164 +13,323 @@
 | Phụ thuộc | WS-01 (Backend Foundation), WS-02 (Chat System) |
 | Unblock | WS-04, WS-05, WS-06 |
 
-> **Specification Reference:** Xem chi tiết tại [AI Agents Architecture - Memory Agent](../specs/ai-agents.md#4-memory-agent)
-
 ---
 
 ## Trạng thái hiện tại
 
-- ✅ `src/agents/graph.py` skeleton (LangGraph `analyze` + `respond`).
-- ✅ `src/services/llm.py` (LLM Gateway) - đã tích hợp Embedding Service.
-- ✅ `src/agents/memory/agent.py` - Memory Agent hoàn chỉnh.
-- ✅ `src/services/vector_store.py` - ChromaDB wrapper.
-- ✅ `src/workers/memory_worker.py` - Background worker subscribe EventBus.
-- ✅ `src/api/v1/memory.py` - Memory API endpoints.
+| Component | Status | File |
+|-----------|--------|------|
+| Embedding Service | ✅ Done | `src/services/llm.py` |
+| Vector Store (ChromaDB) | ✅ Done | `src/services/vector_store.py` |
+| Memory Agent | ✅ Done | `src/agents/memory/agent.py` |
+| Memory Worker | ✅ Done | `src/workers/memory_worker.py` |
+| Memory API | ✅ Done | `src/api/v1/memory.py` |
 
 ---
 
-## TASK-MEM-01: Embedding Service (OpenAI Embeddings) ✅
+## Memory Architecture
 
-**Mô tả:** Wrapper cho OpenAI Embeddings API — chuyển text thành vector.
+### Memory Types
 
-> **Note:** Embedding được tích hợp trong `src/services/llm.py` (LLMGateway.embed())
-
-**Checklist:**
-- [x] `LLMGateway.embed(text)` method trong `src/services/llm.py`
-- [x] Dùng `text-embedding-3-small` model (1536 dim)
-- [x] Retry với exponential backoff (tenacity)
-- [x] Log prompt + embedding vào `.ai-log/`
-- [x] Configurable qua `settings.embedding_model`
-
-**Commands:**
-```bash
-# Test Embedding
-python -c "
-from src.services.llm import LLMGateway
-g = LLMGateway()
-v = g.embed('Xin chào')
-print(len(v))  # 1536
-"
 ```
+┌─────────────────────────────────────────────────────────────────┐
+│                         MEMORY LAYER                             │
+│                                                                 │
+│  ┌─────────────────────┐    ┌─────────────────────┐           │
+│  │  CONVERSATION        │    │  CONTACT            │           │
+│  │  MEMORY              │    │  MEMORY             │           │
+│  │─────────────────────│    │────────────────────│           │
+│  │ summary             │    │ summary            │           │
+│  │ current_topics      │    │ profession         │           │
+│  │ decisions           │    │ company            │           │
+│  │ last_processed_id   │    │ skills (JSON)      │           │
+│  │                      │    │ interests (JSON)   │           │
+│  │                      │    │ timeline (JSON)    │           │
+│  │                      │    │ relationship_score │           │
+│  │                      │    │ insights (JSON)    │           │
+│  └─────────────────────┘    └─────────────────────┘           │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  VECTOR STORAGE (ChromaDB)                              │   │
+│  │  - contact_memory_embeddings                             │   │
+│  │  - message_embeddings                                   │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Memory Workflow
+
+```
+Message Created
+       │
+       ▼
+Increment pending_message_count
+       │
+       ▼
+Trigger Manager
+       │
+Condition satisfied?
+       │
+YES
+       │
+       ▼
+Fetch unprocessed messages
+       │
+       ▼
+Load previous Memory (if exists)
+       │
+       ▼
+LLM: Summarize + Extract Entities
+       │
+       ▼
+Update ContactMemory (merge)
+       │
+       ▼
+Generate Embedding
+       │
+       ▼
+Upsert to ChromaDB
+       │
+       ▼
+Reset pending count
+       │
+       ▼
+Update last_processed_message_id
+```
+
+---
+
+## TASK-MEM-01: Embedding Service ✅
+
+**Mô tả:** Wrapper cho OpenAI Embeddings API.
+
+**Implementation:**
+
+```python
+# LLMGateway.embed() in src/services/llm.py
+async def embed(self, texts: list[str]) -> list[list[float]]:
+    """Embed texts using OpenAI embeddings."""
+    response = await self.client.embeddings.create(
+        model=settings.embedding_model,
+        input=texts
+    )
+    return [item.embedding for item in response.data]
+```
+
+**Features:**
+
+- Model: `text-embedding-3-small` (1536 dimensions)
+- Batch support
+- Retry with exponential backoff
+- Logging to `.ai-log/`
 
 ---
 
 ## TASK-MEM-02: Vector Store Service (ChromaDB) ✅
 
-**Mô tả:** Wrapper cho ChromaDB — quản lý collection `contact_memory_embedding`.
+**Mô tả:** Wrapper cho ChromaDB.
 
-> **Reference:** Xem chi tiết tại [Database Schema - Vector Database](../specs/database.md#5-vector-database-chromadb)
+**Implementation:**
 
-**Checklist:**
-- [x] `src/services/vector_store.py` (VectorStoreService class)
-- [x] Persistent client: `./data/chroma` (config từ env: `CHROMA_PERSIST_DIR`)
-- [x] Collection: `contact_memory_embedding`
-- [x] Method `upsert(memory_id, text, embedding, metadata)`
-- [x] Method `query(query_embedding, top_k=10) -> list[dict]`
-- [x] Method `delete(memory_id)`
-- [x] Method `count() -> int`
-- [x] Metadata schema: `{ contact_id, user_id, memory_id, updated_at }`
-- [x] Singleton pattern cho reuse
+```python
+# src/services/vector_store.py
+class VectorStoreService:
+    def __init__(self, persist_dir: str = "./data/chroma"):
+        self.client = chromadb.PersistentClient(path=persist_dir)
+        self.collection = self.client.get_or_create_collection(
+            name="contact_memory_embeddings",
+            metadata={"hnsw:space": "cosine"}
+        )
+    
+    async def upsert(self, memory_id: str, text: str, embedding: list[float], metadata: dict)
+    async def query(self, query_embedding: list[float], top_k: int = 10) -> list[dict]
+    async def delete(self, memory_id: str)
+```
 
-**Commands:**
-```bash
-# Test Vector Store
-python -c "
-from src.services.vector_store import VectorStoreService
-vs = VectorStoreService.get_instance()
-vs.upsert('mem-1', 'Người này thích lập trình', [0.1]*1536, {'contact_id': '1'})
-print(vs.count())
-print(vs.query([0.1]*1536, top_k=5))
-"
+**Collections:**
+
+- `contact_memory_embeddings` — Contact memory vectors
+- `message_embeddings` — Message chunk vectors
+
+---
+
+## TASK-MEM-03: Memory Agent ✅
+
+**Mô tả:** Memory Agent phân tích conversation và sinh ContactMemory.
+
+**Features:**
+
+```python
+# src/agents/memory/agent.py
+class MemoryAgent:
+    async def summarize(self, messages: list[Message]) -> str
+    """Generate conversation summary."""
+    
+    async def extract_entities(self, messages: list[Message]) -> dict
+    """Extract company, profession, skills, interests."""
+    
+    async def calculate_relationship_score(self, messages: list[Message]) -> int
+    """Calculate relationship score 0-100."""
+    
+    async def build_timeline(self, messages: list[Message]) -> list[dict]
+    """Build timeline of events."""
+    
+    async def process_conversation(self, conversation_id: str) -> ContactMemory
+    """Full memory processing pipeline."""
+```
+
+**Prompts:**
+
+```python
+MEMORY_SUMMARY_PROMPT = """
+You are a helpful assistant that summarizes conversations.
+
+Given a conversation, create a brief summary (2-3 sentences) of what was discussed.
+Focus on key topics, decisions, and important information shared.
+
+Conversation:
+{conversation_text}
+
+Summary:
+"""
+
+ENTITY_EXTRACTION_PROMPT = """
+Extract structured information from the conversation.
+
+For each field, if information is not available, return null.
+- profession: Job title or role (e.g., "AI Engineer", "Product Manager")
+- company: Company name (e.g., "VinAI", "FPT")
+- skills: List of technical or professional skills
+- interests: List of topics the person seems interested in
+"""
 ```
 
 ---
 
-## TASK-MEM-03: Memory Agent (summary + entity extraction) ✅
+## TASK-MEM-04: Memory Worker ✅
 
-**Mô tả:** Memory Agent — phân tích conversation và sinh ContactMemory.
+**Mô tả:** Background worker subscribe EventBus.
 
-**Checklist:**
-- [x] `src/agents/memory/agent.py` - MemoryAgent class
-- [x] Prompt Templates cho Memory (summary + entities)
-- [x] Chunking utility (token-aware, ~500 token/chunk)
-- [x] Method `summarize(messages) -> str`
-- [x] Method `extract_entities(messages) -> dict` (company, profession, skills, interests)
-- [x] Method `calculate_relationship_score(messages) -> int` (rule-based)
-- [x] Method `build_memory(contact_id, messages) -> MemoryResult`
-- [x] Dùng LLM Gateway (`gpt-4o-mini`)
-- [x] Method `build_timeline(messages) -> list[dict]`
+**Trigger Conditions:**
 
-**Commands:**
-```bash
-# Test Memory Agent
-python -c "
-from src.agents.memory import MemoryAgent
-agent = MemoryAgent()
-# Sync test
-print('MemoryAgent initialized')
-"
+```python
+MEMORY_UPDATE_TRIGGERS = {
+    "conversation_idle": timedelta(minutes=5),  # 5 min no activity
+    "message_count": 20,                         # 20 new messages
+    "user_request": True,                        # User clicks "Refresh"
+    "batch_job": "0 2 * * *",                   # 2 AM daily
+    "conversation_closed": True                   # User closes chat
+}
 ```
+
+**Features:**
+
+- Subscribe to EventBus events: `SEND_MESSAGE`, `OPEN_CHAT`, `CLOSE_CHAT`, `OPEN_AI`
+- Check idle time and message count
+- Async processing (non-blocking)
+- Retry on LLM failure (max 1 retry)
+- Graceful error handling
 
 ---
 
-## TASK-MEM-04: Memory Worker (subscribe EventBus) ✅
+## TASK-MEM-05: Memory API ✅
 
-**Mô tả:** Background worker subscribe `EventBus` → trigger Memory Refresh theo event.
-
-**Trigger logic:**
-- `SEND_MESSAGE` → check: nếu conversation idle > 5 phút → trigger refresh
-- `CLOSE_CHAT` → trigger refresh ngay
-- `OPEN_AI` (manual button) → trigger refresh ngay
-
-**Checklist:**
-- [x] `src/workers/memory_worker.py` - MemoryWorker class
-- [x] Subscribe EventBus event `SEND_MESSAGE`, `CLOSE_CHAT`, `OPEN_AI`
-- [x] Check `last_message_time` của conversation — nếu idle > 5 phút → trigger
-- [x] Call Memory Agent → save ContactMemory + upsert ChromaDB
-- [x] Không block event loop (chạy async task)
-- [x] Handle LLM error gracefully (log + retry 1 lần)
-- [x] Worker khởi động trong lifespan (main.py)
-- [x] Log mỗi lần refresh
-
-**Commands:**
-```bash
-# Test Worker - verify in main.py lifespan
-# MemoryWorker được khởi tạo và subscribe trong app startup
-```
-
----
-
-## TASK-MEM-05: Memory API (CRUD + refresh) ✅
-
-**Mô tả:** REST API cho Memory — lấy, refresh, edit.
+**Mô tả:** REST API cho Memory.
 
 **Endpoints:**
 
 ```
-GET    /api/v1/memory/{contact_id}               — Lấy Memory hiện tại của Contact
-POST   /api/v1/memory/{contact_id}/refresh       — Trigger Memory Refresh ngay
-PATCH  /api/v1/memory/{contact_id}               — User edit Memory (summary, tags...)
-GET    /api/v1/memory/{contact_id}/timeline      — Lấy timeline (sự kiện theo thời gian)
+GET    /api/v1/contacts/{contact_id}/memory     — Get contact memory
+PUT    /api/v1/contacts/{contact_id}/memory     — Update memory (user edit)
+POST   /api/v1/contacts/{contact_id}/memory/refresh — Trigger AI refresh
+GET    /api/v1/contacts/{contact_id}/timeline   — Get timeline
+GET    /api/v1/contacts/{contact_id}/insights    — Get insights
 ```
 
-**Checklist:**
-- [x] `src/api/v1/memory.py` router
-- [x] Inject `MemoryService` qua Depends
-- [x] Apply `get_current_user` (auth)
-- [x] `GET /memory/{id}` — trả ContactMemory JSON đầy đủ
-- [x] `POST /memory/{id}/refresh` — emit Event `OPEN_AI` → Worker xử lý
-- [x] `PATCH /memory/{id}` — update summary + tags (user edit)
-- [x] `GET /memory/{id}/timeline` — query Messages group by date
-- [x] Response shape đầy đủ
+**Schemas:**
 
-**Commands:**
-```bash
-# Test Memory API
-curl http://localhost:8000/api/v1/memory/1 \
-  -H "Authorization: Bearer $TOKEN"
+```python
+# Request
+class MemoryUpdateRequest(BaseModel):
+    summary: str | None = None
+    profession: str | None = None
+    company: str | None = None
+    skills: list[str] | None = None
+    interests: list[str] | None = None
 
-curl -X POST http://localhost:8000/api/v1/memory/1/refresh \
-  -H "Authorization: Bearer $TOKEN"
+# Response
+class MemoryResponse(BaseModel):
+    id: UUID
+    contact_id: UUID
+    summary: str | None
+    profession: str | None
+    company: str | None
+    skills: list[str]
+    interests: list[str]
+    timeline: list[dict]
+    relationship_score: int
+    last_discussion: str | None
+    insights: list[dict]
+    updated_at: datetime
+```
+
+---
+
+## Memory Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     MESSAGE → MEMORY FLOW                       │
+│                                                                 │
+│  User sends message                                             │
+│       │                                                        │
+│       ▼                                                        │
+│  ┌─────────────┐                                               │
+│  │   Message   │                                               │
+│  │   Created  │                                               │
+│  └──────┬──────┘                                               │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────┐                                               │
+│  │  Increment  │                                               │
+│  │  pending_   │                                               │
+│  │  count     │                                               │
+│  └──────┬──────┘                                               │
+│         │                                                       │
+│         ▼                                                       │
+│  ┌─────────────┐    ┌─────────────┐                            │
+│  │   Check     │───►│  Condition │                            │
+│  │   Triggers │    │  met?      │                            │
+│  └──────┬──────┘    └──────┬──────┘                            │
+│         │                   │                                   │
+│         │ YES               │ NO                                │
+│         ▼                   │                                   │
+│  ┌─────────────┐           │                                   │
+│  │   Fetch    │           │                                   │
+│  │   messages │           │                                   │
+│  └──────┬──────┘           │                                   │
+│         │                   │                                   │
+│         ▼                   │                                   │
+│  ┌─────────────┐           │                                   │
+│  │  Memory     │           │                                   │
+│  │  Agent     │           │                                   │
+│  └──────┬──────┘           │                                   │
+│         │                   │                                   │
+│         ▼                   │                                   │
+│  ┌─────────────┐           │                                   │
+│  │   Update   │           │                                   │
+│  │   Memory   │           │                                   │
+│  │   DB      │           │                                   │
+│  └──────┬──────┘           │                                   │
+│         │                   │                                   │
+│         ▼                   │                                   │
+│  ┌─────────────┐           │                                   │
+│  │   Upsert   │           │                                   │
+│  │   ChromaDB │           │                                   │
+│  └─────────────┘           │                                   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -182,7 +341,7 @@ curl -X POST http://localhost:8000/api/v1/memory/1/refresh \
 ✅ ChromaDB có embeddings cho mỗi Memory (./data/chroma)
 ✅ API trả Memory đúng format
 ✅ User có thể edit Memory qua PATCH
-✅ Embedding tồn tại trong ChromaDB collection contact_memory_embedding
+✅ Embedding tồn tại trong ChromaDB collection contact_memory_embeddings
 ✅ Context Recall (mở chat) trả về Memory của Contact đó
 ✅ Test E2E Memory flow pass
 ```
@@ -198,3 +357,15 @@ curl -X POST http://localhost:8000/api/v1/memory/1/refresh \
 | TASK-MEM-03: Memory Agent | ✅ Done | `src/agents/memory/agent.py` |
 | TASK-MEM-04: Memory Worker | ✅ Done | `src/workers/memory_worker.py` |
 | TASK-MEM-05: Memory API | ✅ Done | `src/api/v1/memory.py` |
+
+---
+
+## Reference
+
+- [AI Agents - Memory Agent](../specs/ai-agents.md#4-memory-agent)
+- [Database - Vector Database](../specs/database.md#4-vector-database-schema-chromadb)
+
+---
+
+*Version: 2.0 (Specv2 aligned)*
+*Last Updated: 2026-08-14*
