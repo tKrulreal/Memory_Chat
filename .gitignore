@@ -67,3 +67,5 @@ out/
 # Local backup files
 backup/*.tar.gz
 backup/latest.tar.gz
+
+.agent

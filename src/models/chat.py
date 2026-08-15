@@ -1,42 +1,63 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.database import Base, created_at_col, updated_at_col, uuid_pk
 
 
 class Conversation(Base):
-    __tablename__ = "conversations"
+    __tablename__ = "direct_conversations"
 
     id: Mapped[uuid_pk]
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    contact_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contacts.id", ondelete="CASCADE"), index=True)
+    user_a_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    user_b_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
 
-    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    last_message: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    last_message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_message_content: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     last_message_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default="OPEN") # OPEN, CLOSED, ARCHIVED
-
+    
     created_at: Mapped[created_at_col]
     updated_at: Mapped[updated_at_col]
 
-    user = relationship("User", back_populates="conversations")
-    contact = relationship("Contact", back_populates="conversations")
+    user_a = relationship("User", foreign_keys=[user_a_id], back_populates="conversations_as_a")
+    user_b = relationship("User", foreign_keys=[user_b_id], back_populates="conversations_as_b")
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
-    event_logs = relationship("EventLog", back_populates="conversation")
+    user_states = relationship("ConversationUserState", back_populates="conversation", cascade="all, delete-orphan")
+
+
+class ConversationUserState(Base):
+    __tablename__ = "conversation_user_state"
+
+    id: Mapped[uuid_pk]
+    conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("direct_conversations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+
+    last_read_message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_muted: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    updated_at: Mapped[updated_at_col]
+
+    conversation = relationship("Conversation", back_populates="user_states")
+    user = relationship("User", back_populates="conversation_states")
 
 
 class Message(Base):
     __tablename__ = "messages"
 
     id: Mapped[uuid_pk]
-    conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("conversations.id", ondelete="CASCADE"), index=True)
-    sender_type: Mapped[str] = mapped_column(String(50)) # USER, CONTACT
+    conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("direct_conversations.id", ondelete="CASCADE"), index=True)
+    sender_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    client_message_id: Mapped[str | None] = mapped_column(String(255), index=True, nullable=True)
+    
     content: Mapped[str] = mapped_column(String)
-    message_type: Mapped[str] = mapped_column(String(50)) # TEXT, AI, SYSTEM
+    message_type: Mapped[str] = mapped_column(String(50)) # TEXT, SYSTEM, v.v.
 
     created_at: Mapped[created_at_col]
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     conversation = relationship("Conversation", back_populates="messages")
+    sender = relationship("User", back_populates="sent_messages")

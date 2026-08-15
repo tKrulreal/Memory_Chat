@@ -1,27 +1,23 @@
 """
-Memory Worker — background worker subscribe EventBus → trigger Memory Refresh.
+Memory Worker — background worker subscribe EventBus (via Outbox) → trigger Memory Refresh.
 
 Trigger logic:
-- SEND_MESSAGE → check: nếu conversation idle > 5 phút → trigger refresh
-- CLOSE_CHAT → trigger refresh ngay
-- OPEN_AI (manual button) → trigger refresh ngay
+- SEND_MESSAGE → check: nếu conversation idle > 5 phút → trigger refresh cho CẢ 2 user
+- CLOSE_CHAT → trigger refresh ngay cho CẢ 2 user
+- OPEN_AI (manual) → trigger refresh ngay cho 1 user cụ thể
 """
 
 import asyncio
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
 from src.agents.memory import MemoryAgent
 from src.events.bus import EventBus
 from src.events.types import ChatEvent, EventType
+from src.models.ai import AssistantMemory
 from src.models.chat import Conversation, Message
-from src.models.contact import ContactMemory
 from src.services.vector_store import VectorStoreService
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +27,7 @@ MEMORY_IDLE_THRESHOLD_MINUTES = 5
 
 class MemoryWorker:
     """
-    Background worker xử lý memory refresh dựa trên events từ EventBus.
+    Background worker xử lý memory refresh dựa trên events.
     """
 
     def __init__(
@@ -41,32 +37,27 @@ class MemoryWorker:
     ):
         self._event_bus = event_bus
         self._session_factory = session_factory
-        # Lazy-init MemoryAgent — tránh crash khi thiếu OpenAI key khi worker khởi động
         self._agent: MemoryAgent | None = None
         self._vector_store = VectorStoreService.get_instance()
-        self._pending_contacts: set[uuid.UUID] = set()
+        self._pending_tasks: set[tuple[uuid.UUID, uuid.UUID]] = set() # (user_id, conversation_id)
         self._lock = asyncio.Lock()
 
     def _get_agent(self) -> MemoryAgent:
-        """Lazy khởi tạo MemoryAgent (chỉ tạo khi thực sự cần)."""
         if self._agent is None:
             self._agent = MemoryAgent()
         return self._agent
 
     def subscribe(self) -> None:
-        """Đăng ký handlers với EventBus."""
         self._event_bus.subscribe(EventType.SEND_MESSAGE, self._on_send_message)
         self._event_bus.subscribe(EventType.CLOSE_CHAT, self._on_close_chat)
         self._event_bus.subscribe(EventType.OPEN_AI, self._on_open_ai)
         logger.info("MemoryWorker subscribed to EventBus events")
 
     async def _on_send_message(self, event: ChatEvent) -> None:
-        """Handler cho SEND_MESSAGE — check idle và trigger nếu cần."""
         conversation_id = event.conversation_id
         if not conversation_id:
             return
 
-        # Check conversation idle time
         session = self._session_factory()
         try:
             conversation = session.query(Conversation).filter(
@@ -76,13 +67,19 @@ class MemoryWorker:
             if not conversation:
                 return
 
-            # Nếu last_message_time là None hoặc quá threshold → trigger
+            # Check AssistantMemory to see when it was last updated for this conversation
+            # For simplicity, we check user A's memory; both usually update together
+            memory = session.query(AssistantMemory).filter(
+                AssistantMemory.conversation_id == conversation_id,
+                AssistantMemory.owner_user_id == conversation.user_a_id
+            ).first()
+
             should_trigger = False
-            if conversation.last_message_time is None:
+            if not memory:
                 should_trigger = True
             else:
                 now = datetime.now(UTC)
-                last_time = conversation.last_message_time
+                last_time = memory.updated_at
                 if last_time.tzinfo is None:
                     last_time = last_time.replace(tzinfo=UTC)
                 idle_minutes = (now - last_time).total_seconds() / 60
@@ -90,15 +87,15 @@ class MemoryWorker:
 
             if should_trigger:
                 logger.info(
-                    "SEND_MESSAGE: triggering memory refresh for contact_id=%s (idle detected)",
-                    conversation.contact_id,
+                    "SEND_MESSAGE: triggering memory refresh for conversation_id=%s (idle detected)",
+                    conversation_id,
                 )
-                await self._queue_refresh(conversation.contact_id)
+                await self._queue_refresh(conversation.user_a_id, conversation_id)
+                await self._queue_refresh(conversation.user_b_id, conversation_id)
         finally:
             session.close()
 
     async def _on_close_chat(self, event: ChatEvent) -> None:
-        """Handler cho CLOSE_CHAT — trigger refresh ngay."""
         conversation_id = event.conversation_id
         if not conversation_id:
             return
@@ -110,121 +107,116 @@ class MemoryWorker:
             ).first()
             if conversation:
                 logger.info(
-                    "CLOSE_CHAT: triggering memory refresh for contact_id=%s",
-                    conversation.contact_id,
+                    "CLOSE_CHAT: triggering memory refresh for conversation_id=%s",
+                    conversation_id,
                 )
-                await self._queue_refresh(conversation.contact_id)
+                await self._queue_refresh(conversation.user_a_id, conversation_id)
+                await self._queue_refresh(conversation.user_b_id, conversation_id)
         finally:
             session.close()
 
     async def _on_open_ai(self, event: ChatEvent) -> None:
-        """Handler cho OPEN_AI (manual button) — trigger refresh ngay."""
-        contact_id = event.payload.get("contact_id")
-        if contact_id:
-            try:
-                cid = uuid.UUID(str(contact_id))
-                logger.info(
-                    "OPEN_AI: triggering memory refresh for contact_id=%s (manual)",
-                    cid,
-                )
-                await self._queue_refresh(cid)
-            except Exception as e:
-                logger.warning("OPEN_AI: invalid contact_id=%s: %s", contact_id, e)
+        conversation_id = event.conversation_id
+        user_id = event.user_id
+        if conversation_id and user_id:
+            logger.info(
+                "OPEN_AI: triggering memory refresh for conversation_id=%s, user_id=%s (manual)",
+                conversation_id, user_id
+            )
+            await self._queue_refresh(user_id, conversation_id)
 
-    async def _queue_refresh(self, contact_id: uuid.UUID) -> None:
-        """Queue contact để refresh (tránh duplicate)."""
+    async def _queue_refresh(self, user_id: uuid.UUID, conversation_id: uuid.UUID) -> None:
+        task_key = (user_id, conversation_id)
         async with self._lock:
-            if contact_id in self._pending_contacts:
-                logger.debug("Contact %s already pending refresh, skipping", contact_id)
+            if task_key in self._pending_tasks:
                 return
-            self._pending_contacts.add(contact_id)
+            self._pending_tasks.add(task_key)
 
-        # Run refresh async
-        asyncio.create_task(self._refresh_contact(contact_id))
+        asyncio.create_task(self._refresh_memory(user_id, conversation_id))
 
-    async def _refresh_contact(self, contact_id: uuid.UUID) -> None:
-        """Refresh memory cho một contact."""
+    async def _refresh_memory(self, user_id: uuid.UUID, conversation_id: uuid.UUID) -> None:
+        task_key = (user_id, conversation_id)
         try:
-            await self._do_refresh(contact_id)
+            await self._do_refresh(user_id, conversation_id)
         except Exception as e:
-            logger.exception("Memory refresh failed for contact_id=%s: %s", contact_id, e)
-            # Retry once after 30 seconds
+            logger.exception("Memory refresh failed for %s: %s", task_key, e)
             await asyncio.sleep(30)
             try:
-                await self._do_refresh(contact_id)
-                logger.info("Memory refresh RETRY succeeded for contact_id=%s", contact_id)
+                await self._do_refresh(user_id, conversation_id)
             except Exception as retry_e:
-                logger.exception("Memory refresh RETRY failed for contact_id=%s: %s", contact_id, retry_e)
+                logger.exception("Memory refresh RETRY failed for %s: %s", task_key, retry_e)
         finally:
             async with self._lock:
-                self._pending_contacts.discard(contact_id)
+                self._pending_tasks.discard(task_key)
 
-    async def _do_refresh(self, contact_id: uuid.UUID) -> None:
-        """Thực hiện refresh memory."""
-        logger.info("Memory refresh started for contact_id=%s", contact_id)
+    async def _do_refresh(self, user_id: uuid.UUID, conversation_id: uuid.UUID) -> None:
+        logger.info("Memory refresh started for user_id=%s, conv_id=%s", user_id, conversation_id)
 
         session = self._session_factory()
         try:
-            # Lấy messages (last 100, oldest first)
             messages = (
                 session.query(Message)
-                .join(Conversation, Conversation.id == Message.conversation_id)
-                .filter(Conversation.contact_id == contact_id)
+                .filter(Message.conversation_id == conversation_id)
                 .order_by(Message.created_at.desc())
                 .limit(100)
                 .all()
             )
 
             if not messages:
-                logger.info("No messages found for contact_id=%s, skipping", contact_id)
                 return
 
-            # Convert to dict (oldest first)
             messages_data = [
                 {
                     "content": msg.content,
-                    "sender_type": msg.sender_type,
+                    "sender_user_id": str(msg.sender_user_id),
                     "created_at": msg.created_at,
                 }
                 for msg in reversed(messages)
             ]
 
-            # Build memory (lazy-init agent)
             agent = self._get_agent()
-            result = await agent.build_memory(contact_id, messages_data)
+            result = await agent.build_memory(user_id, conversation_id, messages_data)
 
-            # Lưu vào DB
-            memory_dict = result.to_contact_memory_dict(contact_id)
-
-            # Upsert ContactMemory
-            existing = session.query(ContactMemory).filter(
-                ContactMemory.contact_id == contact_id
+            existing = session.query(AssistantMemory).filter(
+                AssistantMemory.owner_user_id == user_id,
+                AssistantMemory.conversation_id == conversation_id
             ).with_for_update().first()
 
             if existing:
-                for key, value in memory_dict.items():
-                    if key != "contact_id":
-                        setattr(existing, key, value)
-                logger.info("Updated ContactMemory for contact_id=%s", contact_id)
+                existing.summary = result.summary
+                existing.facts = result.facts
+                existing.through_message_id = str(messages[0].id)
+                logger.info("Updated AssistantMemory for user_id=%s", user_id)
             else:
-                new_memory = ContactMemory(**memory_dict)
+                new_memory = AssistantMemory(
+                    owner_user_id=user_id,
+                    conversation_id=conversation_id,
+                    summary=result.summary,
+                    facts=result.facts,
+                    through_message_id=str(messages[0].id)
+                )
                 session.add(new_memory)
-                logger.info("Created ContactMemory for contact_id=%s", contact_id)
+                existing = new_memory
+                logger.info("Created AssistantMemory for user_id=%s", user_id)
+
+            # Publish MEMORY_UPDATED event within the same transaction
+            self._event_bus.publish(
+                db=session,
+                event_type=EventType.MEMORY_UPDATED,
+                user_id=user_id,
+                payload={},
+                conversation_id=conversation_id,
+            )
 
             session.commit()
 
-            # Upsert vào ChromaDB — dùng cùng LLM instance từ MemoryAgent
-            memory_id = str(existing.id) if existing else str(uuid.uuid4())
-            text_for_embedding = (
-                f"Summary: {result.summary}\n"
-                f"Company: {result.company or 'N/A'}\n"
-                f"Profession: {result.profession or 'N/A'}\n"
-                f"Skills: {', '.join(result.skills)}\n"
-                f"Interests: {', '.join(result.interests)}\n"
-            )
+            memory_id = str(existing.id)
+            
+            # Create a rich text for embedding
+            facts_str = "\n".join([f"- {k}: {v}" for k, v in (result.facts or {}).items()])
+            text_for_embedding = f"Summary: {result.summary}\nFacts:\n{facts_str}"
 
             try:
-                # Reuse LLM from MemoryAgent thay vì tạo instance mới
                 embedding = agent._llm.embed(text_for_embedding)
 
                 self._vector_store.upsert(
@@ -232,14 +224,14 @@ class MemoryWorker:
                     text=text_for_embedding,
                     embedding=embedding,
                     metadata={
-                        "contact_id": str(contact_id),
-                        "relationship_score": result.relationship_score,
+                        "owner_user_id": str(user_id),
+                        "conversation_id": str(conversation_id),
                         "updated_at": datetime.now(UTC).isoformat(),
                     },
                 )
-                logger.info("Upserted memory to ChromaDB for contact_id=%s", contact_id)
+                logger.info("Upserted memory to ChromaDB for user_id=%s", user_id)
             except Exception as emb_e:
-                logger.warning("Failed to embed memory for contact_id=%s: %s", contact_id, emb_e)
+                logger.warning("Failed to embed memory for user_id=%s: %s", user_id, emb_e)
 
         finally:
             session.close()

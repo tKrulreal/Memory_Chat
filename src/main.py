@@ -8,14 +8,10 @@ from sqlalchemy.orm import sessionmaker
 
 from src.api.routes import router
 from src.api.v1.auth import router as auth_router
-from src.api.v1.connections import router as connections_router
-from src.api.v1.contacts import router as contacts_router
 from src.api.v1.conversations import router as conversations_router
 from src.api.v1.copilot import router as copilot_router
-from src.api.v1.memory import router as memory_router
 from src.api.v1.messages import router as messages_router
 from src.api.v1.notifications import router as notifications_router
-from src.api.v1.recommendations import router as recommendations_router
 from src.api.v1.search import router as search_router
 from src.api.ws import router as websocket_router
 from src.config import get_settings
@@ -24,9 +20,7 @@ from src.core.logging import setup_logging, get_logger, set_request_id
 from src.core.middlewares import RequestLoggingMiddleware
 from src.events.bus import EventBus
 from src.models.database import engine
-from src.workers.insight_worker import InsightWorker
 from src.workers.memory_worker import MemoryWorker
-from src.workers.recommendation_worker import RecommendationWorker
 
 # Initialize structured logging
 settings = get_settings()
@@ -41,7 +35,16 @@ async def lifespan(app: FastAPI):
     logger.info("app_starting", app_name=settings.app_name, env=settings.app_env)
 
     app.state.event_bus = EventBus()
-    await app.state.event_bus.start()
+
+    # Start Outbox Worker
+    from src.workers.outbox_worker import OutboxWorker
+    session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+    app.state.outbox_worker = OutboxWorker(
+        event_bus=app.state.event_bus,
+        session_factory=session_factory,
+    )
+    app.state.outbox_worker.start()
+    logger.info("outbox_worker_started")
 
     # Start Memory Worker
     session_factory = sessionmaker(bind=engine, expire_on_commit=False)
@@ -52,33 +55,18 @@ async def lifespan(app: FastAPI):
     app.state.memory_worker.subscribe()
     logger.info("memory_worker_started")
 
-    # Start Recommendation Worker
-    app.state.recommendation_worker = RecommendationWorker(
-        event_bus=app.state.event_bus,
-    )
-    app.state.recommendation_worker.subscribe()
-    logger.info("recommendation_worker_started")
-
-    # Start Insight Worker
-    app.state.insight_worker = InsightWorker(
-        event_bus=app.state.event_bus,
-    )
-    app.state.insight_worker.start()
-    logger.info("insight_worker_started")
-
     try:
         yield
     finally:
-        # Drain EventBus queue before shutdown
-        logger.info("draining_event_bus")
-        await app.state.event_bus.join()
-        await app.state.event_bus.stop()
+        logger.info("stopping_outbox_worker")
+        if getattr(app.state, "outbox_worker", None):
+            await app.state.outbox_worker.stop()
         logger.info("app_shutdown_complete")
 
 
 app = FastAPI(
     title="MemoryChat API",
-    description="AI-powered messaging with memory and recommendations",
+    description="AI-powered P2P messaging",
     version=APP_VERSION,
     lifespan=lifespan,
 )
@@ -97,16 +85,11 @@ app.add_middleware(
 app.include_router(router, prefix="/api/v1")
 app.include_router(websocket_router)
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
-app.include_router(contacts_router, prefix="/api/v1/contacts", tags=["contacts"])
-app.include_router(conversations_router, prefix="/api/v1/conversations", tags=["conversations"])
+app.include_router(conversations_router, prefix="/api/v1/direct-conversations", tags=["direct_conversations"])
 app.include_router(messages_router, prefix="/api/v1", tags=["messages"])
-app.include_router(memory_router, prefix="/api/v1/memory", tags=["memory"])
 app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["notifications"])
-app.include_router(recommendations_router, prefix="/api/v1/recommendations", tags=["recommendations"])
-
-app.include_router(search_router, prefix="/api/v1/search", tags=["search"])
 app.include_router(copilot_router, prefix="/api/v1/copilot", tags=["copilot"])
-app.include_router(connections_router, prefix="/api/v1/connections", tags=["connections"])
+app.include_router(search_router, prefix="/api/v1/search", tags=["search"])
 
 
 @app.get("/health")

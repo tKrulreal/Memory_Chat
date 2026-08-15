@@ -85,10 +85,11 @@ class MemoryResult:
     """Kết quả từ Memory Agent."""
 
     summary: str
-    company: str | None = None
-    profession: str | None = None
-    skills: list[str] = field(default_factory=list)
-    interests: list[str] = field(default_factory=list)
+    last_met: str | None = None
+    interested_in: list[str] = field(default_factory=list)
+    follow_up: str | None = None
+    timeline: list[dict[str, Any]] = field(default_factory=list)
+    relationship_score: int = 50  # 0-100
     timeline: list[dict[str, Any]] = field(default_factory=list)
     relationship_score: int = 50  # 0-100
 
@@ -97,10 +98,9 @@ class MemoryResult:
         return {
             "contact_id": contact_id,
             "summary": self.summary,
-            "profession": self.profession,
-            "company": self.company,
-            "skills": {"skills": self.skills},
-            "interest": {"interests": self.interests},
+            "last_met": self.last_met,
+            "interested_in": {"interests": self.interested_in},
+            "follow_up": self.follow_up,
             "timeline": {"events": self.timeline},
             "relationship_score": self.relationship_score,
         }
@@ -128,10 +128,9 @@ Hội thoại:
 
 Hãy trích xuất các thông tin sau (chỉ trả về JSON):
 {{
-    "company": "Tên công ty/ tổ chức (nếu có, nếu không thì null)",
-    "profession": "Nghề nghiệp/ vai trò (nếu có, nếu không thì null)",
-    "skills": ["danh sách kỹ năng, sở thích (nếu có, mảng rỗng nếu không có)"],
-    "interests": ["danh sách chủ đề người này quan tâm (nếu có, mảng rỗng nếu không có)"]
+    "last_met": "Thông tin về lần gặp cuối hoặc bối cảnh quen biết (nếu có, nếu không thì null)",
+    "interested_in": ["danh sách chủ đề/sở thích người này quan tâm (nếu có, mảng rỗng nếu không có)"],
+    "follow_up": "Cuộc hẹn, lời hứa, hoặc việc cần làm tiếp theo (ví dụ: 'Đi cà phê', 'Gửi tài liệu'). CHỈ gợi ý chủ đề mở lời nếu không có cuộc hẹn/công việc nào được nhắc đến (nếu không có gì thì null)"
 }}
 
 Trả lời CHỈ bằng JSON, không giải thích thêm.
@@ -202,10 +201,10 @@ class MemoryAgent:
             messages: List of {content, sender_type, created_at}
 
         Returns:
-            Dict với keys: company, profession, skills, interests
+            Dict với keys: last_met, interested_in, follow_up
         """
         if not messages:
-            return {"company": None, "profession": None, "skills": [], "interests": []}
+            return {"last_met": None, "interested_in": [], "follow_up": None}
 
         chunks = chunk_messages(messages, max_tokens=500)
         all_results: list[dict[str, Any]] = []
@@ -254,32 +253,23 @@ class MemoryAgent:
     def _merge_entity_results(self, results: list[dict[str, Any]]) -> dict[str, Any]:
         """Merge nhiều entity results thành 1."""
         if not results:
-            return {"company": None, "profession": None, "skills": [], "interests": []}
+            return {"last_met": None, "interested_in": [], "follow_up": None}
         if len(results) == 1:
             r = results[0]
             return {
-                "company": r.get("company"),
-                "profession": r.get("profession"),
-                "skills": r.get("skills", []),
-                "interests": r.get("interests", []),
+                "last_met": r.get("last_met"),
+                "interested_in": r.get("interested_in", []),
+                "follow_up": r.get("follow_up"),
             }
 
         # Collect from all
-        companies = [r["company"] for r in results if r.get("company")]
-        professions = [r["profession"] for r in results if r.get("profession")]
-        all_skills: list[str] = []
+        last_mets = [r["last_met"] for r in results if r.get("last_met")]
+        follow_ups = [r["follow_up"] for r in results if r.get("follow_up")]
         all_interests: list[str] = []
-        seen_skills: set[str] = set()
         seen_interests: set[str] = set()
 
         for r in results:
-            skills = r.get("skills") or []
-            for skill in skills:
-                norm = str(skill).strip().lower()
-                if norm and norm not in seen_skills:
-                    seen_skills.add(norm)
-                    all_skills.append(str(skill).strip())
-            interests = r.get("interests") or []
+            interests = r.get("interested_in") or []
             for interest in interests:
                 norm = str(interest).strip().lower()
                 if norm and norm not in seen_interests:
@@ -287,10 +277,9 @@ class MemoryAgent:
                     all_interests.append(str(interest).strip())
 
         return {
-            "company": companies[0] if companies else None,
-            "profession": professions[0] if professions else None,
-            "skills": all_skills[:20],  # Limit
-            "interests": all_interests[:20],
+            "last_met": last_mets[0] if last_mets else None,
+            "interested_in": all_interests[:20],
+            "follow_up": follow_ups[0] if follow_ups else None,
         }
 
     def calculate_relationship_score(self, messages: list[dict[str, Any]]) -> int:
@@ -403,42 +392,45 @@ class MemoryAgent:
 
     async def build_memory(
         self,
-        contact_id: uuid.UUID,
+        user_id: uuid.UUID,
+        conversation_id: uuid.UUID,
         messages: list[dict[str, Any]],
     ) -> MemoryResult:
         """
         Tổng hợp — gọi tất cả methods và trả về MemoryResult.
-
-        Args:
-            contact_id: UUID của contact
-            messages: List of {content, sender_type, created_at}
-
-        Returns:
-            MemoryResult với tất cả fields
         """
-        logger.info("Building memory for contact_id=%s with %d messages", contact_id, len(messages))
+        logger.info("Building memory for conversation_id=%s, owner=%s with %d messages", conversation_id, user_id, len(messages))
 
         summary = await self.summarize(messages)
         entities = await self.extract_entities(messages)
         relationship_score = self.calculate_relationship_score(messages)
         timeline = self.build_timeline(messages)
 
+        # Build facts dictionary
+        facts = {
+            "last_met": entities.get("last_met"),
+            "interested_in": entities.get("interested_in", []),
+            "follow_up": entities.get("follow_up"),
+            "timeline": timeline,
+            "relationship_score": relationship_score,
+        }
+
         result = MemoryResult(
             summary=summary,
-            company=entities.get("company"),
-            profession=entities.get("profession"),
-            skills=entities.get("skills", []),
-            interests=entities.get("interests", []),
+            last_met=entities.get("last_met"),
+            interested_in=entities.get("interested_in", []),
+            follow_up=entities.get("follow_up"),
             timeline=timeline,
             relationship_score=relationship_score,
         )
+        # Monkey patch facts onto result for worker compatibility
+        result.facts = facts
 
         logger.info(
-            "Memory built for contact_id=%s: score=%d, skills=%d, interests=%d",
-            contact_id,
+            "Memory built for user_id=%s: score=%d, interests=%d",
+            user_id,
             result.relationship_score,
-            len(result.skills),
-            len(result.interests),
+            len(result.interested_in),
         )
 
         return result

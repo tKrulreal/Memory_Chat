@@ -19,8 +19,12 @@ class User(Base):
     updated_at: Mapped[updated_at_col]
 
     # Relationships
-    contacts = relationship("Contact", back_populates="user", cascade="all, delete-orphan")
-    conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
+    conversations_as_a = relationship("Conversation", foreign_keys="[Conversation.user_a_id]", back_populates="user_a", cascade="all, delete-orphan")
+    conversations_as_b = relationship("Conversation", foreign_keys="[Conversation.user_b_id]", back_populates="user_b", cascade="all, delete-orphan")
+    conversation_states = relationship("ConversationUserState", back_populates="user", cascade="all, delete-orphan")
+    sent_messages = relationship("Message", back_populates="sender", cascade="all, delete-orphan")
+    assistant_memories = relationship("AssistantMemory", back_populates="owner", cascade="all, delete-orphan")
+    
     setting = relationship("Setting", back_populates="user", uselist=False, cascade="all, delete-orphan")
     search_history = relationship("SearchHistory", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")

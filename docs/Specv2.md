@@ -21,7 +21,7 @@ Chat đóng vai trò là nguồn dữ liệu để hệ thống AI:
 
 * hiểu ngữ cảnh;
 * xây dựng memory;
-* quản lý contact;
+* quản lý User;
 * tìm kiếm thông tin;
 * phát hiện cơ hội follow-up;
 * đề xuất kết nối;
@@ -70,7 +70,7 @@ AI không tự động:
 * gửi tin nhắn;
 * kết bạn;
 * giới thiệu người này với người khác;
-* merge contact;
+* merge User;
 * thực hiện hành động có tác động bên ngoài.
 
 Người dùng luôn giữ quyền quyết định cuối cùng.
@@ -98,8 +98,8 @@ Ví dụ:
 Người dùng:
 
 * có nhiều cuộc hội thoại;
-* có hàng chục đến hàng trăm contact;
-* thường xuyên thêm contact mới;
+* có hàng chục đến hàng trăm User;
+* thường xuyên thêm User mới;
 * phải nhớ nhiều thông tin về từng người;
 * không có thói quen ghi chú thủ công;
 * thường phải tìm lại thông tin từ lịch sử chat.
@@ -157,12 +157,12 @@ MVP gồm:
 
 1. Authentication
 2. 1-to-1 Chat
-3. Contact Management
-4. Contact Memory
+3. User Management
+4. Assistant Memory
 5. Conversation Memory
 6. Context Recall
 7. Semantic Search
-8. Recommendation Agent
+8. Agent
 9. AI Copilot trong conversation
 10. Event-driven AI processing
 
@@ -181,7 +181,7 @@ Trong MVP 6 tuần không triển khai:
 * Large-scale group chat;
 * AI tự động gửi message;
 * AI tự động kết bạn;
-* AI tự động giới thiệu hai contact;
+* AI tự động giới thiệu hai User;
 * Autonomous Agent thực hiện hành động ngoài hệ thống.
 
 ---
@@ -213,7 +213,7 @@ Trong MVP 6 tuần không triển khai:
         ┌─────────────────────┼─────────────────────┐
         │                     │                     │
         ▼                     ▼                     ▼
- Memory Agent          Search Agent       Recommendation Agent
+ Memory Agent          Search Agent       Agent
         │                     │                     │
         └─────────────────────┼─────────────────────┘
                               │
@@ -263,7 +263,7 @@ FastAPI chịu trách nhiệm:
 * authentication;
 * conversation;
 * message;
-* contact;
+* User;
 * recommendation;
 * AI API;
 * event publishing.
@@ -354,7 +354,7 @@ Lưu:
 * Conversation;
 * Participant;
 * Message;
-* Contact;
+* User;
 * Memory;
 * Recommendation;
 * Event;
@@ -614,9 +614,9 @@ ConversationMemory
 
 ---
 
-## 13.2. Contact Memory
+## 13.2. Assistant Memory
 
-Lưu thông tin lâu dài về một contact.
+Lưu thông tin lâu dài về một User.
 
 Ví dụ:
 
@@ -643,10 +643,10 @@ Relationship Score:
 Schema:
 
 ```text
-ContactMemory
+AssistantMemory
 - id
 - owner_id
-- contact_id
+- User_id
 - summary
 - profession
 - company
@@ -867,7 +867,7 @@ Generate updated summary
        ↓
 Extract entities
        ↓
-Update Contact Memory
+Update Assistant Memory
        ↓
 Generate embeddings
        ↓
@@ -923,15 +923,15 @@ Nhiệm vụ:
 
 ---
 
-## Agent 4 — Recommendation Agent
+## Agent 4 — Agent
 
 Nhiệm vụ:
 
 * follow-up recommendation;
-* priority contact;
+* priority User;
 * suggested reply;
 * tag recommendation;
-* contact management;
+* User Management;
 * connection recommendation.
 
 ---
@@ -949,7 +949,7 @@ UI có thể giống:
 │ Conversation               │
 │                             │
 │ User: Hello                 │
-│ Contact: Hi                 │
+│ User: Hi                 │
 │                             │
 │                     [ AI ]  │
 └─────────────────────────────┘
@@ -1056,7 +1056,7 @@ Nguồn context:
 ```text
 Recent Messages
 Conversation Memory
-Contact Memory
+Assistant Memory
 Semantic Search
 Knowledge Graph
 User Profile
@@ -1076,7 +1076,7 @@ Ví dụ User hỏi:
 Context:
 
 ```text
-Contact Memory
+Assistant Memory
 +
 Profile
 ```
@@ -1124,7 +1124,7 @@ Nếu hỏi:
 Context:
 
 ```text
-Contact Memory
+Assistant Memory
 +
 Conversation Memory
 +
@@ -1175,7 +1175,7 @@ Qdrant lưu embedding của:
 
 * conversation chunks;
 * memory;
-* relevant contact information;
+* relevant User information;
 * important events.
 
 Không lưu PostgreSQL thay thế.
@@ -1194,7 +1194,7 @@ Neo4j mô hình hóa quan hệ.
 
 ```text
 User
-Contact
+User
 Company
 Skill
 Interest
@@ -1235,10 +1235,10 @@ Computer Vision
 
 # 30. Recommendation Architecture
 
-Recommendation Agent sử dụng:
+Agent sử dụng:
 
 ```text
-Contact Memory
+Assistant Memory
 +
 Conversation Memory
 +
@@ -1258,7 +1258,7 @@ Interaction History
 Ví dụ:
 
 ```text
-Contact:
+User:
 Minh
 
 Last interaction:
@@ -1290,14 +1290,14 @@ Mục tiêu là phát hiện cơ hội kết nối.
 Ví dụ:
 
 ```text
-Contact A
+User A
 Founder
 AI Startup
 Looking for AI Engineer
 
         +
 
-Contact B
+User B
 AI Engineer
 Looking for Startup Opportunity
 ```
@@ -1338,14 +1338,14 @@ MESSAGE_CREATED
 CHAT_OPENED
 CHAT_CLOSED
 SEARCH_PERFORMED
-CONTACT_VIEWED
+User_VIEWED
 TAG_ACCEPTED
 TAG_REJECTED
 RECOMMENDATION_ACCEPTED
 RECOMMENDATION_REJECTED
 MESSAGE_SENT
 MESSAGE_READ
-CONTACT_UPDATED
+User_UPDATED
 ```
 
 Event được lưu:
@@ -1391,11 +1391,11 @@ users
 conversations
 conversation_participants
 messages
-contacts
+Users
 conversation_memories
-contact_memories
+User_memories
 tags
-contact_tags
+User_tags
 recommendations
 events
 settings
@@ -1449,12 +1449,12 @@ created_at
 updated_at
 ```
 
-## contacts
+## Users
 
 ```text
 id
 owner_id
-contact_user_id
+User_user_id
 display_name
 notes
 created_at
@@ -1474,12 +1474,12 @@ last_update_at
 is_processing
 ```
 
-## contact_memories
+## User_memories
 
 ```text
 id
 owner_id
-contact_id
+User_id
 summary
 profession
 company
@@ -1495,7 +1495,7 @@ updated_at
 ```text
 id
 owner_id
-contact_id
+User_id
 type
 reason
 confidence
@@ -1532,7 +1532,7 @@ chỉ được truy cập:
 
 ```text
 A's conversations
-A's contacts
+A's Users
 A's memories
 A's recommendations
 A's events
@@ -1638,7 +1638,7 @@ Ví dụ Recommendation phải có:
 type
 reason
 confidence
-contact_id
+User_id
 ```
 
 ---
@@ -1833,12 +1833,12 @@ Realtime:
 /ws
 ```
 
-## Contact
+## User
 
 ```text
-GET /contacts
-GET /contacts/{id}
-PATCH /contacts/{id}
+GET /Users
+GET /Users/{id}
+PATCH /Users/{id}
 ```
 
 ## Search
@@ -1885,7 +1885,7 @@ Login
 Home
 Conversation List
 Chat
-Contacts
+Users
 Search
 Recommendations
 Profile
@@ -1901,7 +1901,7 @@ Chat screen gồm:
 
 ```text
 Header
- ├── Contact
+ ├── User
  ├── Status
  └── AI Context Button
 
@@ -2085,7 +2085,7 @@ Mục tiêu:
 Theo dõi:
 
 ```text
-Search → User opens correct contact
+Search → User opens correct User
 ```
 
 ## Context Retrieval Time
@@ -2215,7 +2215,7 @@ Realtime:
 
 * WebSocket;
 * message persistence;
-* contact;
+* User;
 * conversation.
 
 ## Week 3
@@ -2224,7 +2224,7 @@ Memory:
 
 * Memory Agent;
 * Conversation Memory;
-* Contact Memory;
+* Assistant Memory;
 * incremental update.
 
 ## Week 4
@@ -2240,7 +2240,7 @@ AI Search:
 
 Recommendation + Copilot:
 
-* Recommendation Agent;
+* Agent;
 * connection recommendation;
 * follow-up;
 * AI Copilot;
@@ -2405,7 +2405,7 @@ Context Builder lấy dữ liệu từ:
 ```text
 Recent Messages
 Conversation Memory
-Contact Memory
+Assistant Memory
 Qdrant
 Neo4j
 Recommendation
@@ -2443,7 +2443,7 @@ TRIGGER MANAGER
      MEMORY AGENT
           │
           ├── Conversation Memory
-          ├── Contact Memory
+          ├── Assistant Memory
           ├── Embedding
           └── Knowledge Graph
                     │
@@ -2464,7 +2464,7 @@ CONTEXT BUILDER
     │
     ├── Recent Messages
     ├── Conversation Memory
-    ├── Contact Memory
+    ├── Assistant Memory
     ├── Qdrant
     └── Neo4j
     │

@@ -1,4 +1,3 @@
-from src.schemas.contact import ContactBase, ContactCreate, ContactResponse, ContactUpdate
 from src.schemas.conversation import (
     ConversationBase,
     ConversationCreate,
@@ -10,10 +9,6 @@ from src.schemas.message import MessageBase, MessageCreate, MessageResponse
 from src.schemas.pagination import PaginatedResponse, Pagination
 
 __all__ = [
-    "ContactBase",
-    "ContactCreate",
-    "ContactResponse",
-    "ContactUpdate",
     "ConversationBase",
     "ConversationCreate",
     "ConversationResponse",

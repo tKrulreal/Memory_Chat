@@ -63,7 +63,7 @@ ps: ## Show container status
 migrate: ## Run database migrations
 	docker compose exec backend alembic upgrade head
 
-migrate-create MSG=? ## Create new migration (Usage: make migrate-create MSG="add column")
+migrate-create: ## Create new migration (Usage: make migrate-create MSG="add column")
 	@if [ -z "$(MSG)" ]; then \
 		echo "Usage: make migrate-create MSG='description'"; \
 		exit 1; \
@@ -79,7 +79,7 @@ backup: ## Create database backup
 	docker compose exec backend bash -c "tar -czf /tmp/backup-$$(date +%Y%m%d-%H%M%S).tar.gz -C /app data .ai-log 2>/dev/null || true"
 	@echo "Backup created in ./backup/"
 
-restore FILE=? ## Restore from backup (Usage: make restore FILE=backup-20240101-120000.tar.gz)
+restore: ## Restore from backup (Usage: make restore FILE=backup-20240101-120000.tar.gz)
 	@if [ -z "$(FILE)" ]; then \
 		echo "Usage: make restore FILE=<filename>"; \
 		echo "Available backups:"; \

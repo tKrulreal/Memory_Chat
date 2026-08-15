@@ -21,6 +21,11 @@ class MessageOwnershipError(Exception):
     pass
 
 
+class MessageConflictError(Exception):
+    def __init__(self, message: Message):
+        self.message = message
+
+
 class MessageService:
     def __init__(self, repository: MessageRepository, conversation_repository: ConversationRepository):
         self.repository = repository
@@ -37,19 +42,37 @@ class MessageService:
         )
 
     def create_message(
-        self, db: Session, user_id: uuid.UUID, conversation_id: uuid.UUID, data: MessageCreate
+        self, db: Session, user_id: uuid.UUID, conversation_id: uuid.UUID, data: MessageCreate, event_bus: "EventBus"
     ) -> Message:
         conversation = self._require_owned_conversation(db, user_id, conversation_id)
+        
+        # Check idempotency
+        existing = self.repository.get_by_client_id(db, data.client_message_id)
+        if existing:
+            raise MessageConflictError(existing)
+
         message = Message(
             conversation_id=conversation_id,
-            sender_type=data.role.value,
+            sender_user_id=user_id,
+            client_message_id=data.client_message_id,
             content=data.content,
             message_type="TEXT",
         )
-        conversation.last_message = data.content[:2048]
+        conversation.last_message_id = str(data.client_message_id)
+        # Trim content if it exceeds 1024 chars to avoid DB error
+        conversation.last_message_content = data.content[:1024] if data.content else None
         conversation.last_message_time = datetime.now(UTC)
         try:
             db.add_all([message, conversation])
+            db.flush() # Lấy message.id trước khi commit
+            from src.events.types import EventType
+            event_bus.publish(
+                db=db,
+                event_type=EventType.SEND_MESSAGE,
+                user_id=user_id,
+                payload={"message_id": str(message.id), "content": message.content},
+                conversation_id=conversation_id,
+            )
             db.commit()
             db.refresh(message)
         except Exception:
@@ -66,7 +89,8 @@ class MessageService:
 
     def delete_message(self, db: Session, user_id: uuid.UUID, message_id: uuid.UUID) -> None:
         message = self.get_owned_message(db, user_id, message_id)
-        self.repository.delete(db, message.id)
+        message.deleted_at = datetime.now(UTC)
+        db.commit()
 
     def _require_owned_conversation(
         self, db: Session, user_id: uuid.UUID, conversation_id: uuid.UUID
@@ -74,6 +98,6 @@ class MessageService:
         conversation = self.conversation_repository.get(db, id=conversation_id)
         if conversation is None:
             raise MessageConversationNotFoundError
-        if conversation.user_id != user_id:
+        if user_id not in (conversation.user_a_id, conversation.user_b_id):
             raise MessageOwnershipError
         return conversation

@@ -16,7 +16,7 @@ class MessageRepository(BaseRepository[Message]):
         return (
             db.query(self.model)
             .filter(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.asc())
+            .order_by(Message.created_at.desc())
             .offset(skip)
             .limit(limit)
             .all()
@@ -24,6 +24,9 @@ class MessageRepository(BaseRepository[Message]):
 
     def count_by_conversation_id(self, db: Session, conversation_id: uuid.UUID) -> int:
         return db.query(self.model).filter(Message.conversation_id == conversation_id).count()
+
+    def get_by_client_id(self, db: Session, client_message_id: str) -> Message | None:
+        return db.query(self.model).filter(Message.client_message_id == client_message_id).first()
 
 
 message_repo = MessageRepository()

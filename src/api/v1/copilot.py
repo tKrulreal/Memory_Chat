@@ -103,7 +103,7 @@ def _verify_conversation_access(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Conversation not found",
         )
-    if conv.user_id != user_id:
+    if conv.user_a_id != user_id and conv.user_b_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not allowed to access this conversation",
@@ -201,6 +201,8 @@ async def copilot_chat(
             if payload.context.contact_id:
                 context_kwargs["contact_id"] = payload.context.contact_id
             if payload.context.conversation_id:
+                conv_id_obj = uuid.UUID(payload.context.conversation_id)
+                _verify_conversation_access(db, current_user.id, conv_id_obj)
                 context_kwargs["conversation_id"] = payload.context.conversation_id
 
         # Run orchestrator
@@ -260,12 +262,16 @@ async def copilot_chat_stream(
 
     async def generate():
         try:
+            conv_id_str = payload.context.conversation_id if payload.context else None
+            if conv_id_str:
+                _verify_conversation_access(db, current_user.id, uuid.UUID(conv_id_str))
+
             # Run orchestrator
             result = await run_copilot(
                 query=payload.query,
                 user_id=str(current_user.id),
                 contact_id=payload.context.contact_id if payload.context else None,
-                conversation_id=payload.context.conversation_id if payload.context else None,
+                conversation_id=conv_id_str,
             )
 
             response_text = result.get("response", "")
@@ -293,7 +299,7 @@ async def copilot_chat_stream(
     )
 
 
-@router.post("/share", response_model=ShareResponse)
+# @router.post("/share", response_model=ShareResponse) # Disabled in Phase 1
 async def share_to_conversation(
     payload: ShareRequest,
     current_user: CurrentUserDep,
@@ -346,7 +352,7 @@ async def share_to_conversation(
 # Additional Endpoints
 # =============================================================================
 
-@router.get("/intents")
+# @router.get("/intents") # Disabled in Phase 1
 def list_supported_intents() -> dict[str, Any]:
     """
     Lấy danh sách intents mà Copilot hỗ trợ.

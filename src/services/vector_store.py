@@ -88,29 +88,31 @@ class VectorStoreService:
     def query(
         self,
         query_embedding: list[float],
+        owner_user_id: str,
+        conversation_id: str | None = None,
         top_k: int = 10,
         where: dict[str, Any] | None = None,
     ) -> VectorSearchResult:
         """
-        Tìm top-k embeddings gần nhất.
-
-        Args:
-            query_embedding: Vector query
-            top_k: Số lượng kết quả trả về
-            where: Filter metadata (e.g. {"contact_id": "uuid-string"})
-
-        Returns:
-            Dict với keys: ids, embeddings, documents, metadatas
+        Tìm top-k embeddings gần nhất thuộc về owner_user_id (và conversation_id nếu có).
         """
         collection = self._get_collection()
+        
+        conditions = [{"owner_user_id": str(owner_user_id)}]
+        if conversation_id:
+            conditions.append({"conversation_id": str(conversation_id)})
+        if where:
+            conditions.append(where)
+            
+        final_where = conditions[0] if len(conditions) == 1 else {"$and": conditions}
+
         results = collection.query(
             query_embeddings=[query_embedding],
             n_results=top_k,
-            where=where,
+            where=final_where,
             include=["documents", "embeddings", "metadatas"],
         )
 
-        # Normalize output shape
         return VectorSearchResult(
             ids=results["ids"][0] if results["ids"] else [],
             embeddings=results["embeddings"][0] if results["embeddings"] else [],
@@ -119,31 +121,20 @@ class VectorStoreService:
         )
 
     def delete(self, memory_id: str) -> None:
-        """Xoá một memory khỏi collection."""
         collection = self._get_collection()
         collection.delete(ids=[str(memory_id)])
         logger.info("Deleted memory_id=%s from collection", memory_id)
 
     def count(self) -> int:
-        """Đếm số lượng embeddings trong collection."""
         collection = self._get_collection()
         return collection.count()
 
-    def get_by_contact(self, contact_id: str, top_k: int = 10) -> VectorSearchResult:
-        """
-        Lấy tất cả embeddings của một contact, sắp xếp theo updated_at DESC.
-
-        Args:
-            contact_id: UUID string của contact
-            top_k: Giới hạn số lượng
-
-        Returns:
-            List các memory của contact đó
-        """
+    def get_by_conversation(self, owner_user_id: str, conversation_id: str, top_k: int = 10) -> VectorSearchResult:
         return self.query(
-            query_embedding=[0.0] * 1536,  # Dummy vector — not used for filtering
+            query_embedding=[0.0] * 1536,
+            owner_user_id=owner_user_id,
+            conversation_id=str(conversation_id),
             top_k=top_k,
-            where={"contact_id": str(contact_id)},
         )
 
     def reset(self) -> None:

@@ -74,7 +74,13 @@ class SearchAgent:
 
         # 2. Query vector store
         try:
-            vector_results = self.vector_store.query(query_embedding, top_k=10)
+            # Note: This agent is deprecated in P2P chat and will be removed.
+            vector_results = self.vector_store.query(
+                query_embedding=query_embedding,
+                owner_user_id="deprecated",
+                conversation_id="deprecated",
+                top_k=10
+            )
         except Exception as e:
             logger.error(f"Error querying vector store: {e}")
             return []

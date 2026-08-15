@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 
     # Auth
-    jwt_secret: str = Field(default_factory=lambda: __import__('secrets').token_urlsafe(32))
+    jwt_secret: str = Field(default="local-dev-secret-change-in-production")
     jwt_expire_minutes: int = 60
 
     # LLM

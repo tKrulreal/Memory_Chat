@@ -1,9 +1,8 @@
+from pydantic import BaseModel
+from src.schemas.conversation import ParticipantResponse
 
-from pydantic import BaseModel, Field
-
-from src.agents.search.schemas import SearchResult
-
-
-class SearchAPIResponse(BaseModel):
-    query: str = Field(description="Truy vấn nguyên gốc")
-    results: list[SearchResult] = Field(description="Danh sách kết quả tìm kiếm")
+class SearchResult(BaseModel):
+    conversation_id: str
+    peer: ParticipantResponse
+    summary_snippet: str | None = None
+    score: float

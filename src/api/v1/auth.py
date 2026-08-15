@@ -33,3 +33,12 @@ def login(user_in: UserLogin, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+class WSTicketResponse(BaseModel):
+    ticket: str
+
+@router.post("/ws-ticket", response_model=WSTicketResponse)
+def get_ws_ticket(current_user: User = Depends(get_current_user)):
+    from src.core.security import create_ws_ticket
+    ticket = create_ws_ticket(str(current_user.id))
+    return WSTicketResponse(ticket=ticket)

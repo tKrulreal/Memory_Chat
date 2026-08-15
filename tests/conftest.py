@@ -68,15 +68,9 @@ async def client():
         yield ac
 
 
-@pytest_asyncio.fixture
-async def event_bus(db_session: Session):
-    event_bus = EventBus(sessionmaker(bind=db_session.get_bind()))
-    await event_bus.start()
-    try:
-        yield event_bus
-    finally:
-        await event_bus.stop()
-
+@pytest.fixture
+def event_bus(db_session: Session):
+    return EventBus()
 
 @pytest_asyncio.fixture
 async def authenticated_client(db_session: Session, current_user: User, event_bus: EventBus):

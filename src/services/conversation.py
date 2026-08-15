@@ -3,7 +3,6 @@ import uuid
 from sqlalchemy.orm import Session
 
 from src.models.chat import Conversation
-from src.repositories.contact import ContactRepository
 from src.repositories.conversation import ConversationRepository
 from src.schemas.conversation import ConversationCreate, ConversationUpdate
 from src.schemas.enums import ConversationStatus
@@ -17,14 +16,13 @@ class ConversationOwnershipError(Exception):
     pass
 
 
-class ConversationContactError(Exception):
+class ConversationDuplicateError(Exception):
     pass
 
 
 class ConversationService:
-    def __init__(self, repository: ConversationRepository, contact_repository: ContactRepository):
+    def __init__(self, repository: ConversationRepository):
         self.repository = repository
-        self.contact_repository = contact_repository
 
     def list_conversations(
         self,
@@ -33,21 +31,38 @@ class ConversationService:
         page: int,
         limit: int,
         status: ConversationStatus | None = None,
-        contact_id: uuid.UUID | None = None,
     ) -> tuple[list[Conversation], int]:
-        if contact_id is not None:
-            self._require_owned_contact(db, user_id, contact_id)
         skip = (page - 1) * limit
-        conversations = self.repository.get_by_user_id(db, user_id, skip, limit, status, contact_id)
-        total = self.repository.count_by_user_id(db, user_id, status, contact_id)
+        conversations = self.repository.get_by_user_id(db, user_id, skip, limit, status)
+        total = self.repository.count_by_user_id(db, user_id, status)
         return conversations, total
 
-    def create_conversation(self, db: Session, user_id: uuid.UUID, data: ConversationCreate) -> Conversation:
-        self._require_owned_contact(db, user_id, data.contact_id)
-        return self.repository.create(
-            db,
-            obj_in={"user_id": user_id, "contact_id": data.contact_id, "title": data.title},
+    def create_conversation(self, db: Session, user_id: uuid.UUID, data: ConversationCreate, event_bus: "EventBus") -> Conversation:
+        if user_id == data.target_user_id:
+            raise ValueError("Cannot create a conversation with yourself")
+
+        existing = self.repository.get_by_users(db, user_id, data.target_user_id)
+        if existing:
+            return existing
+
+        conversation = Conversation(
+            user_a_id=user_id, user_b_id=data.target_user_id
         )
+        db.add(conversation)
+        db.flush()
+        
+        # Publish event
+        from src.events.types import EventType
+        event_bus.publish(
+            db=db,
+            event_type=EventType.OPEN_CHAT,
+            user_id=user_id,
+            payload={"conversation_id": str(conversation.id)},
+            conversation_id=conversation.id,
+        )
+        db.commit()
+        db.refresh(conversation)
+        return conversation
 
     def get_owned_conversation(
         self, db: Session, user_id: uuid.UUID, conversation_id: uuid.UUID
@@ -55,7 +70,7 @@ class ConversationService:
         conversation = self.repository.get(db, id=conversation_id)
         if conversation is None:
             raise ConversationNotFoundError
-        if conversation.user_id != user_id:
+        if user_id not in (conversation.user_a_id, conversation.user_b_id):
             raise ConversationOwnershipError
         return conversation
 
@@ -65,6 +80,7 @@ class ConversationService:
         user_id: uuid.UUID,
         conversation_id: uuid.UUID,
         data: ConversationUpdate,
+        event_bus: "EventBus",
     ) -> tuple[Conversation, bool]:
         conversation = self.get_owned_conversation(db, user_id, conversation_id)
         was_closed = conversation.status == ConversationStatus.CLOSED.value
@@ -72,15 +88,27 @@ class ConversationService:
         if "status" in values:
             values["status"] = values["status"].value
         if values:
-            conversation = self.repository.update(db, conversation, values)
+            for field in values:
+                setattr(conversation, field, values[field])
+            db.add(conversation)
+
         closed_now = conversation.status == ConversationStatus.CLOSED.value
-        return conversation, closed_now and not was_closed
+        should_publish = closed_now and not was_closed
+
+        if should_publish:
+            from src.events.types import EventType
+            event_bus.publish(
+                db=db,
+                event_type=EventType.CLOSE_CHAT,
+                user_id=user_id,
+                payload={"conversation_id": str(conversation.id)},
+                conversation_id=conversation.id,
+            )
+
+        db.commit()
+        db.refresh(conversation)
+        return conversation, should_publish
 
     def delete_conversation(self, db: Session, user_id: uuid.UUID, conversation_id: uuid.UUID) -> None:
         self.get_owned_conversation(db, user_id, conversation_id)
         self.repository.delete(db, conversation_id)
-
-    def _require_owned_contact(self, db: Session, user_id: uuid.UUID, contact_id: uuid.UUID) -> None:
-        contact = self.contact_repository.get(db, id=contact_id)
-        if contact is None or contact.user_id != user_id:
-            raise ConversationContactError

@@ -15,7 +15,7 @@ from src.repositories.user import user_repo
 
 SECRET_KEY = get_settings().jwt_secret
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = get_settings().jwt_expire_minutes
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
@@ -53,6 +53,26 @@ def get_current_user(
 def get_user_from_token(token: str, db: Session) -> User | None:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = uuid.UUID(payload["sub"])
+        if payload.get("type") == "ws":
+            return None # WS tokens shouldn't be used for standard auth
+    except (JWTError, KeyError, ValueError):
+        return None
+    return user_repo.get(db, id=user_id)
+
+
+def create_ws_ticket(user_id: str) -> str:
+    """Create a short-lived token specifically for WebSocket authentication."""
+    expire = datetime.now(UTC) + timedelta(seconds=30)
+    to_encode = {"sub": user_id, "type": "ws", "exp": expire}
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def get_user_from_ws_ticket(ticket: str, db: Session) -> User | None:
+    try:
+        payload = jwt.decode(ticket, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "ws":
+            return None
         user_id = uuid.UUID(payload["sub"])
     except (JWTError, KeyError, ValueError):
         return None
