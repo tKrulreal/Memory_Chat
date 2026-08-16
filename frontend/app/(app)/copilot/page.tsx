@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Send, Bot, User, Sparkles, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useConversationStore } from "@/lib/stores/conversation-store";
 
 type Message = {
   role: "user" | "assistant";
@@ -11,6 +13,9 @@ type Message = {
 };
 
 export default function CopilotPage() {
+  const router = useRouter();
+  const setActive = useConversationStore((s) => s.setActiveConversation);
+
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
@@ -81,10 +86,14 @@ export default function CopilotPage() {
         if (!id) return null;
         
         return (
-          <a 
-            key={idx} 
-            href={`/chats/${id}`} 
-            className="mt-3 mb-3 flex items-center gap-3 p-3 border border-subtle rounded-xl hover:bg-elevated transition-colors bg-app no-underline w-full cursor-pointer group"
+          <button
+            key={idx}
+            type="button"
+            onClick={() => {
+              setActive(id);
+              router.push("/chats");
+            }}
+            className="mt-3 mb-3 flex items-center gap-3 p-3 border border-subtle rounded-xl hover:bg-elevated transition-colors bg-app w-full cursor-pointer group text-left"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white font-semibold shadow-sm">
               {name.substring(0, 2).toUpperCase()}
@@ -94,7 +103,7 @@ export default function CopilotPage() {
               {email && <span className="text-xs font-medium text-accent truncate">{email}</span>}
               <span className="text-xs text-secondary line-clamp-2 mt-0.5">{desc}</span>
             </div>
-          </a>
+          </button>
         );
       }
       return part.trim() ? <div key={idx} className="whitespace-pre-wrap mb-2 last:mb-0">{part}</div> : null;
