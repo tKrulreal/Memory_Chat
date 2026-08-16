@@ -112,7 +112,7 @@ class MemoryResult:
 
 
 # --- Prompt templates ---
-MEMORY_SUMMARY_PROMPT = """Bạn là một AI assistant chuyên phân tích hội thoại để tạo tóm tắt trí nhớ về đối tác liên hệ ([PEER]).
+MEMORY_SUMMARY_PROMPT = """Bạn là một AI assistant chuyên phân tích hội thoại để tạo tóm tắt trí nhớ súc tích, trực quan về NGƯỜI ĐỐI THOẠI.
 
 Hội thoại:
 {conversation}
@@ -122,17 +122,17 @@ Chú thích:
 - [PEER] là đối tác/người đang nhắn tin cùng.
 
 QUY TẮC BẮT BUỘC:
-1. CHỈ tóm tắt thông tin về đối tác ([PEER]) dựa trên những gì [PEER] trực tiếp nói hoặc thể hiện.
+1. CHỈ tóm tắt thông tin về ĐỐI TÁC ĐANG TRÒ CHUYỆN dựa trên những gì họ trực tiếp nói hoặc thể hiện.
 2. TUYỆT ĐỐI KHÔNG đưa thông tin, kỹ năng, quan điểm hoặc công việc của [USER] vào bản tóm tắt này.
-3. Không bịa đặt thông tin nếu [PEER] không nhắc đến.
-4. Bỏ qua các câu chào hỏi xã giao hoặc tán gẫu vụn vặt.
+3. TUYỆT ĐỐI KHÔNG xuất hiện các từ kỹ thuật như `[PEER]`, `[USER]`, `PEER:`, `USER:` trong văn bản tóm tắt. Hãy sử dụng danh xưng tự nhiên như "Đối tác", "Anh/Chị", "Bạn này" hoặc đại từ phù hợp.
+4. Tóm tắt trực quan, ngắn gọn, súc tích (1 đến 2 câu ngắn, tối đa 3 câu). Không lan man dài dòng.
+5. Không bịa đặt thông tin nếu đối phương không nhắc đến. Bỏ qua các câu chào hỏi xã giao vụn vặt.
 
-Bản tóm tắt (2-3 câu) nên tập trung vào:
-- [PEER] làm nghề gì / ở đâu (nếu có nói)
-- Chủ đề chuyên môn hoặc mối quan tâm chính của [PEER]
-- Điểm nổi bật trong phong cách trao đổi của [PEER]
+Nội dung trọng tâm:
+- Nghề nghiệp / Công ty / Nơi làm việc của đối phương (nếu có nhắc đến).
+- Chủ đề chuyên môn, kỹ năng chính hoặc nhu cầu trao đổi nổi bật của đối phương.
 
-Trả lời CHỈ bằng tiếng Việt, không giải thích thêm.
+Trả lời CHỈ bằng 1 đoạn tóm tắt tiếng Việt ngắn gọn, không giải thích thêm.
 """
 
 MEMORY_ENTITIES_PROMPT = """Bạn là một AI assistant chuyên trích xuất thông tin cá nhân và chuyên môn từ hội thoại.
@@ -145,22 +145,49 @@ Chú thích:
 - [PEER] là đối tác/người đang nhắn tin cùng.
 
 QUY TẮC BẮT BUỘC:
-1. CHỈ trích xuất thông tin về đối tác ([PEER]). TUYỆT ĐỐI KHÔNG trích xuất thông tin của [USER].
-2. Phân biệt rõ:
-   - "interested_in": Các chủ đề, lĩnh vực mà [PEER] QUAN TÂM, HỨNG THÚ (ví dụ: AI, Startup, Thiết kế...).
-   - "last_met": Bối cảnh quen biết, thời điểm hoặc sự kiện gặp gỡ gần nhất của [PEER] (nếu không có thì null).
-   - "follow_up": Chủ đề tiếp theo nên gợi mở với [PEER] để duy trì cuộc trò chuyện tự nhiên và chuyên nghiệp (nếu không có thì null).
-3. Không bịa đặt (hallucinate). Nếu không có thông tin thì để null hoặc [].
+1. CHỈ trích xuất thông tin về ĐỐI TÁC ([PEER]). TUYỆT ĐỐI KHÔNG trích xuất thông tin của [USER].
+2. TUYỆT ĐỐI KHÔNG để xuất hiện các từ `[PEER]`, `[USER]` trong các giá trị trích xuất.
+3. QUY TẮC CHO "interested_in" (ĐẶC BIỆT QUAN TRỌNG):
+   - CHỈ trích xuất từ 2 đến 5 từ khóa / chủ đề CHÍNH, ngắn gọn, súc tích (1 - 3 từ mỗi mục).
+   - Ví dụ đúng: "AI", "LLM", "Robot", "Đá bóng", "Startup", "Tài chính", "Du lịch", "Thiết kế".
+   - TUYỆT ĐỐI KHÔNG viết câu dài, mệnh đề giải thích lê thê (CẤM: "tìm hiểu về mô hình ngôn ngữ lớn để áp dụng vào doanh nghiệp").
+4. "last_met": Bối cảnh quen biết, thời điểm hoặc sự kiện gặp gỡ gần nhất (ngắn gọn, hoặc null nếu không có).
+5. "follow_up": 1 câu ngắn gọn gợi ý hành động/chủ đề tiếp theo nên trao đổi (hoặc null nếu không có).
+6. Không bịa đặt (hallucinate). Nếu không có thông tin thì để null hoặc [].
 
-Hãy trích xuất thông tin của [PEER] (chỉ trả về JSON):
+Hãy trích xuất thông tin của đối tác (chỉ trả về JSON):
 {{
-    "last_met": "Bối cảnh quen biết hoặc lần gặp gần nhất của [PEER] (hoặc null nếu không có)",
-    "interested_in": ["danh sách chủ đề/sở thích/lĩnh vực mà [PEER] quan tâm (mảng rỗng nếu không có)"],
-    "follow_up": "Chủ đề tiếp theo nên trao đổi với [PEER] dựa trên ngữ cảnh hội thoại (hoặc null nếu không có)"
+    "last_met": "Bối cảnh quen biết hoặc lần gặp gần nhất (hoặc null)",
+    "interested_in": ["AI", "LLM", "Robot", "Đá bóng"],
+    "follow_up": "Chủ đề tiếp theo nên trao đổi (hoặc null)"
 }}
 
 Trả lời CHỈ bằng JSON, không giải thích thêm.
 """
+
+
+def sanitize_peer_text(text: str | None) -> str | None:
+    """Làm sạch văn bản, loại bỏ triệt để các token rò rỉ như [PEER], {peer}, [USER]."""
+    if not text:
+        return text
+    cleaned = re.sub(r"\[PEER\]|\{peer\}|\[peer\]|\bPEER\b", "Đối tác", text, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\[USER\]|\{user\}|\[user\]|\bUSER\b", "Bạn", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
+def clean_interest_keyword(item: str | None) -> str | None:
+    """Chuẩn hóa chủ đề quan tâm thành từ khóa ngắn gọn (1-3 từ)."""
+    if not item:
+        return None
+    cleaned = sanitize_peer_text(str(item).strip().strip("#").strip())
+    if not cleaned:
+        return None
+    words = cleaned.split()
+    if len(words) > 4:
+        cleaned = " ".join(words[:3])
+    # Capitalize first letter of each word
+    return " ".join(w.capitalize() for w in cleaned.split())
 
 
 
@@ -187,7 +214,7 @@ class MemoryAgent:
             Summary string
         """
         if not messages:
-            return "Không có hội thoại để tóm tắt."
+            return "Chưa có đủ trao đổi để tóm tắt."
 
         # Chunk nếu quá dài
         chunks = chunk_messages(messages, max_tokens=500)
@@ -198,7 +225,9 @@ class MemoryAgent:
             prompt = MEMORY_SUMMARY_PROMPT.format(conversation=text)
             try:
                 summary = self._llm.complete(prompt)
-                summaries.append(summary.strip())
+                cleaned = sanitize_peer_text(summary.strip())
+                if cleaned:
+                    summaries.append(cleaned)
             except Exception as e:
                 logger.warning("LLM summarize failed for chunk %d: %s", i, e)
                 summaries.append("")
@@ -209,17 +238,19 @@ class MemoryAgent:
         # Nếu có nhiều chunks, tóm tắt lại
         combined = " ".join(s for s in summaries if s)
         if not combined:
-            return "Không thể tạo tóm tắt."
+            return "Chưa có đủ thông tin để tóm tắt."
 
         final_prompt = (
-            f"Bạn hãy tóm tắt ngắn gọn các ý sau thành 1 đoạn (2-3 câu) mô tả về người đối thoại ([PEER]):\n{combined}\n\n"
-            f"TUYỆT ĐỐI KHÔNG đưa thông tin của [USER] vào bản tóm tắt."
+            f"Bạn hãy tóm tắt ngắn gọn các ý sau thành 1-2 câu mô tả súc tích về người đối thoại:\n{combined}\n\n"
+            f"Tuyệt đối KHÔNG viết từ '[PEER]' hay '[USER]', chỉ dùng văn phong tiếng Việt tự nhiên."
         )
         try:
-            return self._llm.complete(final_prompt).strip()
+            res = self._llm.complete(final_prompt).strip()
+            return sanitize_peer_text(res) or res
         except Exception as e:
             logger.warning("LLM final summarize failed: %s", e)
-            return combined[:200]
+            return sanitize_peer_text(combined[:200]) or combined[:200]
+
 
     async def extract_entities(self, messages: list[dict[str, Any]], owner_id: str = "") -> dict[str, Any]:
         """
@@ -284,31 +315,35 @@ class MemoryAgent:
             return {"last_met": None, "interested_in": [], "follow_up": None}
         if len(results) == 1:
             r = results[0]
+            raw_interests = r.get("interested_in", [])
+            interests = [clean_interest_keyword(i) for i in raw_interests if i]
             return {
-                "last_met": r.get("last_met"),
-                "interested_in": r.get("interested_in", []),
-                "follow_up": r.get("follow_up"),
+                "last_met": sanitize_peer_text(r.get("last_met")),
+                "interested_in": [i for i in interests if i][:6],
+                "follow_up": sanitize_peer_text(r.get("follow_up")),
             }
 
         # Collect from all
-        last_mets = [r["last_met"] for r in results if r.get("last_met")]
-        follow_ups = [r["follow_up"] for r in results if r.get("follow_up")]
+        last_mets = [sanitize_peer_text(r["last_met"]) for r in results if r.get("last_met")]
+        follow_ups = [sanitize_peer_text(r["follow_up"]) for r in results if r.get("follow_up")]
         all_interests: list[str] = []
         seen_interests: set[str] = set()
 
         for r in results:
             interests = r.get("interested_in") or []
             for interest in interests:
-                norm = str(interest).strip().lower()
+                cleaned = clean_interest_keyword(interest)
+                norm = cleaned.lower() if cleaned else ""
                 if norm and norm not in seen_interests:
                     seen_interests.add(norm)
-                    all_interests.append(str(interest).strip())
+                    all_interests.append(cleaned)
 
         return {
             "last_met": last_mets[0] if last_mets else None,
-            "interested_in": all_interests[:20],
+            "interested_in": all_interests[:6],
             "follow_up": follow_ups[0] if follow_ups else None,
         }
+
 
     def calculate_relationship_score(self, messages: list[dict[str, Any]]) -> int:
         """

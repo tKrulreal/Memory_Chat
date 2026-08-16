@@ -5,3 +5,5 @@ class AIContext(BaseModel):
     last_met: str | None = None
     interested_in: list[str] = Field(default_factory=list)
     follow_up: str | None = None
+    tags: list[str] = Field(default_factory=list)
+

@@ -1,13 +1,15 @@
 """
-Tests cho Tagging Agent (WS-05 TASK-COP-03).
+Unit Tests for TaggingAgent (Contact Category & Profession Tagging).
 """
 
 import uuid
 from unittest.mock import MagicMock, patch
-
 import pytest
 
 from src.agents.tagging.agent import TaggingAgent
+from src.models.chat import Conversation, Message
+from src.models.user import User, UserProfile
+from src.models.ai import AssistantMemory
 
 
 class TestTaggingAgent:
@@ -15,191 +17,138 @@ class TestTaggingAgent:
 
     @pytest.fixture
     def mock_db(self):
-        """Mock database session."""
         return MagicMock()
 
     @pytest.fixture
-    def mock_memory(self):
-        """Mock ContactMemory."""
-        memory = MagicMock()
-        memory.summary = "Software engineer at VinAI"
-        memory.profession = "AI Engineer"
-        memory.company = "VinAI"
-        memory.skills = ["Python", "Machine Learning", "Deep Learning"]
-        memory.interest = ["AI", "Research", "Startups"]
-        memory.timeline = {"last_contact": "2026-08-01"}
-        return memory
+    def agent(self):
+        return TaggingAgent()
 
-    def test_build_memory_context(self, mock_memory):
-        """Test building readable context from memory."""
-        agent = TaggingAgent()
-        context = agent._build_memory_context(mock_memory)
+    def test_parse_json_response(self, agent):
+        """Test parsing valid JSON, markdown block, and invalid strings."""
+        # 1. Plain JSON
+        raw_json = '{"tags": ["Bạn Bè", "AI Engineer", "Hà Nội"]}'
+        parsed = agent._parse_json_response(raw_json)
+        assert parsed is not None
+        assert parsed["tags"] == ["Bạn Bè", "AI Engineer", "Hà Nội"]
 
-        assert "Software engineer" in context
-        assert "AI Engineer" in context
-        assert "VinAI" in context
-        assert "Python" in context
+        # 2. Markdown block JSON
+        markdown_json = '```json\n{"tags": ["Khách Hàng", "Bất Động Sản"]}\n```'
+        parsed = agent._parse_json_response(markdown_json)
+        assert parsed is not None
+        assert parsed["tags"] == ["Khách Hàng", "Bất Động Sản"]
 
-    def test_build_memory_context_empty(self):
-        """Test building context from empty memory."""
-        agent = TaggingAgent()
-        memory = MagicMock()
-        memory.summary = None
-        memory.profession = None
-        memory.company = None
-        memory.skills = None
-        memory.interest = None
-        memory.timeline = None
+        # 3. Invalid
+        assert agent._parse_json_response("") is None
+        assert agent._parse_json_response("No json here") is None
 
-        context = agent._build_memory_context(memory)
-        assert "No memory data" in context
+    def test_clean_tags(self, agent):
+        """Test filtering out blacklisted junk words, deduplicating, and formatting."""
+        raw = [
+            "  bạn bè  ",
+            "#AI Engineer",
+            "chào bạn",      # should be filtered out
+            "ok",            # should be filtered out
+            "hôm nay",       # should be filtered out
+            "AI Engineer",   # duplicate
+            "công nghệ",
+            "python",
+            "flutter",
+            "data scientist",
+            "extra tag",     # exceeds limit 6
+        ]
 
-    @pytest.mark.asyncio
-    async def test_suggest_tags_no_memory(self, mock_db):
-        """No memory → empty list."""
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-        agent = TaggingAgent()
-        tags = await agent.suggest_tags(uuid.uuid4(), db=mock_db)
-        assert tags == []
+        cleaned = agent._clean_tags(raw)
+        assert "Bạn Bè" in cleaned
+        assert "Ai Engineer" in cleaned or "AI Engineer" in [t.upper() for t in cleaned]
+        assert "Chào Bạn" not in cleaned
+        assert "Ok" not in cleaned
+        assert "Hôm Nay" not in cleaned
+        assert len(cleaned) <= 6
 
-    @pytest.mark.asyncio
-    async def test_suggest_tags_success(self, mock_db, mock_memory):
-        """LLM returns valid tags."""
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_memory
-        agent = TaggingAgent()
+    def test_generate_tags_from_messages(self, agent, mock_db):
+        """Test generating tags from conversation messages using LLM."""
+        user_id = uuid.uuid4()
+        other_user_id = uuid.uuid4()
+        conv_id = uuid.uuid4()
 
-        # Mock LLM response
-        with patch.object(agent, "_llm") as mock_llm:
-            mock_llm.complete.return_value = '["ai_engineer", "software_developer", "vinuni_alumni"]'
+        conv = Conversation(id=conv_id, user_a_id=user_id, user_b_id=other_user_id)
+        other_user = User(id=other_user_id, full_name="Trần Văn Đối Tác", email="doitac@gmail.com")
+        other_profile = UserProfile(user_id=other_user_id, profession="CEO", company="TechCorp", location="Hà Nội")
 
-            tags = await agent.suggest_tags(uuid.uuid4(), db=mock_db)
+        msg1 = Message(id=uuid.uuid4(), conversation_id=conv_id, sender_user_id=user_id, content="Chào anh, bên em muốn hợp tác dự án AI.")
+        msg2 = Message(id=uuid.uuid4(), conversation_id=conv_id, sender_user_id=other_user_id, content="Chào em, anh là CEO TechCorp, bên anh đang cần tìm đối tác triển khai RAG.")
 
-        assert len(tags) == 3
-        assert "ai_engineer" in tags
-        assert "software_developer" in tags
-        assert "vinuni_alumni" in tags
+        def get_side_effect(model, ident):
+            if model == Conversation:
+                return conv
+            if model == User:
+                return other_user
+            return None
 
-    @pytest.mark.asyncio
-    async def test_suggest_tags_max_limit(self, mock_db, mock_memory):
-        """Tags limited to max_tags."""
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_memory
-        agent = TaggingAgent()
+        mock_db.get.side_effect = get_side_effect
 
-        with patch.object(agent, "_llm") as mock_llm:
-            mock_llm.complete.return_value = '["tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7"]'
+        def query_side_effect(model):
+            mock_q = MagicMock()
+            if model == UserProfile:
+                mock_q.filter.return_value.first.return_value = other_profile
+            elif model == Message:
+                mock_q.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [msg1, msg2]
+            elif model == AssistantMemory:
+                mock_q.filter.return_value.first.return_value = None
+            return mock_q
 
-            tags = await agent.suggest_tags(uuid.uuid4(), db=mock_db, max_tags=5)
+        mock_db.query.side_effect = query_side_effect
 
-        assert len(tags) == 5  # Limited to 5
+        mock_llm_response = '''
+        {
+            "tags": ["Đối Tác", "CEO", "TechCorp", "AI", "RAG"]
+        }
+        '''
 
-    @pytest.mark.asyncio
-    async def test_suggest_tags_invalid_json(self, mock_db, mock_memory):
-        """Invalid JSON → empty list."""
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_memory
-        agent = TaggingAgent()
+        with patch.object(agent._llm, "complete", return_value=mock_llm_response) as mock_complete:
+            tags = agent.generate_tags(conv_id, user_id, mock_db)
+            assert mock_complete.called
+            assert "Đối Tác" in tags
+            assert "Ceo" in tags or "CEO" in [t.upper() for t in tags]
+            assert "Techcorp" in tags or "TechCorp" in [t.upper() for t in tags]
 
-        with patch.object(agent, "_llm") as mock_llm:
-            mock_llm.complete.return_value = "Not valid JSON"
+    def test_generate_tags_fallback_to_profile(self, agent, mock_db):
+        """Test fallback to UserProfile if no messages exist yet."""
+        user_id = uuid.uuid4()
+        other_user_id = uuid.uuid4()
+        conv_id = uuid.uuid4()
 
-            tags = await agent.suggest_tags(uuid.uuid4(), db=mock_db)
+        conv = Conversation(id=conv_id, user_a_id=user_id, user_b_id=other_user_id)
+        other_user = User(id=other_user_id, full_name="Lê Kỹ Sư", email="kysu@gmail.com")
+        other_profile = UserProfile(
+            user_id=other_user_id,
+            profession="Mobile Lead",
+            company="FPT Software",
+            skills=["Flutter", "Dart"],
+        )
 
-        assert tags == []
+        def get_side_effect(model, ident):
+            if model == Conversation:
+                return conv
+            if model == User:
+                return other_user
+            return None
 
-    @pytest.mark.asyncio
-    async def test_suggest_tags_with_markdown(self, mock_db, mock_memory):
-        """LLM returns JSON with markdown code block."""
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_memory
-        agent = TaggingAgent()
+        mock_db.get.side_effect = get_side_effect
 
-        with patch.object(agent, "_llm") as mock_llm:
-            mock_llm.complete.return_value = '```json\n["tech", "startup"]\n```'
+        def query_side_effect(model):
+            mock_q = MagicMock()
+            if model == UserProfile:
+                mock_q.filter.return_value.first.return_value = other_profile
+            elif model == Message:
+                mock_q.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+            elif model == AssistantMemory:
+                mock_q.filter.return_value.first.return_value = None
+            return mock_q
 
-            tags = await agent.suggest_tags(uuid.uuid4(), db=mock_db)
+        mock_db.query.side_effect = query_side_effect
 
-        assert len(tags) == 2
-        assert "tech" in tags
-        assert "startup" in tags
-
-    def test_get_or_create_tags_existing(self, mock_db):
-        """Tag already exists → reuse."""
-        existing_tag = MagicMock()
-        existing_tag.name = "tech"
-        mock_db.query.return_value.filter.return_value.first.return_value = existing_tag
-
-        agent = TaggingAgent()
-        tags = agent.get_or_create_tags(mock_db, ["tech"])
-
-        assert len(tags) == 1
-        assert tags[0].name == "tech"
-        mock_db.add.assert_not_called()  # Should not create new
-
-    def test_get_or_create_tags_new(self, mock_db):
-        """Tag doesn't exist → create new."""
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-        mock_db.add = MagicMock()
-        mock_db.commit = MagicMock()
-
-        agent = TaggingAgent()
-        tags = agent.get_or_create_tags(mock_db, ["new_tag"])
-
-        assert len(tags) == 1
-        assert tags[0].name == "new_tag"
-        mock_db.add.assert_called_once()
-
-    def test_get_contact_tags_empty(self, mock_db):
-        """Contact has no tags."""
-        mock_contact = MagicMock()
-        mock_contact.tags = []
-        mock_db.get.return_value = mock_contact
-
-        agent = TaggingAgent()
-        tags = agent.get_contact_tags(mock_db, uuid.uuid4())
-
-        assert tags == []
-
-    def test_get_contact_tags_with_values(self, mock_db):
-        """Contact has tags."""
-        tag1 = MagicMock()
-        tag1.name = "ai"
-        tag2 = MagicMock()
-        tag2.name = "tech"
-
-        mock_contact = MagicMock()
-        mock_contact.tags = [tag1, tag2]
-        mock_db.get.return_value = mock_contact
-
-        agent = TaggingAgent()
-        tags = agent.get_contact_tags(mock_db, uuid.uuid4())
-
-        assert len(tags) == 2
-        assert "ai" in tags
-        assert "tech" in tags
-
-    @pytest.mark.asyncio
-    async def test_approve_tags(self, mock_db):
-        """Approve tags → added to contact."""
-        mock_tag = MagicMock()
-        mock_tag.name = "approved_tag"
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_tag
-
-        mock_contact = MagicMock()
-        mock_contact.tags = []
-        mock_db.get.return_value = mock_contact
-
-        mock_db.add = MagicMock()
-        mock_db.commit = MagicMock()
-
-        agent = TaggingAgent()
-        tags = await agent.approve_tags(mock_db, uuid.uuid4(), ["approved_tag"])
-
-        assert len(tags) == 1
-        mock_db.commit.assert_called()
-
-    @pytest.mark.asyncio
-    async def test_approve_tags_contact_not_found(self, mock_db):
-        """Contact not found → raise ValueError."""
-        mock_db.get.return_value = None
-
-        agent = TaggingAgent()
-        with pytest.raises(ValueError, match="not found"):
-            await agent.approve_tags(mock_db, uuid.uuid4(), ["tag"])
+        tags = agent.generate_tags(conv_id, user_id, mock_db)
+        assert len(tags) > 0
+        assert "Mobile Lead" in tags
+        assert "Fpt Software" in tags

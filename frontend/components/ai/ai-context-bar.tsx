@@ -3,11 +3,54 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getConversationContext, updateConversationContext, refreshConversationContext, type AIContext } from "@/lib/api/context";
+import {
+  getConversationContext,
+  updateConversationContext,
+  refreshConversationContext,
+  type AIContext,
+} from "@/lib/api/context";
 import { useConversationStore } from "@/lib/stores/conversation-store";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
+import {
+  RefreshCw,
+  ChevronUp,
+  ChevronDown,
+  Sparkles,
+  UserCheck,
+  Calendar,
+  Hash,
+  ArrowRightCircle,
+  Edit3,
+  Check,
+  X,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+// Hàm làm sạch triệt để các token rò rỉ như [PEER], {peer}, [USER] trên giao diện
+function cleanContextDisplay(str?: string | null): string {
+  if (!str) return "";
+  return str
+    .replace(/\[PEER\]|\{peer\}|\[peer\]|\bPEER\b/gi, "Đối tác")
+    .replace(/\[USER\]|\{user\}|\[user\]|\bUSER\b/gi, "Bạn")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Chuẩn hóa chủ đề quan tâm thành từ khóa ngắn gọn, trực quan (ví dụ: AI, LLM, Robot, Đá bóng)
+function cleanInterestKeywordDisplay(item?: string | null): string {
+  if (!item) return "";
+  let cleaned = cleanContextDisplay(item).replace(/^#+/, "").trim();
+  const words = cleaned.split(/\s+/);
+  if (words.length > 4) {
+    cleaned = words.slice(0, 3).join(" ");
+  }
+  return cleaned
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 
 export function AIContextBar() {
   const activeId = useConversationStore((s) => s.activeConversationId);
@@ -27,21 +70,25 @@ export function AIContextBar() {
     onSuccess: (updated) => {
       queryClient.setQueryData(["context", activeId], updated);
       setIsEditing(false);
-      toast.success("Context updated successfully");
+      toast.success("Đã cập nhật trí nhớ AI thành công");
     },
     onError: () => {
-      toast.error("Failed to update context");
-    }
+      toast.error("Không thể cập nhật trí nhớ AI");
+    },
   });
 
   const refreshMutation = useMutation({
     mutationFn: () => refreshConversationContext(activeId!),
-    onSuccess: () => {
-      toast.success("AI is synthesizing context in the background...");
+    onSuccess: (updatedContext) => {
+      queryClient.setQueryData(["context", activeId], updatedContext);
+      queryClient.invalidateQueries({ queryKey: ["context", activeId] });
+      toast.success("AI đã tóm tắt lại ngữ cảnh thành công!", {
+        description: "Toàn bộ thông tin đối phương và tiến trình trò chuyện đã được cập nhật.",
+      });
     },
     onError: () => {
-      toast.error("Failed to trigger context refresh");
-    }
+      toast.error("Không thể làm mới tóm tắt. Vui lòng thử lại sau.");
+    },
   });
 
   // Sync edit state when context changes
@@ -55,13 +102,15 @@ export function AIContextBar() {
 
   if (isLoading) {
     return (
-      <section className="border-b border-subtle bg-elevated/50 px-4 py-3">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-secondary">
-          AI Context
-        </h2>
+      <section className="border-b border-subtle bg-surface/60 px-4 py-3">
+        <div className="flex items-center gap-2 mb-2">
+          <Skeleton className="h-4 w-4 rounded-full" />
+          <Skeleton className="h-4 w-36 rounded" />
+        </div>
+        <Skeleton className="h-12 w-full rounded-xl mb-2" />
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-14 rounded-button" />
+            <Skeleton key={i} className="h-14 rounded-xl" />
           ))}
         </div>
       </section>
@@ -77,159 +126,217 @@ export function AIContextBar() {
     setIsEditing(false);
   };
 
+  const cleanedSummary = cleanContextDisplay(context?.summary);
+  const cleanedLastMet = cleanContextDisplay(context?.last_met);
+  const cleanedFollowUp = cleanContextDisplay(context?.follow_up);
+  const cleanedInterests = (context?.interested_in || [])
+    .map((i) => cleanInterestKeywordDisplay(i))
+    .filter(Boolean)
+    .slice(0, 6);
+
+
   return (
-    <section className="border-b border-subtle bg-elevated/50 px-4 py-3">
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-secondary flex items-center gap-1.5">
-          <span>AI Context · Thông tin tóm tắt về đối phương</span>
-        </h2>
-        <div className="flex gap-2">
+    <section className="border-b border-subtle bg-surface/80 backdrop-blur-sm px-4 py-2.5 transition-all">
+      {/* Top bar header */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="flex h-5 w-5 items-center justify-center rounded-md bg-accent/15 text-accent">
+            <Sparkles size={12} />
+          </div>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-secondary">
+            AI Context · Trí nhớ về đối phương
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-1.5">
           {isEditing ? (
             <>
-              <Button variant="ghost" size="sm" onClick={handleCancel} disabled={mutation.isPending}>
-                Cancel
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCancel}
+                disabled={mutation.isPending}
+                className="h-7 text-xs px-2 text-secondary hover:text-primary"
+              >
+                <X size={13} className="mr-1" />
+                Hủy
               </Button>
-              <Button variant="secondary" size="sm" onClick={handleSave} disabled={mutation.isPending}>
-                {mutation.isPending ? "Saving..." : "Save"}
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleSave}
+                disabled={mutation.isPending}
+                className="h-7 text-xs px-2.5 font-semibold"
+              >
+                <Check size={13} className="mr-1" />
+                {mutation.isPending ? "Đang lưu..." : "Lưu"}
               </Button>
             </>
           ) : (
-            <div className="flex items-center gap-1">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 w-8 p-0 text-secondary hover:text-primary" 
-                onClick={() => refreshMutation.mutate()} 
+            <>
+              {/* Refresh button with spinning animation */}
+              <button
+                type="button"
+                onClick={() => refreshMutation.mutate()}
                 disabled={refreshMutation.isPending}
-                title="Làm mới AI Context"
+                className={cn(
+                  "flex items-center gap-1 rounded-lg border border-subtle px-2 py-1 text-[11px] font-medium text-secondary",
+                  "hover:border-accent/40 hover:text-accent hover:bg-elevated transition-colors cursor-pointer disabled:opacity-50"
+                )}
+                title="AI phân tích lại toàn bộ tin nhắn trong DB để tóm tắt mới nhất"
               >
-                <RefreshCw size={14} className={refreshMutation.isPending ? "animate-spin" : ""} />
-                <span className="sr-only">Làm mới AI Context</span>
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-                Chỉnh sửa
-              </Button>
-            </div>
+                <RefreshCw
+                  size={12}
+                  className={cn(
+                    "text-accent",
+                    refreshMutation.isPending && "animate-spin"
+                  )}
+                />
+                <span>{refreshMutation.isPending ? "Đang tóm tắt..." : "Làm mới"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-1 rounded-lg border border-subtle px-2 py-1 text-[11px] font-medium text-secondary hover:border-subtle hover:text-primary hover:bg-elevated transition-colors cursor-pointer"
+                title="Chỉnh sửa nội dung AI Context"
+              >
+                <Edit3 size={11} />
+                <span>Sửa</span>
+              </button>
+            </>
           )}
         </div>
       </div>
-      
+
+      {/* Expanded Content Body */}
       {isExpanded && (
-        <>
-          <div className="mb-2">
-            <ContextCard
-              label="Tóm tắt về đối phương"
-              value={editState.summary}
-              isEditing={isEditing}
-              onChange={(val) => setEditState({ ...editState, summary: val })}
-              placeholder="Chưa có thông tin tóm tắt về đối phương"
-              isTextArea
-            />
+        <div className="mt-2.5 space-y-2">
+          {/* Main Summary Box */}
+          <div className="rounded-xl border border-accent/20 bg-gradient-to-r from-accent/10 via-surface to-surface p-3 transition-all">
+            <div className="flex items-center gap-1.5 mb-1 text-[11px] font-bold uppercase tracking-wider text-accent">
+              <UserCheck size={13} />
+              <span>Tóm tắt về đối phương:</span>
+            </div>
+            {isEditing ? (
+              <textarea
+                value={editState.summary || ""}
+                onChange={(e) => setEditState({ ...editState, summary: e.target.value })}
+                placeholder="Nhập tóm tắt về đối tác..."
+                rows={2}
+                className="w-full rounded-lg bg-elevated border border-subtle px-2.5 py-1.5 text-xs text-primary placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-accent resize-none scrollbar-thin"
+              />
+            ) : (
+              <p className="text-xs text-primary leading-relaxed font-medium">
+                {cleanedSummary || (
+                  <span className="text-secondary italic">
+                    Chưa có tóm tắt. Hãy bấm &ldquo;Làm mới&rdquo; để AI phân tích cuộc hội thoại.
+                  </span>
+                )}
+              </p>
+            )}
           </div>
+
+          {/* 3 Detail Cards Grid */}
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <ContextCard
-              label="Lần gặp / Bối cảnh"
-              value={editState.last_met}
-              isEditing={isEditing}
-              onChange={(val) => setEditState({ ...editState, last_met: val })}
-              placeholder="Chưa có thông tin"
-            />
-            <ContextCard
-              label="Chủ đề đối phương quan tâm"
-              value={editState.interested_in?.join(", ")}
-              isEditing={isEditing}
-              onChange={(val) =>
-                setEditState({
-                  ...editState,
-                  interested_in: val.split(",").map((s) => s.trim()).filter(Boolean),
-                })
-              }
-              placeholder="Chưa có thông tin"
-            />
-            <ContextCard
-              label="Việc cần làm tiếp theo"
-              value={editState.follow_up}
-              isEditing={isEditing}
-              onChange={(val) => setEditState({ ...editState, follow_up: val })}
-              placeholder="Chưa có ghi chú"
-              isAccent
-            />
+            {/* 1. Last Met / Context */}
+            <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-2.5 space-y-1">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-blue-300">
+                <Calendar size={12} className="text-blue-400" />
+                <span>Lần gặp / Bối cảnh</span>
+              </div>
+              {isEditing ? (
+                <input
+                  value={editState.last_met || ""}
+                  onChange={(e) => setEditState({ ...editState, last_met: e.target.value })}
+                  placeholder="Bối cảnh quen biết..."
+                  className="w-full rounded bg-elevated border border-subtle px-2 py-1 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              ) : (
+                <p className="text-xs text-blue-100/90 truncate font-medium">
+                  {cleanedLastMet || <span className="text-secondary italic">Chưa xác định</span>}
+                </p>
+              )}
+            </div>
+
+            {/* 2. Interested In */}
+            <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-2.5 space-y-1">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-purple-300">
+                <Hash size={12} className="text-purple-400" />
+                <span>Chủ đề quan tâm</span>
+              </div>
+              {isEditing ? (
+                <input
+                  value={editState.interested_in?.join(", ") || ""}
+                  onChange={(e) =>
+                    setEditState({
+                      ...editState,
+                      interested_in: e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  placeholder="AI, Startup, Python..."
+                  className="w-full rounded bg-elevated border border-subtle px-2 py-1 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              ) : cleanedInterests.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {cleanedInterests.map((item, idx) => (
+                    <span
+                      key={idx}
+                      className="rounded-md bg-purple-500/15 border border-purple-500/30 px-1.5 py-0.5 text-[10px] text-purple-300 font-medium"
+                    >
+                      #{item}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-secondary italic">Chưa có thông tin</p>
+              )}
+            </div>
+
+            {/* 3. Follow-up / Next Step */}
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-2.5 space-y-1">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-300">
+                <ArrowRightCircle size={12} className="text-emerald-400" />
+                <span>Gợi ý việc tiếp theo</span>
+              </div>
+              {isEditing ? (
+                <input
+                  value={editState.follow_up || ""}
+                  onChange={(e) => setEditState({ ...editState, follow_up: e.target.value })}
+                  placeholder="Hành động tiếp theo..."
+                  className="w-full rounded bg-elevated border border-subtle px-2 py-1 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              ) : (
+                <p className="text-xs text-emerald-100/90 truncate font-medium">
+                  {cleanedFollowUp || <span className="text-secondary italic">Chưa có ghi chú</span>}
+                </p>
+              )}
+            </div>
           </div>
-        </>
+        </div>
       )}
 
-
-      <div className="mt-2 flex justify-center">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="h-5 text-[10px] uppercase tracking-wider text-secondary hover:text-primary hover:bg-transparent" 
+      {/* Expand / Collapse toggle */}
+      <div className="mt-1.5 flex justify-center">
+        <button
+          type="button"
           onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center gap-1 text-[10px] uppercase font-semibold tracking-wider text-secondary hover:text-primary transition-colors cursor-pointer py-0.5"
         >
           {isExpanded ? (
             <>
-              Thu gọn <ChevronUp size={12} className="ml-1" />
+              Thu gọn <ChevronUp size={11} />
             </>
           ) : (
             <>
-              Mở rộng <ChevronDown size={12} className="ml-1" />
+              Mở rộng ngữ cảnh <ChevronDown size={11} />
             </>
           )}
-        </Button>
+        </button>
       </div>
     </section>
   );
 }
-
-function ContextCard({
-  label,
-  value,
-  isEditing,
-  onChange,
-  isAccent,
-  isTextArea,
-  placeholder,
-}: {
-  label: string;
-  value?: string;
-  isEditing: boolean;
-  onChange: (val: string) => void;
-  isAccent?: boolean;
-  isTextArea?: boolean;
-  placeholder?: string;
-}) {
-  const defaultPlaceholder = placeholder || "Chưa có thông tin";
-
-  return (
-    <div className="rounded-button border border-subtle bg-surface px-3 py-2">
-      <p className="mb-1 text-[11px] uppercase tracking-wide text-secondary">{label}</p>
-      {isEditing ? (
-        isTextArea ? (
-          <textarea
-            value={value || ""}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={defaultPlaceholder}
-            rows={2}
-            className="w-full bg-input px-2 py-1 text-sm outline-none ring-accent focus:ring-1 resize-none scrollbar-thin"
-          />
-        ) : (
-          <input
-            value={value || ""}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={defaultPlaceholder}
-            className="w-full bg-input px-2 py-1 text-sm outline-none ring-accent focus:ring-1"
-          />
-        )
-      ) : (
-        <p
-          className={`text-sm font-medium ${
-            !value ? "text-secondary italic" : isAccent ? "text-accent" : ""
-          }`}
-        >
-          {value || defaultPlaceholder}
-        </p>
-      )}
-    </div>
-  );
-}
-
