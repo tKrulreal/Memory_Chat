@@ -28,18 +28,26 @@ class Intent(StrEnum):
 
 
 SYSTEM_PROMPT = """Bạn là AI Copilot trong ứng dụng nhắn tin MemoryChat.
-Nhiệm vụ: Trả lời câu hỏi của người dùng và giúp họ tìm kiếm thông tin về bạn bè, liên hệ, hoặc nội dung chat cũ.
-Bạn có quyền truy cập vào các tools để tra cứu bộ nhớ của người dùng.
+Nhiệm vụ: Trả lời câu hỏi của người dùng và giúp họ tìm kiếm thông tin về bạn bè, liên hệ, người quen cũ hoặc tìm kiếm người dùng mới phù hợp qua hồ sơ cá nhân.
+Bạn có quyền truy cập vào các tools để tra cứu bộ nhớ và hồ sơ người dùng.
 Không bịa đặt thông tin. Nếu không tìm thấy thông tin từ công cụ, hãy báo cho người dùng biết.
 Trả lời bằng tiếng Việt, ngắn gọn, thân thiện, và trực tiếp vào câu hỏi.
 
-QUAN TRỌNG: Nếu người dùng yêu cầu TÌM KIẾM NGƯỜI DÙNG/LIÊN HỆ và bạn tìm thấy thông tin qua tool `semantic_search`, BẠN PHẢI trả về một thẻ contact card cho mỗi người tìm thấy bằng cú pháp XML sau:
-<card name="Tên người liên hệ" email="Email liên hệ" conversation_id="UUID của conversation">Tóm tắt mô tả ngắn gọn lý do phù hợp hoặc thông tin liên quan</card>
+QUAN TRỌNG VỀ TÌM KIẾM NGƯỜI DÙNG/LIÊN HỆ:
+Khi người dùng yêu cầu tìm kiếm và bạn tìm thấy thông tin qua tool `semantic_search`, BẠN PHẢI trả về một thẻ XML `<card>` cho MỖI người tìm thấy với cú pháp:
+- Đối với người ĐÃ TỪNG TRÒ CHUYỆN (has_chatted="true"):
+  <card name="Tên" email="Email" conversation_id="UUID của conversation" user_id="UUID của user" has_chatted="true" profession="Nghề nghiệp" company="Công ty">Tóm tắt ngắn gọn lý do phù hợp hoặc thông tin trao đổi</card>
 
-Ví dụ: 
-<card name="Nguyễn Văn A" email="nguyenvana@example.com" conversation_id="123e4567-e89b-12d3-a456-426614174000">Là bạn cấp 2, hiện đang làm việc tại Technopark trong lĩnh vực robot.</card>
-Bạn có thể trả về nhiều thẻ <card> nếu tìm thấy nhiều người. Các nội dung chat thông thường thì cứ trả lời bình thường.
+- Đối với người CHƯA TỪNG TRÒ CHUYỆN (has_chatted="false" - tìm theo hồ sơ profile):
+  <card name="Tên" email="Email" user_id="UUID của user" has_chatted="false" profession="Nghề nghiệp" company="Công ty">Tóm tắt ngắn gọn lý do phù hợp dựa trên kỹ năng/sở thích/hồ sơ công khai</card>
+
+Ví dụ:
+<card name="Nguyễn Văn A" email="a@example.com" conversation_id="123e4567-e89b-12d3-a456-426614174000" user_id="8888-9999" has_chatted="true" profession="Kỹ sư AI" company="FPT">Đã từng chat, trao đổi về RAG và robot</card>
+<card name="Trần Thị B" email="b@example.com" user_id="9999-0000" has_chatted="false" profession="Chuyên gia Dữ liệu" company="VinAI">Người dùng mới trên hệ thống, có kỹ năng Python và BigData</card>
+
+Bạn có thể trả về nhiều thẻ <card> nếu tìm thấy nhiều người. Các nội dung chat thông thường thì cứ trả lời bằng văn bản tự nhiên.
 """
+
 
 
 def _classify_intent(query: str, llm: LLMGateway | None = None) -> tuple[Intent, float]:
@@ -268,13 +276,21 @@ async def run_copilot(
 
             out = []
             for i, r in enumerate(results, 1):
+                chat_status = f"Có (Conversation ID: {r.conversation_id})" if r.has_chatted else "Chưa từng trò chuyện (Người dùng mới - Tìm thấy từ hồ sơ profile)"
                 out.append(
                     f"Kết quả {i}:\n"
                     f"- Tên: {r.name}\n"
                     f"- Email: {r.email}\n"
+                    f"- User ID: {r.user_id}\n"
+                    f"- Đã từng chat: {chat_status}\n"
                     f"- Conversation ID: {r.conversation_id}\n"
+                    f"- Nghề nghiệp: {r.profession}\n"
+                    f"- Công ty: {r.company}\n"
+                    f"- Kỹ năng: {', '.join(r.skills) if r.skills else 'Chưa có'}\n"
+                    f"- Sở thích/Quan tâm: {', '.join(r.interests) if r.interests else 'Chưa có'}\n"
+                    f"- Tags: {', '.join(r.tags) if r.tags else 'Không có'}\n"
                     f"- Độ phù hợp (0-100): {r.score}\n"
-                    f"- Giải thích: {r.explanation}\n"
+                    f"- Lý do phù hợp: {r.explanation}\n"
                 )
 
             return "\n".join(out)

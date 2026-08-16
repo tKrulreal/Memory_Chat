@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Send, Bot, User, Sparkles, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useConversationStore } from "@/lib/stores/conversation-store";
+import { renderCopilotMessageWithCards } from "@/components/ai/copilot-card";
 
 type Message = {
   role: "user" | "assistant";
@@ -14,13 +14,13 @@ type Message = {
 
 export default function CopilotPage() {
   const router = useRouter();
-  const setActive = useConversationStore((s) => s.setActiveConversation);
 
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Xin chào! Mình là Copilot AI. Mình có thể giúp bạn tìm kiếm thông tin về người dùng, lịch sử chat, hoặc giải đáp các thắc mắc khác. Bạn cần mình giúp gì?",
-    }
+      content:
+        "Xin chào! Mình là Copilot AI. Mình có thể giúp bạn tìm kiếm thông tin về bạn bè, đối tác cũ trong các đoạn chat (theo tóm tắt, tag, sở thích...) hoặc tìm kiếm người dùng mới trên hệ thống dựa theo hồ sơ kỹ năng. Bạn cần mình giúp gì?",
+    },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -32,83 +32,50 @@ export default function CopilotPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading]);
+  }, [messages]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
     const userMsg = input.trim();
     setInput("");
-    setMessages(prev => [...prev, { role: "user", content: userMsg }]);
+    setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
     setIsLoading(true);
 
     try {
       const res = await fetch("/api/proxy/api/v1/copilot", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ query: userMsg }),
       });
 
       if (!res.ok) throw new Error("API call failed");
 
       const data = await res.json();
-      
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: data.response,
-        tools_used: data.tools_used
-      }]);
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: data.response,
+          tools_used: data.tools_used,
+        },
+      ]);
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: "Xin lỗi, đã xảy ra lỗi kết nối với máy chủ."
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Xin lỗi, đã xảy ra lỗi kết nối với máy chủ.",
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const renderMessageContent = (content: string) => {
-    // Split by <card...>...</card>
-    const parts = content.split(/(<card[^>]*>[\s\S]*?<\/card>)/);
-
-    return parts.map((part, idx) => {
-      if (part.startsWith("<card")) {
-        const nameMatch = part.match(/name="([^"]+)"/);
-        const emailMatch = part.match(/email="([^"]+)"/);
-        const idMatch = part.match(/conversation_id="([^"]+)"/);
-        const name = nameMatch ? nameMatch[1] : "Contact";
-        const email = emailMatch ? emailMatch[1] : "";
-        const id = idMatch ? idMatch[1] : "";
-        const desc = part.replace(/<[^>]*>/g, "").trim();
-        
-        if (!id) return null;
-        
-        return (
-          <button
-            key={idx}
-            type="button"
-            onClick={() => {
-              setActive(id);
-              router.push("/chats");
-            }}
-            className="mt-3 mb-3 flex items-center gap-3 p-3 border border-subtle rounded-xl hover:bg-elevated transition-colors bg-app w-full cursor-pointer group text-left"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white font-semibold shadow-sm">
-              {name.substring(0, 2).toUpperCase()}
-            </div>
-            <div className="flex flex-col flex-1 min-w-0">
-              <span className="font-semibold text-primary truncate group-hover:text-accent transition-colors">{name}</span>
-              {email && <span className="text-xs font-medium text-accent truncate">{email}</span>}
-              <span className="text-xs text-secondary line-clamp-2 mt-0.5">{desc}</span>
-            </div>
-          </button>
-        );
-      }
-      return part.trim() ? <div key={idx} className="whitespace-pre-wrap mb-2 last:mb-0">{part}</div> : null;
-    });
   };
 
   return (
@@ -133,20 +100,24 @@ export default function CopilotPage() {
                   <Bot size={18} />
                 </div>
               )}
-              
-              <div className={cn(
-                "flex max-w-[80%] flex-col gap-1",
-                msg.role === "user" ? "items-end" : "items-start"
-              )}>
-                <div className={cn(
-                  "rounded-2xl px-4 py-3 text-sm",
-                  msg.role === "user" 
-                    ? "bg-accent text-white rounded-tr-sm" 
-                    : "bg-surface border border-subtle text-primary rounded-tl-sm w-full"
-                )}>
-                  {renderMessageContent(msg.content)}
+
+              <div
+                className={cn(
+                  "flex max-w-[85%] flex-col gap-1",
+                  msg.role === "user" ? "items-end" : "items-start"
+                )}
+              >
+                <div
+                  className={cn(
+                    "rounded-2xl px-4 py-3 text-sm",
+                    msg.role === "user"
+                      ? "bg-accent text-white rounded-tr-sm"
+                      : "bg-surface border border-subtle text-primary rounded-tl-sm w-full shadow-sm"
+                  )}
+                >
+                  {renderCopilotMessageWithCards(msg.content)}
                 </div>
-                
+
                 {msg.tools_used && msg.tools_used.length > 0 && (
                   <div className="flex items-center gap-1.5 mt-1 rounded-full bg-elevated px-2 py-1 text-[10px] font-medium text-secondary">
                     <Wrench size={10} />
@@ -168,12 +139,11 @@ export default function CopilotPage() {
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent">
                 <Bot size={18} />
               </div>
-              <div className="flex items-center rounded-2xl bg-surface border border-subtle px-4 py-3 rounded-tl-sm">
-                <div className="flex gap-1">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-secondary"></span>
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-secondary" style={{ animationDelay: "0.2s" }}></span>
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-secondary" style={{ animationDelay: "0.4s" }}></span>
-                </div>
+              <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm border border-subtle bg-surface px-4 py-3 text-sm text-secondary">
+                <div className="h-2 w-2 animate-bounce rounded-full bg-accent [animation-delay:-0.3s]"></div>
+                <div className="h-2 w-2 animate-bounce rounded-full bg-accent [animation-delay:-0.15s]"></div>
+                <div className="h-2 w-2 animate-bounce rounded-full bg-accent"></div>
+                <span className="ml-1 text-xs">Copilot đang phân tích và tìm kiếm...</span>
               </div>
             </div>
           )}
@@ -182,25 +152,18 @@ export default function CopilotPage() {
       </div>
 
       <div className="border-t border-subtle bg-surface p-4">
-        <form onSubmit={handleSubmit} className="mx-auto flex max-w-3xl items-end gap-2 relative">
-          <textarea
+        <form onSubmit={handleSend} className="mx-auto flex max-w-3xl gap-2">
+          <input
+            type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit(e);
-              }
-            }}
-            placeholder="Ask Copilot anything..."
-            className="w-full resize-none rounded-xl border border-subtle bg-elevated py-3 pl-4 pr-12 text-sm text-primary placeholder-secondary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-            rows={1}
-            style={{ minHeight: "44px", maxHeight: "120px" }}
+            placeholder="Tìm kiếm bạn bè, chủ đề quan tâm, kỹ năng hoặc người làm về AI, Robot..."
+            className="flex-1 rounded-xl border border-subtle bg-app px-4 py-2.5 text-sm text-primary placeholder-secondary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           />
           <button
             type="submit"
             disabled={!input.trim() || isLoading}
-            className="absolute right-2 bottom-2 rounded-lg p-1.5 text-white bg-accent transition-colors disabled:bg-surface disabled:text-subtle"
+            className="flex items-center justify-center rounded-xl bg-accent px-4 text-white hover:bg-accent/90 disabled:opacity-50 transition-colors"
           >
             <Send size={18} />
           </button>

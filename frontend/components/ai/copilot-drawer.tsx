@@ -10,6 +10,8 @@ import { askCopilot } from "@/lib/api/copilot";
 import { cn } from "@/lib/utils";
 import { v4 as uuidv4 } from "uuid";
 
+import { renderCopilotMessageWithCards } from "@/components/ai/copilot-card";
+
 const COPILOT_ACTIONS = [
   "Summarize",
   "Find information",
@@ -151,20 +153,21 @@ export function CopilotDrawer() {
               <div 
                 key={msg.id} 
                 className={cn(
-                  "flex flex-col gap-1 max-w-[90%]", 
-                  msg.role === "user" ? "ml-auto items-end" : "mr-auto items-start"
+                  "flex flex-col gap-1 max-w-[95%]", 
+                  msg.role === "user" ? "ml-auto items-end" : "mr-auto items-start w-full"
                 )}
               >
                 <div 
                   className={cn(
-                    "rounded-2xl px-4 py-2 text-sm",
+                    "rounded-2xl px-4 py-2.5 text-sm",
                     msg.role === "user" 
                       ? "bg-accent text-accent-foreground rounded-tr-sm"
-                      : "bg-elevated text-primary rounded-tl-sm"
+                      : "bg-elevated text-primary rounded-tl-sm w-full"
                   )}
                 >
-                  {msg.content}
+                  {renderCopilotMessageWithCards(msg.content)}
                 </div>
+
                 
                 {msg.role === "assistant" && (msg.intent === "REPLY_SUGGEST" || msg.intent === "MEMORY") && (
                   <button

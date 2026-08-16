@@ -230,8 +230,8 @@ class MemoryAgent:
                     summaries.append(cleaned)
             except Exception as e:
                 logger.warning("LLM summarize failed for chunk %d: %s", i, e)
-                summaries.append("")
-
+                summaries.append("") 
+                
         if len(summaries) == 1:
             return summaries[0]
 
