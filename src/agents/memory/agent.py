@@ -146,7 +146,7 @@ Hãy trích xuất các thông tin của người đối thoại ([PEER]) (chỉ
 {{
     "last_met": "Thông tin về lần gặp cuối hoặc bối cảnh quen biết của [PEER] (nếu có, nếu không thì null)",
     "interested_in": ["danh sách chủ đề/sở thích mà [PEER] quan tâm (nếu có, mảng rỗng nếu không có)"],
-    "follow_up": "Cuộc hẹn, lời hứa, hoặc việc cần làm tiếp theo với [PEER] (ví dụ: 'Đi cà phê', 'Gửi tài liệu'). CHỈ gợi ý chủ đề mở lời nếu không có cuộc hẹn/công việc nào được nhắc đến (nếu không có gì thì null)"
+    "follow_up": "Chủ đề tiếp theo nên nói với [PEER] để duy trì và phát triển cuộc trò chuyện một cách tự nhiên. Dựa trên ngữ cảnh, sở thích, công việc và những thông tin đã được nhắc đến trong cuộc trò chuyện để đề xuất một chủ đề hoặc câu hỏi cụ thể (ví dụ: 'Hỏi thêm về công việc của họ', 'Hỏi cuối tuần thường làm gì', 'Hỏi về sở thích liên quan đến chủ đề vừa nói'). Ưu tiên chủ đề mở, dễ trả lời và có khả năng tạo thêm nội dung cho cuộc trò chuyện. Không đề xuất lại chủ đề đã được thảo luận. Nếu không có chủ đề phù hợp thì null."
 }}
 
 Trả lời CHỈ bằng JSON, không giải thích thêm.
