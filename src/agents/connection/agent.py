@@ -107,6 +107,7 @@ class ConnectionRecommendationAgent:
 
         # 1. Ưu tiên 1: Đọc dữ liệu do chính người dùng tự nhập (UserProfile)
         user_profile = db.query(UserProfile).filter(UserProfile.user_id == user.id).first()
+        bio: str | None = None
         if user_profile:
             if user_profile.profession:
                 profession = user_profile.profession
@@ -122,6 +123,8 @@ class ConnectionRecommendationAgent:
                 collected_needs.extend(user_profile.looking_for)
             if user_profile.offering and isinstance(user_profile.offering, list):
                 collected_offers.extend(user_profile.offering)
+            if user_profile.bio:
+                bio = user_profile.bio
 
         # 2. Ưu tiên 2: Trích xuất từ Assistant Memories nếu các trường chưa được người dùng tự nhập
         memories = (
@@ -193,6 +196,7 @@ class ConnectionRecommendationAgent:
                     profession = profession or parsed.get("profession")
                     company = company or parsed.get("company")
                     location = location or parsed.get("location")
+                    bio = bio or parsed.get("bio")
                     if not collected_skills and parsed.get("skills"):
                         collected_skills.extend([s for s in parsed.get("skills", []) if s and str(s).strip()])
                     if not collected_interests and parsed.get("interests"):
@@ -204,6 +208,46 @@ class ConnectionRecommendationAgent:
             except Exception as e:
                 logger.warning(f"Failed LLM profile extraction for user {user.id}: {e}")
 
+        # 6. Tự động điền và lưu các thông tin còn thiếu vào bảng UserProfile nếu người dùng chưa tự nhập
+        auto_filled = False
+        if not user_profile:
+            user_profile = UserProfile(user_id=user.id)
+            db.add(user_profile)
+            auto_filled = True
+
+        if not user_profile.profession and profession:
+            user_profile.profession = profession
+            auto_filled = True
+        if not user_profile.company and company:
+            user_profile.company = company
+            auto_filled = True
+        if not user_profile.location and location:
+            user_profile.location = location
+            auto_filled = True
+        if not user_profile.skills and collected_skills:
+            user_profile.skills = list(dict.fromkeys(collected_skills))
+            auto_filled = True
+        if not user_profile.interests and collected_interests:
+            user_profile.interests = list(dict.fromkeys(collected_interests))
+            auto_filled = True
+        if not user_profile.looking_for and collected_needs:
+            user_profile.looking_for = list(dict.fromkeys(collected_needs))
+            auto_filled = True
+        if not user_profile.offering and collected_offers:
+            user_profile.offering = list(dict.fromkeys(collected_offers))
+            auto_filled = True
+        if not user_profile.bio and bio:
+            user_profile.bio = bio
+            auto_filled = True
+
+        if auto_filled:
+            try:
+                db.commit()
+                db.refresh(user_profile)
+                logger.info(f"Auto-filled and saved missing profile fields into UserProfile for user {user.id}")
+            except Exception as e:
+                logger.warning(f"Failed to auto-save profile for user {user.id}: {e}")
+                db.rollback()
 
         display_name = user.full_name or user.email.split("@")[0]
 

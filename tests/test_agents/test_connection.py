@@ -253,5 +253,51 @@ class TestConnectionRecommendationAgent:
         assert "EdTech" in extracted["interests"]
         assert "Tìm đối tác làm EdTech" in extracted["current_needs"]
 
+    def test_extract_user_profile_uses_existing_profile_directly(self, agent, mock_db):
+        """Test that if UserProfile already has complete information, LLM is NOT called."""
+        from src.models.user import UserProfile
+        from src.models.chat import Message
+        from src.models.contact import Contact
+
+        user = User(id=uuid.uuid4(), email="existing@test.com", full_name="Existing User")
+        existing_profile = UserProfile(
+            user_id=user.id,
+            profession="Data Scientist",
+            company="Google",
+            location="TP.HCM",
+            skills=["Machine Learning", "Pandas"],
+            interests=["Big Data", "Robotics"],
+            looking_for=["Tìm mentor AI"],
+            offering=["Chia sẻ data pipeline"],
+            bio="Data scientist at Google",
+        )
+
+        def query_side_effect(model):
+            mock_q = MagicMock()
+            if model == UserProfile:
+                mock_q.filter.return_value.first.return_value = existing_profile
+            elif model == AssistantMemory:
+                mock_q.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+            elif model == Message:
+                mock_q.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+            elif model == Contact:
+                mock_q.filter.return_value.first.return_value = None
+            return mock_q
+
+        mock_db.query.side_effect = query_side_effect
+
+        with patch.object(agent._llm, "complete") as mock_complete:
+            extracted = agent.extract_user_profile(user, mock_db)
+            # LLM should not be called because profile already has skills, interests, and profession
+            assert not mock_complete.called
+
+        assert extracted["profession"] == "Data Scientist"
+        assert extracted["company"] == "Google"
+        assert extracted["location"] == "TP.HCM"
+        assert extracted["skills"] == ["Machine Learning", "Pandas"]
+        assert extracted["interests"] == ["Big Data", "Robotics"]
+        assert extracted["current_needs"] == ["Tìm mentor AI"]
+
+
 
 

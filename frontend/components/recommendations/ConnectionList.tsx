@@ -10,6 +10,7 @@ import {
   getConnectionRecommendations,
   generateConnections,
 } from "@/lib/api/recommendations";
+import { toast } from "sonner";
 import { RecommendationStatus, ConnectionRecommendation } from "@/types/recommendation";
 import { cn } from "@/lib/utils";
 
@@ -46,8 +47,13 @@ export function ConnectionList({ selectedId, onViewDetails }: ConnectionListProp
 
   const generateMutation = useMutation({
     mutationFn: generateConnections,
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+      toast.success(data?.message || "Đã phân tích hồ sơ và cập nhật danh sách gợi ý!");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Không thể quét gợi ý mới.");
     },
   });
 
