@@ -149,15 +149,24 @@ def get_assistant_context(
 ):
     # Verify ownership
     _get_owned_conversation(service, db, current_user.id, conversation_id)
-    
+
     memory = db.query(AssistantMemory).filter(
         AssistantMemory.owner_user_id == current_user.id,
         AssistantMemory.conversation_id == conversation_id
     ).first()
-    
+
     if not memory:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Context not found")
-        
+        # Auto-create empty context if it doesn't exist yet
+        memory = AssistantMemory(
+            owner_user_id=current_user.id,
+            conversation_id=conversation_id,
+            facts={},
+            summary="",
+        )
+        db.add(memory)
+        db.commit()
+        db.refresh(memory)
+
     context_data = memory.facts or {}
     context_data["summary"] = memory.summary
     return AIContext.model_validate(context_data)
