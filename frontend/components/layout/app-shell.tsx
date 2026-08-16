@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { NavSidebar } from "@/components/layout/nav-sidebar";
 import { ChatListPanel } from "@/components/layout/chat-list-panel";
 import { ChatWindow } from "@/components/layout/chat-window";
@@ -11,12 +12,15 @@ type AppShellProps = {
 };
 
 export function AppShell({ children }: AppShellProps) {
+  const pathname = usePathname();
+  const isCopilotPage = pathname === "/copilot";
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-app">
       <NavSidebar />
-      <ChatListPanel />
+      {!isCopilotPage && <ChatListPanel />}
       {children ?? <ChatWindow />}
-      <InfoPanel />
+      {!isCopilotPage && <InfoPanel />}
       <CopilotDrawer />
     </div>
   );

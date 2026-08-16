@@ -31,7 +31,7 @@ class SearchAgent:
         except Exception as e:
             logger.error(f"Failed to write log: {e}")
 
-    def _build_rerank_prompt(self, query: str, grouped_memories: dict[str, dict[str, Any]]) -> list[Any]:
+    def _build_rerank_prompt(self, query: str, grouped_memories: dict[str, dict[str, Any]]) -> tuple[str, str]:
         system_prompt = (
             "Bạn là một trợ lý AI phân tích dữ liệu. Nhiệm vụ của bạn là đánh giá mức độ liên quan "
             "giữa câu truy vấn của người dùng và thông tin ghi nhớ (memories) của các liên hệ (contacts).\n"
@@ -39,8 +39,9 @@ class SearchAgent:
             "các object JSON có định dạng:\n"
             "[\n"
             "  {\n"
-            '    "contact_id": "...",\n'
+            '    "conversation_id": "...",\n'
             '    "name": "...",\n'
+            '    "email": "...",\n'
             '    "score": 85,\n'
             '    "explanation": "Lý do vì sao liên hệ này phù hợp"\n'
             "  }\n"
@@ -50,21 +51,19 @@ class SearchAgent:
 
         # Prepare context data
         context_data = []
-        for contact_id, data in grouped_memories.items():
+        for conv_id, data in grouped_memories.items():
             context_data.append({
-                "contact_id": contact_id,
+                "conversation_id": conv_id,
                 "name": data.get("name", "Unknown"),
+                "email": data.get("email", ""),
                 "memories": data["memories"]
             })
 
         user_prompt = f"Query: {query}\n\nDanh sách contacts và memories:\n{json.dumps(context_data, ensure_ascii=False, indent=2)}"
 
-        return [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt)
-        ]
+        return system_prompt, user_prompt
 
-    async def search(self, query: str, limit: int = 5) -> list[SearchResult]:
+    def search(self, query: str, user_id: str, limit: int = 5) -> list[SearchResult]:
         # 1. Embed query
         try:
             query_embedding = self.llm.embed(query)
@@ -74,11 +73,10 @@ class SearchAgent:
 
         # 2. Query vector store
         try:
-            # Note: This agent is deprecated in P2P chat and will be removed.
             vector_results = self.vector_store.query(
                 query_embedding=query_embedding,
-                owner_user_id="deprecated",
-                conversation_id="deprecated",
+                owner_user_id=user_id,
+                conversation_id=None,
                 top_k=10
             )
         except Exception as e:
@@ -88,27 +86,52 @@ class SearchAgent:
         if not vector_results["ids"]:
             return []
 
-        # 3. Group by contact
+        # 3. Group by conversation
         grouped = {}
-        for doc, meta in zip(vector_results["documents"], vector_results["metadatas"]):
-            contact_id = meta.get("contact_id")
-            if not contact_id:
-                continue
+        from src.api.deps import SessionLocal
+        from src.models.chat import Conversation
+        from src.models.user import User
+        import uuid
+        
+        db = SessionLocal()
+        try:
+            for doc, meta in zip(vector_results["documents"], vector_results["metadatas"]):
+                conv_id_str = meta.get("conversation_id")
+                if not conv_id_str:
+                    continue
 
-            if contact_id not in grouped:
-                grouped[contact_id] = {
-                    "name": meta.get("contact_name", "Unknown"),
-                    "memories": []
-                }
-            grouped[contact_id]["memories"].append(doc)
+                if conv_id_str not in grouped:
+                    contact_name = "Unknown"
+                    contact_email = ""
+                    try:
+                        conv = db.get(Conversation, uuid.UUID(conv_id_str))
+                        if conv:
+                            other_user_id = conv.user_b_id if str(conv.user_a_id) == str(user_id) else conv.user_a_id
+                            other_user = db.get(User, other_user_id)
+                            if other_user:
+                                if other_user.full_name:
+                                    contact_name = other_user.full_name
+                                if other_user.email:
+                                    contact_email = other_user.email
+                    except Exception as e:
+                        logger.error(f"Error fetching user name: {e}")
+
+                    grouped[conv_id_str] = {
+                        "name": contact_name,
+                        "email": contact_email,
+                        "memories": []
+                    }
+                grouped[conv_id_str]["memories"].append(doc)
+        finally:
+            db.close()
 
         if not grouped:
             return []
 
         # 4. Re-rank with LLM
-        messages = self._build_rerank_prompt(query, grouped)
+        system_prompt, user_prompt = self._build_rerank_prompt(query, grouped)
         try:
-            response_text = self.llm.chat(messages)
+            response_text = self.llm.chat(system_prompt=system_prompt, user_prompt=user_prompt)
 
             # Extract json if wrapped in ```json ... ```
             if "```json" in response_text:
@@ -132,10 +155,11 @@ class SearchAgent:
             logger.error(f"Error in LLM re-ranking: {e}")
             # Fallback: return without re-ranking (score=0)
             fallback_results = []
-            for contact_id, data in grouped.items():
+            for conv_id, data in grouped.items():
                 fallback_results.append(SearchResult(
-                    contact_id=contact_id,
+                    conversation_id=conv_id,
                     name=data["name"],
+                    email=data.get("email", ""),
                     score=0,
                     explanation="Lỗi khi re-rank"
                 ))

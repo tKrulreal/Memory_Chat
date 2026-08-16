@@ -299,7 +299,7 @@ async def copilot_chat_stream(
     )
 
 
-# @router.post("/share", response_model=ShareResponse) # Disabled in Phase 1
+@router.post("/share", response_model=ShareResponse)
 async def share_to_conversation(
     payload: ShareRequest,
     current_user: CurrentUserDep,
@@ -352,7 +352,7 @@ async def share_to_conversation(
 # Additional Endpoints
 # =============================================================================
 
-# @router.get("/intents") # Disabled in Phase 1
+@router.get("/intents")
 def list_supported_intents() -> dict[str, Any]:
     """
     Lấy danh sách intents mà Copilot hỗ trợ.
