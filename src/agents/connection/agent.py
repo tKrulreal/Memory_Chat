@@ -157,17 +157,17 @@ class ConnectionRecommendationAgent:
                 if not collected_offers and "current_offers" in m.facts and isinstance(m.facts["current_offers"], list):
                     collected_offers.extend([str(o) for o in m.facts["current_offers"]])
 
-        # 3. Lấy tin nhắn gần đây của user để phân tích nếu vẫn còn thiếu thông tin
+        # 3. Lấy tin nhắn do chính người dùng này gửi đi trong các hội thoại để phân tích
         recent_msgs = (
             db.query(Message)
             .filter(Message.sender_user_id == user.id)
             .order_by(Message.created_at.desc())
-            .limit(10)
+            .limit(20)
             .all()
         )
-        recent_messages_text = "\n".join([f"- {msg.content}" for msg in recent_msgs]) or "Chưa gửi tin nhắn nào"
+        recent_messages_text = "\n".join([f"- {msg.content}" for msg in recent_msgs if msg.content and msg.content.strip()]) or "Chưa gửi tin nhắn nào"
 
-        # 4. Kiểm tra xem có Contact record tự lưu không (nếu vẫn chưa có)
+        # 4. Kiểm tra xem có Contact record do chính user tự tạo không (nếu vẫn chưa có)
         if not profession or not company:
             contact_record = (
                 db.query(Contact)
@@ -178,14 +178,11 @@ class ConnectionRecommendationAgent:
                 profession = profession or contact_record.profession
                 company = company or contact_record.company
 
-        # 5. Nếu người dùng CHƯA nhập và trí nhớ chưa đủ, dùng LLM phân tích từ tin nhắn chat thực tế
-        if (not collected_skills or not collected_interests or not profession) and (
-            memories_summary != "Chưa có hội thoại trợ lý" or recent_messages_text != "Chưa gửi tin nhắn nào"
-        ):
+        # 5. Nếu người dùng CHƯA nhập và danh sách kỹ năng/chuyên môn còn trống, dùng LLM phân tích từ tin nhắn do chính họ gửi
+        if (not collected_skills or not collected_interests or not profession) and recent_messages_text != "Chưa gửi tin nhắn nào":
             prompt = ANALYZE_USER_PROFILE_PROMPT.format(
                 full_name=user.full_name or user.email.split("@")[0],
                 email=user.email,
-                memories_summary=memories_summary,
                 recent_messages=recent_messages_text,
                 extra_notes="Không có",
             )
@@ -196,16 +193,17 @@ class ConnectionRecommendationAgent:
                     profession = profession or parsed.get("profession")
                     company = company or parsed.get("company")
                     location = location or parsed.get("location")
-                    if not collected_skills:
-                        collected_skills.extend(parsed.get("skills", []))
-                    if not collected_interests:
-                        collected_interests.extend(parsed.get("interests", []))
-                    if not collected_needs:
-                        collected_needs.extend(parsed.get("looking_for", []) or parsed.get("current_needs", []))
-                    if not collected_offers:
-                        collected_offers.extend(parsed.get("offering", []) or parsed.get("current_offers", []))
+                    if not collected_skills and parsed.get("skills"):
+                        collected_skills.extend([s for s in parsed.get("skills", []) if s and str(s).strip()])
+                    if not collected_interests and parsed.get("interests"):
+                        collected_interests.extend([i for i in parsed.get("interests", []) if i and str(i).strip()])
+                    if not collected_needs and (parsed.get("looking_for") or parsed.get("current_needs")):
+                        collected_needs.extend([n for n in (parsed.get("looking_for") or parsed.get("current_needs") or []) if n and str(n).strip()])
+                    if not collected_offers and (parsed.get("offering") or parsed.get("current_offers")):
+                        collected_offers.extend([o for o in (parsed.get("offering") or parsed.get("current_offers") or []) if o and str(o).strip()])
             except Exception as e:
                 logger.warning(f"Failed LLM profile extraction for user {user.id}: {e}")
+
 
         display_name = user.full_name or user.email.split("@")[0]
 

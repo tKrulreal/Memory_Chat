@@ -1,7 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { MessageSquare, X, Check, ChevronRight, Sparkles, Briefcase, MapPin, ArrowRight } from "lucide-react";
+import {
+  MessageSquare,
+  X,
+  Check,
+  ChevronRight,
+  Sparkles,
+  Briefcase,
+  MapPin,
+  HelpCircle,
+  Gift,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   ConnectionRecommendation,
@@ -12,11 +22,13 @@ import {
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { useConversationStore } from "@/lib/stores/conversation-store";
 
 type Priority = "HIGH" | "MEDIUM" | "LOW";
 
 interface ConnectionCardProps {
   recommendation: ConnectionRecommendation;
+  isSelected?: boolean;
   onAccept?: (id: string) => void;
   onReject?: (id: string) => void;
   onDismiss?: (id: string) => void;
@@ -25,6 +37,7 @@ interface ConnectionCardProps {
 
 export function ConnectionCard({
   recommendation,
+  isSelected = false,
   onAccept,
   onReject,
   onDismiss,
@@ -32,21 +45,27 @@ export function ConnectionCard({
 }: ConnectionCardProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const setActiveConversation = useConversationStore((s) => s.setActiveConversation);
   const [isLoading, setIsLoading] = useState(false);
   const [action, setAction] = useState<"accept" | "reject" | null>(null);
 
   const priorityStyles: Record<Priority, string> = {
-    HIGH: "bg-red-500/10 border-red-500/30 text-red-400",
-    MEDIUM: "bg-amber-500/10 border-amber-500/30 text-amber-400",
-    LOW: "bg-accent/10 border-accent/30 text-accent",
+    HIGH: "bg-accent/15 border-accent/30 text-accent",
+    MEDIUM: "bg-amber-500/15 border-amber-500/30 text-amber-400",
+    LOW: "bg-elevated border-subtle text-secondary",
   };
 
-  const handleAccept = async () => {
+  const handleAccept = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     setIsLoading(true);
     setAction("accept");
     try {
-      await acceptConnection(recommendation.id);
+      const res = await acceptConnection(recommendation.id);
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+      if (res?.conversation_id) {
+        setActiveConversation(res.conversation_id);
+      }
       onAccept?.(recommendation.id);
       router.push("/chats");
     } catch (error) {
@@ -57,12 +76,13 @@ export function ConnectionCard({
     }
   };
 
-
-  const handleReject = async () => {
+  const handleReject = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     setIsLoading(true);
     setAction("reject");
     try {
       await rejectConnection(recommendation.id);
+      queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
       onReject?.(recommendation.id);
     } catch (error) {
       console.error("Failed to reject:", error);
@@ -72,10 +92,12 @@ export function ConnectionCard({
     }
   };
 
-  const handleDismiss = async () => {
+  const handleDismiss = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     setIsLoading(true);
     try {
       await dismissConnection(recommendation.id);
+      queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
       onDismiss?.(recommendation.id);
     } catch (error) {
       console.error("Failed to dismiss:", error);
@@ -85,185 +107,191 @@ export function ConnectionCard({
   };
 
   const isProcessed = recommendation.status !== "PENDING";
-  const targetName = recommendation.target_user_name || recommendation.target_contact_name || "Người dùng";
+  const targetName =
+    recommendation.target_user_name ||
+    recommendation.target_contact_name ||
+    "Người dùng";
   const targetEmail = recommendation.target_user_email || "";
-  const targetInitials = targetName
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase() || "U";
+  const targetInitials =
+    targetName
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "U";
+
+  const matchPercent = Math.round((recommendation.confidence ?? 0.5) * 100);
 
   return (
     <div
+      onClick={() => onViewDetails?.(recommendation.id)}
       className={cn(
-        "rounded-button border border-subtle bg-surface p-5 transition-all",
-        isProcessed ? "opacity-60" : "hover:border-neutral-700 shadow-sm"
+        "group relative rounded-2xl border bg-surface p-5 transition-all cursor-pointer select-none",
+        isSelected
+          ? "border-accent bg-elevated/70 shadow-lg ring-1 ring-accent/40"
+          : "border-subtle hover:border-accent/40 hover:bg-surface/80 hover:shadow-md",
+        isProcessed && "opacity-65"
       )}
     >
-      {/* Header bar */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="flex h-7 w-7 items-center justify-center rounded-button bg-elevated text-accent">
-            <Sparkles size={14} />
-          </div>
+      {/* Top Bar: Match Score Pill & Dismiss */}
+      <div className="flex items-center justify-between gap-2 mb-3.5">
+        <div className="flex items-center gap-2 flex-wrap">
           <span
             className={cn(
-              "rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider",
-              priorityStyles[recommendation.priority as Priority] || priorityStyles.MEDIUM
+              "rounded-full border px-2.5 py-0.5 text-[11px] font-bold tracking-wide uppercase flex items-center gap-1",
+              priorityStyles[recommendation.priority as Priority] ||
+                priorityStyles.MEDIUM
             )}
           >
-            {recommendation.priority} MATCH
+            <Sparkles size={11} />
+            {matchPercent}% Match
           </span>
-          <span className="text-xs text-secondary">
-            {Math.round(recommendation.confidence * 100)}% độ phù hợp
+          <span className="text-[11px] font-medium text-secondary">
+            {recommendation.priority === "HIGH"
+              ? "Rất phù hợp"
+              : recommendation.priority === "MEDIUM"
+              ? "Tương thích tốt"
+              : "Có tiềm năng"}
           </span>
         </div>
+
         {!isProcessed && (
           <button
             type="button"
             onClick={handleDismiss}
             disabled={isLoading}
-            className="rounded-button p-1 text-secondary hover:bg-elevated hover:text-primary transition-colors"
-            title="Bỏ qua gợi ý"
+            className="rounded-lg p-1 text-secondary/60 hover:bg-elevated hover:text-primary transition-colors cursor-pointer"
+            title="Bỏ qua gợi ý này"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         )}
       </div>
 
-      {/* Recommended User Hero Box */}
-      <div className="rounded-button bg-elevated/40 border border-subtle/80 p-4 mb-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent/20 text-accent text-base font-bold uppercase">
-              {targetInitials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="truncate text-base font-semibold text-primary">{targetName}</h3>
-                <span className="rounded-full bg-surface border border-subtle px-2 py-0.5 text-[10px] text-secondary">
-                  Real User
+      {/* Main Candidate Card */}
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent font-bold text-sm uppercase">
+            {targetInitials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h3 className="truncate text-sm font-bold text-primary group-hover:text-accent transition-colors">
+                {targetName}
+              </h3>
+              {recommendation.target_user_location && (
+                <span className="rounded-full bg-elevated px-2 py-0.5 text-[10px] text-secondary flex items-center gap-1">
+                  <MapPin size={9} className="text-accent" />
+                  {recommendation.target_user_location}
                 </span>
-                {recommendation.target_user_location && (
-                  <span className="rounded-full bg-surface border border-subtle px-2 py-0.5 text-[10px] text-secondary flex items-center gap-1">
-                    <MapPin size={10} className="text-accent" />
-                    {recommendation.target_user_location}
-                  </span>
-                )}
-              </div>
-              <p className="truncate text-xs text-secondary mt-0.5 flex items-center gap-1.5 flex-wrap">
-                <Briefcase size={12} className="shrink-0 text-accent/70" />
-                <span>{recommendation.target_user_profession || "Chuyên môn"}</span>
-                {recommendation.target_user_company && (
-                  <span className="text-secondary/70">@ {recommendation.target_user_company}</span>
-                )}
-              </p>
-              {targetEmail && (
-                <p className="truncate text-[11px] text-secondary/60 mt-0.5">{targetEmail}</p>
               )}
             </div>
-          </div>
-
-          {/* Quick Skills / Interests Badges */}
-          <div className="flex flex-col sm:items-end gap-1.5 max-w-xs">
-            {recommendation.target_user_skills && recommendation.target_user_skills.length > 0 && (
-              <div className="flex flex-wrap gap-1 sm:justify-end">
-                {recommendation.target_user_skills.slice(0, 3).map((skill, idx) => (
-                  <span
-                    key={idx}
-                    className="rounded-full bg-surface border border-subtle px-2 py-0.5 text-[11px] text-accent/90"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            )}
-            {recommendation.target_user_interests && recommendation.target_user_interests.length > 0 && (
-              <div className="flex flex-wrap gap-1 sm:justify-end">
-                {recommendation.target_user_interests.slice(0, 2).map((interest, idx) => (
-                  <span
-                    key={idx}
-                    className="rounded-full bg-elevated/70 border border-subtle/60 px-2 py-0.5 text-[10px] text-secondary"
-                  >
-                    #{interest}
-                  </span>
-                ))}
-              </div>
-            )}
+            <p className="truncate text-xs text-secondary mt-0.5 flex items-center gap-1">
+              <Briefcase size={11} className="shrink-0 text-accent/80" />
+              <span className="font-medium text-primary/80">
+                {recommendation.target_user_profession || "Chuyên môn"}
+              </span>
+              {recommendation.target_user_company && (
+                <span className="text-secondary/70">
+                  @ {recommendation.target_user_company}
+                </span>
+              )}
+            </p>
           </div>
         </div>
+
+        <ChevronRight
+          size={18}
+          className={cn(
+            "text-secondary/40 shrink-0 transition-transform duration-200 mt-1",
+            isSelected ? "text-accent translate-x-1" : "group-hover:text-primary group-hover:translate-x-0.5"
+          )}
+        />
       </div>
 
-
-      {/* AI Reason */}
-      <div className="mb-4 space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-secondary flex items-center gap-1">
-          <Sparkles size={12} className="text-accent" />
-          Lý do AI gợi ý cho bạn
-        </p>
-        <p className="text-sm text-primary leading-relaxed">
+      {/* AI Reason Preview */}
+      <div className="rounded-xl bg-elevated/40 border border-subtle/50 p-3 mb-3">
+        <p className="text-xs text-primary/90 leading-relaxed line-clamp-2">
           {recommendation.reason}
         </p>
       </div>
 
-      {/* Actions */}
+      {/* Tags Matrix Preview */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        {recommendation.target_user_skills &&
+          recommendation.target_user_skills.slice(0, 3).map((skill, idx) => (
+            <span
+              key={idx}
+              className="rounded-md bg-surface border border-subtle px-2 py-0.5 text-[10px] font-medium text-accent"
+            >
+              {skill}
+            </span>
+          ))}
+        {recommendation.target_user_interests &&
+          recommendation.target_user_interests.slice(0, 2).map((interest, idx) => (
+            <span
+              key={idx}
+              className="rounded-md bg-elevated px-2 py-0.5 text-[10px] text-secondary"
+            >
+              #{interest}
+            </span>
+          ))}
+      </div>
+
+      {/* Card Actions Footer */}
       {!isProcessed ? (
-        <div className="flex items-center gap-2 pt-3 border-t border-subtle">
+        <div className="flex items-center gap-2 pt-3 border-t border-subtle/60">
           <Button
             variant="primary"
             size="sm"
             onClick={handleAccept}
             disabled={isLoading}
-            className="flex-1"
+            className="flex-1 text-xs"
           >
-            <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
-            {action === "accept" ? "Đang kết nối..." : "Kết nối & Trò chuyện"}
+            <MessageSquare size={13} className="mr-1.5" />
+            {action === "accept" ? "Đang kết nối..." : "Kết nối & Mở Chat"}
           </Button>
+
           <Button
             variant="secondary"
             size="sm"
             onClick={handleReject}
             disabled={isLoading}
+            className="text-xs text-secondary hover:text-primary"
           >
-            Không phải lúc này
+            Để sau
           </Button>
-          {onViewDetails && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onViewDetails(recommendation.id)}
-              className="text-secondary hover:text-primary"
-            >
-              Chi tiết
-              <ChevronRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
-          )}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetails?.(recommendation.id);
+            }}
+            className="text-xs text-secondary hover:text-accent p-2"
+          >
+            Chi tiết
+          </Button>
         </div>
       ) : (
-        <div className="flex items-center justify-between pt-2 border-t border-subtle text-xs text-secondary">
-          <span className="flex items-center gap-1.5">
-            {recommendation.status === "ACCEPTED" && (
-              <span className="text-accent font-medium flex items-center gap-1">
-                <Check size={14} /> Đã kết nối thành công
+        <div className="flex items-center justify-between pt-2 border-t border-subtle/60 text-xs text-secondary">
+          <span className="flex items-center gap-1.5 font-medium">
+            {recommendation.status === "ACCEPTED" ? (
+              <span className="text-accent flex items-center gap-1">
+                <Check size={13} /> Đã kết nối
               </span>
-            )}
-            {recommendation.status === "REJECTED" && (
+            ) : recommendation.status === "REJECTED" ? (
               <span className="text-secondary flex items-center gap-1">
-                <X size={14} /> Đã từ chối gợi ý
+                <X size={13} /> Đã từ chối
               </span>
+            ) : (
+              "Đã ẩn"
             )}
-            {recommendation.status === "DISMISSED" && "Đã ẩn gợi ý"}
           </span>
-          {onViewDetails && (
-            <button
-              type="button"
-              onClick={() => onViewDetails(recommendation.id)}
-              className="text-xs text-accent hover:underline flex items-center gap-0.5"
-            >
-              Xem lại chi tiết <ChevronRight size={12} />
-            </button>
-          )}
+          <span className="text-xs text-accent hover:underline flex items-center gap-0.5">
+            Xem chi tiết
+          </span>
         </div>
       )}
     </div>

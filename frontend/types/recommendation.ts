@@ -28,7 +28,9 @@ export type ConnectionRecommendation = {
   // Legacy fallback fields
   contact_name?: string | null;
   target_contact_name?: string | null;
+  conversation_id?: string | null;
 };
+
 
 export type ConnectionRecommendationDetail = {
   id: string;
@@ -66,6 +68,10 @@ export type ConnectionRecommendationDetail = {
   // Suggested message & conversation ID
   suggested_intro: string | null;
   conversation_id: string | null;
+  target_user_bio?: string | null;
+  complementary_aspects?: string[];
+  shared_interests?: string[];
+
 
   // Legacy aliases
   contact_a_name?: string | null;

@@ -72,7 +72,8 @@ export default function CopilotPage() {
 
   const renderMessageContent = (content: string) => {
     // Split by <card...>...</card>
-    const parts = content.split(/(<card[^>]*>.*?<\/card>)/s);
+    const parts = content.split(/(<card[^>]*>[\s\S]*?<\/card>)/);
+
     return parts.map((part, idx) => {
       if (part.startsWith("<card")) {
         const nameMatch = part.match(/name="([^"]+)"/);

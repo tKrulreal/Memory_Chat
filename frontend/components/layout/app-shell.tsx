@@ -13,15 +13,16 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
-  const isCopilotPage = pathname === "/copilot";
+  const isChatsPage = pathname === "/" || pathname?.startsWith("/chats");
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-app">
       <NavSidebar />
-      {!isCopilotPage && <ChatListPanel />}
+      {isChatsPage && <ChatListPanel />}
       {children ?? <ChatWindow />}
-      {!isCopilotPage && <InfoPanel />}
+      {isChatsPage && <InfoPanel />}
       <CopilotDrawer />
     </div>
   );
 }
+

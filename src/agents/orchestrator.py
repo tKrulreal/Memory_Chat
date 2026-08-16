@@ -133,49 +133,80 @@ async def run_copilot(
     def xem_thong_tin_nguoi_dang_chat() -> str:
         """Lấy thông tin chi tiết (memory, insights, nghề nghiệp, sở thích) của người đang nhắn tin cùng."""
         if not conversation_id and not contact_id:
-            return "Không xác định được contact hiện tại."
+            return "Không xác định được cuộc trò chuyện hiện tại."
         
-        cid = contact_id
-        if not cid and conversation_id:
-            from src.api.deps import SessionLocal
-            from src.models.chat import Conversation
-            db = SessionLocal()
-            try:
-                conv = db.get(Conversation, conversation_id)
+        from src.api.deps import SessionLocal
+        from src.models.chat import Conversation
+        from src.models.ai import AssistantMemory
+        from src.models.user import User, UserProfile
+        
+        db = SessionLocal()
+        try:
+            if conversation_id:
+                conv_uuid = uuid.UUID(conversation_id) if isinstance(conversation_id, str) else conversation_id
+                conv = db.get(Conversation, conv_uuid)
                 if conv:
-                    cid = str(conv.contact_id)
-            finally:
-                db.close()
-
-        if not cid:
-            return "Không xác định được contact."
-
-        from src.agents.tools.memory_tools import get_contact_memory
-        return get_contact_memory.invoke({"user_id": user_id, "contact_id": cid})
+                    other_user_id = conv.user_b_id if str(conv.user_a_id) == str(user_id) else conv.user_a_id
+                    other_user = db.get(User, other_user_id)
+                    user_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+                    mem = db.query(AssistantMemory).filter(
+                        AssistantMemory.owner_user_id == user_uuid,
+                        AssistantMemory.conversation_id == conv.id
+                    ).first()
+                    
+                    user_prof = db.query(UserProfile).filter(UserProfile.user_id == other_user_id).first()
+                    
+                    name = other_user.full_name if other_user and other_user.full_name else (other_user.email if other_user else "Đối tác chat")
+                    summary = mem.summary if mem and mem.summary else "Chưa có tóm tắt hội thoại"
+                    facts = mem.facts if mem and mem.facts else {}
+                    
+                    skills = user_prof.skills if user_prof and user_prof.skills else facts.get("skills", [])
+                    interests = user_prof.interests if user_prof and user_prof.interests else facts.get("interests", [])
+                    company = user_prof.company if user_prof and user_prof.company else facts.get("company", "Chưa rõ")
+                    location = user_prof.location if user_prof and user_prof.location else facts.get("location", "Chưa rõ")
+                    profession = user_prof.profession if user_prof and user_prof.profession else facts.get("profession", "Chưa rõ")
+                    
+                    return f"Thông tin về {name}:\n- Chuyên môn: {profession}\n- Công ty: {company}\n- Địa điểm: {location}\n- Kỹ năng: {', '.join(skills) if skills else 'Chưa có'}\n- Quan tâm: {', '.join(interests) if interests else 'Chưa có'}\n- Tóm tắt AI: {summary}"
+            
+            if contact_id:
+                from src.agents.tools.memory_tools import get_contact_memory
+                return get_contact_memory.invoke({"user_id": user_id, "contact_id": contact_id})
+                
+            return "Không tìm thấy thông tin đối tác."
+        except Exception as e:
+            logger.error(f"Error getting peer info: {e}")
+            return "Lỗi khi lấy thông tin người đang chat."
+        finally:
+            db.close()
 
     @tool
     def goi_y_cau_tra_loi(tone: str = "friendly") -> str:
         """Gợi ý câu trả lời cho tin nhắn mới nhất trong đoạn chat. Tone: 'friendly', 'professional', 'casual'."""
         if not conversation_id and not contact_id:
             return "Không xác định được cuộc trò chuyện."
+            
+        from src.api.deps import SessionLocal
+        from src.models.chat import Conversation, Message
+        db = SessionLocal()
+        try:
+            if conversation_id:
+                conv_uuid = uuid.UUID(conversation_id) if isinstance(conversation_id, str) else conversation_id
+                last_msg = db.query(Message).filter(Message.conversation_id == conv_uuid).order_by(Message.created_at.desc()).first()
+                if last_msg:
+                    return f"Gợi ý phản hồi theo phong cách {tone} cho tin nhắn gần nhất ('{last_msg.content}'): Xác nhận tiếp nhận thông tin và phản hồi ngắn gọn, thiện chí."
+                return "Chưa có tin nhắn nào trong hội thoại để gợi ý trả lời."
+            
+            if contact_id:
+                from src.agents.tools.recommendation_tools import recommend_reply
+                return recommend_reply.invoke({"contact_id": contact_id, "context": f"Tone: {tone}"})
+                
+            return "Không xác định được cuộc trò chuyện."
+        except Exception as e:
+            logger.error(f"Error generating reply suggestion: {e}")
+            return "Lỗi khi gợi ý câu trả lời."
+        finally:
+            db.close()
 
-        cid = contact_id
-        if not cid and conversation_id:
-            from src.api.deps import SessionLocal
-            from src.models.chat import Conversation
-            db = SessionLocal()
-            try:
-                conv = db.get(Conversation, conversation_id)
-                if conv:
-                    cid = str(conv.contact_id)
-            finally:
-                db.close()
-        
-        if not cid:
-            return "Không xác định được contact."
-
-        from src.agents.tools.recommendation_tools import recommend_reply
-        return recommend_reply.invoke({"contact_id": cid, "context": f"Tone: {tone}"})
 
     tools = [semantic_search, xem_tin_nhan_gan_day, xem_thong_tin_nguoi_dang_chat, goi_y_cau_tra_loi]
     llm_with_tools = chat_model.bind_tools(tools)

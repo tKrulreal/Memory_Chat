@@ -3,42 +3,55 @@ Prompt templates for Connection Recommendation Agent (User-to-User Networking).
 Trích xuất và so khớp có chọn lọc các trường thông tin chất lượng cao (High-Signal Attributes).
 """
 
-# Extract high-signal networking profile from user interactions and memory
-ANALYZE_USER_PROFILE_PROMPT = """Bạn là trợ lý AI chuyên trích xuất hồ sơ nghề nghiệp và mục tiêu networking từ hội thoại.
+# Extract high-signal networking profile strictly for the current user from their own sent messages
+ANALYZE_USER_PROFILE_PROMPT = """Bạn là chuyên gia phân tích dữ liệu AI, nhiệm vụ trích xuất hồ sơ nghề nghiệp và mục tiêu networking cho [CHÍNH NGƯỜI DÙNG NÀY].
 
-Hãy phân tích thông tin tài khoản, lịch sử trao đổi với AI và các ghi chú để trích xuất các thông tin then chốt:
-
-**Dữ liệu đầu vào:**
+================================================================================
+DỮ LIỆU ĐẦU VÀO (CHỈ LÀ TIN NHẮN DO CHÍNH NGƯỜI DÙNG NÀY GỬI ĐI):
+================================================================================
 - Họ tên: {full_name}
 - Email: {email}
-- Tóm tắt hội thoại / Trí nhớ AI: {memories_summary}
-- Tin nhắn gần đây: {recent_messages}
-- Ghi chú: {extra_notes}
+- Tin nhắn do chính {full_name} gửi đi trong các hội thoại:
+{recent_messages}
+- Ghi chú thêm: {extra_notes}
 
-**Yêu cầu trích xuất:**
-1. **company**: Tên công ty/đơn vị hoặc trường học nơi người dùng đang làm việc/học tập (hoặc "Tự do / Freelancer" nếu không rõ).
-2. **location**: Thành phố / Tỉnh / Khu vực hoạt động (ví dụ: Hà Nội, TP.HCM, Đà Nẵng).
-3. **profession**: Chuyên môn hoặc chức danh công việc chính (ví dụ: Senior AI Engineer, Tech Product Lead, Mobile Developer).
-4. **skills**: Danh sách 3-6 kỹ năng chuyên môn/kỹ thuật quan trọng (ví dụ: Python, PyTorch, LLM, Flutter, System Design).
-5. **interests**: Danh sách 2-5 lĩnh vực/chủ đề quan tâm lâu dài (ví dụ: AI, Startup, Computer Vision, EdTech).
-6. **looking_for**: Danh sách 1-3 nhu cầu tìm kiếm cụ thể (ví dụ: Tìm Senior AI Engineer, Tìm đối tác Mobile App, Tìm dự án AI thực tế, Networking).
-7. **offering**: Danh sách 1-3 giá trị/thế mạnh có thể chia sẻ (ví dụ: Huấn luyện mô hình LLM, Kinh nghiệm quản lý sản phẩm, Tư vấn kiến trúc hệ thống).
+================================================================================
+QUY TẮC PHÂN BIỆT VÀ TRÍCH XUẤT RÀNH MẠCH TỪNG TRƯỜNG (BẮT BUỘC TUÂN THỦ):
+================================================================================
+1. **QUY TẮC CHÍNH CHỦ (QUAN TRỌNG NHẤT):**
+   - CHỈ trích xuất những thông tin do chính người dùng ({full_name}) nói/khẳng định về BẢN THÂN MÌNH.
+   - TUYỆT ĐỐI KHÔNG lấy thông tin của người khác (đối tác đang chat cùng) gộp vào hồ sơ này.
+   - BỎ QUA toàn bộ câu chào hỏi xã giao, cảm thán, hẹn giờ thông thường (ví dụ: "chào bạn", "ok nhé", "hôm nay rảnh không", "cảm ơn bạn").
 
-**Output format (JSON):**
+2. **PHÂN BIỆT RÕ RÀNG Ý NGHĨA TỪNG TRƯỜNG:**
+   - **company** (string hoặc null): Tên công ty, doanh nghiệp, tổ chức hoặc trường học nơi người dùng đang trực tiếp làm việc/học tập (ví dụ: "VinAI Research", "NextGen Innovation", "Đại học Bách Khoa"). Nếu người dùng không nói rõ tên đơn vị, để null.
+   - **location** (string hoặc null): Thành phố, tỉnh hoặc khu vực địa lý nơi người dùng đang sinh sống/làm việc (ví dụ: "Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng"). Nếu không nói rõ, để null.
+   - **profession** (string hoặc null): Chức danh, vị trí công việc hoặc chuyên môn nghề nghiệp chính của người dùng (ví dụ: "Senior AI Engineer", "Tech Product Lead", "Mobile Developer", "Founder & CEO"). Nếu không rõ, để null.
+   - **skills** (array of string): Danh sách các kỹ năng kỹ thuật, công nghệ, công cụ, ngôn ngữ lập trình hoặc nghiệp vụ chuyên môn mà người dùng ĐÃ THỰC TẾ LÀM / THÀNH THẠO (ví dụ: ["Python", "PyTorch", "LLM", "React", "Figma", "Quản lý Agile"]). KHÔNG đưa sở thích chung chung vào skills. Nếu không có, trả về mảng rỗng [].
+   - **interests** (array of string): Lĩnh vực, ngành nghề, công nghệ hoặc chủ đề mà người dùng ĐANG QUAN TÂM, HỨNG THÚ HOẶC THEO DÕI (ví dụ: ["Generative AI", "Startups", "EdTech", "Indie Hacking", "Computer Vision"]). KHÔNG nhầm lẫn với kỹ năng thực hành. Nếu không có, trả về mảng rỗng [].
+   - **looking_for** (array of string): Nhu cầu tìm kiếm, hợp tác, tuyển dụng hoặc dự án mà người dùng ĐANG CẦN TÌM KIẾM (ví dụ: ["Tìm Senior AI Engineer để tư vấn giải pháp RAG", "Tìm đối tác phát triển Mobile App Flutter", "Tìm dự án freelance"]). KHÔNG nhầm với những gì họ đang làm. Nếu không có, trả về mảng rỗng [].
+   - **offering** (array of string): Năng lực, kinh nghiệm hoặc giá trị mà người dùng CÓ THỂ ĐÓNG GÓP, HỖ TRỢ, CHIA SẺ CHO NGƯỜI KHÁC (ví dụ: ["Tư vấn kiến trúc hệ thống RAG", "Kinh nghiệm gọi vốn Pre-Seed", "Thiết kế Design System"]). Nếu không có, trả về mảng rỗng [].
+   - **bio** (string hoặc null): Tóm tắt ngắn gọn 1-2 câu về định hướng nghề nghiệp và mục tiêu networking của chính người dùng (nếu có thông tin).
+
+3. **CẤM BỊA ĐẶT (ZERO HALLUCINATION):**
+   - Không tự ý thêm các từ khóa chung chung như "Giao tiếp", "Tin học", "Làm việc nhóm" nếu người dùng không tự nói ra.
+   - Trường nào không có thông tin thì trả về null hoặc mảng rỗng [].
+
+================================================================================
+OUTPUT FORMAT (CHỈ TRẢ VỀ JSON HỢP LỆ, KHÔNG KÈM VĂN BẢN KHÁC):
+================================================================================
 ```json
 {{
     "company": "VinAI Research",
     "location": "Hà Nội",
     "profession": "Senior AI Engineer",
-    "skills": ["Python", "PyTorch", "LLM", "RAG"],
-    "interests": ["AI", "Startup", "Computer Vision"],
-    "looking_for": ["Dự án AI thực tế", "Networking"],
-    "offering": ["Huấn luyện mô hình LLM", "Tối ưu hóa hệ thống RAG"],
-    "summary": "Tóm tắt ngắn gọn 1 câu về hồ sơ chuyên môn"
+    "skills": ["Python", "PyTorch", "LLM Fine-tuning", "RAG Architecture"],
+    "interests": ["AI Agents", "EdTech", "Startups"],
+    "looking_for": ["Tìm dự án AI thực tế để làm Technical Advisor ngoài giờ"],
+    "offering": ["Tư vấn kiến trúc hệ thống RAG cấp production", "Tối ưu chi phí inference LLM"],
+    "bio": "Senior AI Engineer tại VinAI Research, chuyên sâu về NLP và mô hình ngôn ngữ lớn."
 }}
 ```
-
-Chỉ trả về JSON hợp lệ, không kèm văn bản giải thích.
 """
 
 # Compare Current User with Candidate User using Structured High-Signal Profiles

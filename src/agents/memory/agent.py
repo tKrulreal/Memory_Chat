@@ -112,45 +112,56 @@ class MemoryResult:
 
 
 # --- Prompt templates ---
-MEMORY_SUMMARY_PROMPT = """Bạn là một AI assistant chuyên phân tích hội thoại để tạo contact memory.
+MEMORY_SUMMARY_PROMPT = """Bạn là một AI assistant chuyên phân tích hội thoại để tạo tóm tắt trí nhớ về đối tác liên hệ ([PEER]).
 
 Hội thoại:
 {conversation}
 
 Chú thích:
 - [USER] là người dùng hiện tại (chủ sở hữu trí nhớ này).
-- [PEER] là đối tác/người đang chat cùng.
+- [PEER] là đối tác/người đang nhắn tin cùng.
 
-Hãy đọc hội thoại trên và tạo một bản tóm tắt ngắn gọn (2-3 câu) về người đối thoại ([PEER]).
-Bản tóm tắt nên bao gồm:
-- Họ là ai (nếu biết)
-- Tính cách / phong cách giao tiếp
-- Chủ đề họ quan tâm
+QUY TẮC BẮT BUỘC:
+1. CHỈ tóm tắt thông tin về đối tác ([PEER]) dựa trên những gì [PEER] trực tiếp nói hoặc thể hiện.
+2. TUYỆT ĐỐI KHÔNG đưa thông tin, kỹ năng, quan điểm hoặc công việc của [USER] vào bản tóm tắt này.
+3. Không bịa đặt thông tin nếu [PEER] không nhắc đến.
+4. Bỏ qua các câu chào hỏi xã giao hoặc tán gẫu vụn vặt.
 
-KHÔNG tóm tắt thông tin của [USER]. CHỈ tóm tắt thông tin của [PEER].
+Bản tóm tắt (2-3 câu) nên tập trung vào:
+- [PEER] làm nghề gì / ở đâu (nếu có nói)
+- Chủ đề chuyên môn hoặc mối quan tâm chính của [PEER]
+- Điểm nổi bật trong phong cách trao đổi của [PEER]
+
 Trả lời CHỈ bằng tiếng Việt, không giải thích thêm.
 """
 
-MEMORY_ENTITIES_PROMPT = """Bạn là một AI assistant chuyên trích xuất thông tin cá nhân từ hội thoại.
+MEMORY_ENTITIES_PROMPT = """Bạn là một AI assistant chuyên trích xuất thông tin cá nhân và chuyên môn từ hội thoại.
 
 Hội thoại:
-
-
 {conversation}
 
 Chú thích:
 - [USER] là người dùng hiện tại.
-- [PEER] là đối tác/người đang chat cùng.
+- [PEER] là đối tác/người đang nhắn tin cùng.
 
-Hãy trích xuất các thông tin của người đối thoại ([PEER]) (chỉ trả về JSON):
+QUY TẮC BẮT BUỘC:
+1. CHỈ trích xuất thông tin về đối tác ([PEER]). TUYỆT ĐỐI KHÔNG trích xuất thông tin của [USER].
+2. Phân biệt rõ:
+   - "interested_in": Các chủ đề, lĩnh vực mà [PEER] QUAN TÂM, HỨNG THÚ (ví dụ: AI, Startup, Thiết kế...).
+   - "last_met": Bối cảnh quen biết, thời điểm hoặc sự kiện gặp gỡ gần nhất của [PEER] (nếu không có thì null).
+   - "follow_up": Chủ đề tiếp theo nên gợi mở với [PEER] để duy trì cuộc trò chuyện tự nhiên và chuyên nghiệp (nếu không có thì null).
+3. Không bịa đặt (hallucinate). Nếu không có thông tin thì để null hoặc [].
+
+Hãy trích xuất thông tin của [PEER] (chỉ trả về JSON):
 {{
-    "last_met": "Thông tin về lần gặp cuối hoặc bối cảnh quen biết của [PEER] (nếu có, nếu không thì null)",
-    "interested_in": ["danh sách chủ đề/sở thích mà [PEER] quan tâm (nếu có, mảng rỗng nếu không có)"],
-    "follow_up": "Chủ đề tiếp theo nên nói với [PEER] để duy trì và phát triển cuộc trò chuyện một cách tự nhiên. Dựa trên ngữ cảnh, sở thích, công việc và những thông tin đã được nhắc đến trong cuộc trò chuyện để đề xuất một chủ đề hoặc câu hỏi cụ thể (ví dụ: 'Hỏi thêm về công việc của họ', 'Hỏi cuối tuần thường làm gì', 'Hỏi về sở thích liên quan đến chủ đề vừa nói'). Ưu tiên chủ đề mở, dễ trả lời và có khả năng tạo thêm nội dung cho cuộc trò chuyện. Không đề xuất lại chủ đề đã được thảo luận. Nếu không có chủ đề phù hợp thì null."
+    "last_met": "Bối cảnh quen biết hoặc lần gặp gần nhất của [PEER] (hoặc null nếu không có)",
+    "interested_in": ["danh sách chủ đề/sở thích/lĩnh vực mà [PEER] quan tâm (mảng rỗng nếu không có)"],
+    "follow_up": "Chủ đề tiếp theo nên trao đổi với [PEER] dựa trên ngữ cảnh hội thoại (hoặc null nếu không có)"
 }}
 
 Trả lời CHỈ bằng JSON, không giải thích thêm.
 """
+
 
 
 class MemoryAgent:

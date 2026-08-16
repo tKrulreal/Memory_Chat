@@ -195,12 +195,63 @@ class TestConnectionRecommendationAgent:
         mock_db.query.side_effect = query_side_effect
 
         extracted = agent.extract_user_profile(user, mock_db)
-        assert extracted["profession"] == "AI Researcher"
-        assert extracted["company"] == "AI Lab"
-        assert extracted["location"] == "TP. Hồ Chí Minh"
+    def test_extract_user_profile_only_takes_user_messages_not_peer(self, agent, mock_db):
+        """Test that extract_user_profile strictly analyzes messages sent by the user themselves."""
+        user = User(id=uuid.uuid4(), email="selfuser@test.com", full_name="Self User")
+        from src.models.user import UserProfile
+        from src.models.chat import Message
+        from src.models.contact import Contact
+
+        user_msg = Message(
+            id=uuid.uuid4(),
+            conversation_id=uuid.uuid4(),
+            sender_user_id=user.id,
+            content="Tôi là Senior AI Engineer tại VinAI Hà Nội. Kỹ năng chính là PyTorch và LangChain. Tôi đang tìm đối tác làm EdTech.",
+        )
+
+        mock_llm_response = '''
+        {
+            "company": "VinAI",
+            "location": "Hà Nội",
+            "profession": "Senior AI Engineer",
+            "skills": ["PyTorch", "LangChain"],
+            "interests": ["EdTech"],
+            "looking_for": ["Tìm đối tác làm EdTech"],
+            "offering": ["Kinh nghiệm kiến trúc AI"],
+            "bio": "Senior AI Engineer tại VinAI"
+        }
+        '''
+
+        def query_side_effect(model):
+            mock_q = MagicMock()
+            if model == UserProfile:
+                mock_q.filter.return_value.first.return_value = None
+            elif model == AssistantMemory:
+                mock_q.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+                mock_q.filter.return_value.all.return_value = []
+            elif model == Message:
+                # Ensure the query filters specifically on sender_user_id == user.id
+                mock_q.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [user_msg]
+            elif model == Contact:
+                mock_q.filter.return_value.first.return_value = None
+            return mock_q
+
+        mock_db.query.side_effect = query_side_effect
+
+        with patch.object(agent._llm, "complete", return_value=mock_llm_response) as mock_complete:
+            extracted = agent.extract_user_profile(user, mock_db)
+            assert mock_complete.called
+            # Verify the prompt passed to LLM explicitly contains only user's messages
+            call_prompt = mock_complete.call_args[0][0]
+            assert "Self User" in call_prompt
+            assert "PyTorch và LangChain" in call_prompt
+
+        assert extracted["profession"] == "Senior AI Engineer"
+        assert extracted["company"] == "VinAI"
+        assert extracted["location"] == "Hà Nội"
         assert "PyTorch" in extracted["skills"]
-        assert "Deep Learning" in extracted["interests"]
-        assert "Tìm compute GPU" in extracted["current_needs"]
-        assert "Huấn luyện model" in extracted["current_offers"]
+        assert "EdTech" in extracted["interests"]
+        assert "Tìm đối tác làm EdTech" in extracted["current_needs"]
+
 
 

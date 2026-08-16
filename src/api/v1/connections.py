@@ -60,7 +60,7 @@ async def list_connections(
 
     recommendations = (
         query
-        .order_by(Recommendation.created_at.desc())
+        .order_by(Recommendation.confidence.desc(), Recommendation.created_at.desc())
         .limit(limit)
         .all()
     )
@@ -73,7 +73,7 @@ async def list_connections(
             await agent.generate(current_user.id, min_score=0.5, limit=5)
             recommendations = (
                 query
-                .order_by(Recommendation.created_at.desc())
+                .order_by(Recommendation.confidence.desc(), Recommendation.created_at.desc())
                 .limit(limit)
                 .all()
             )
@@ -145,6 +145,8 @@ async def list_connections(
         )
         results.append(item)
 
+    # Sort results strictly from highest match score to lowest
+    results.sort(key=lambda r: (r.confidence or 0.0), reverse=True)
 
     return results
 
@@ -240,6 +242,7 @@ def get_connection_detail(
         target_user_interests=target_profile["interests"],
         target_user_needs=target_profile["current_needs"],
         target_user_offers=target_profile["current_offers"],
+        target_user_bio=target_profile.get("summary"),
         suggested_intro=suggested_intro,
         conversation_id=existing_conv.id if existing_conv else None,
         # Legacy aliases
@@ -312,6 +315,7 @@ def accept_connection(
         )
 
         now = datetime.now(timezone.utc)
+        target_conv_id = None
         if not existing_conv:
             new_conv = Conversation(
                 user_a_id=current_user.id,
@@ -322,6 +326,7 @@ def accept_connection(
             db.add(new_conv)
             db.commit()
             db.refresh(new_conv)
+            target_conv_id = new_conv.id
 
             # Create conversation user states
             state_a = ConversationUserState(conversation_id=new_conv.id, user_id=current_user.id)
@@ -339,6 +344,7 @@ def accept_connection(
             db.commit()
         else:
             # Send message in existing conversation
+            target_conv_id = existing_conv.id
             msg = Message(
                 conversation_id=existing_conv.id,
                 sender_user_id=current_user.id,
@@ -365,6 +371,7 @@ def accept_connection(
         expires_at=rec.expires_at,
         target_user_name=target_user.full_name if target_user else None,
         target_user_email=target_user.email if target_user else None,
+        conversation_id=target_conv_id if target_user else None,
     )
 
 

@@ -56,6 +56,7 @@ class ConnectionRecommendation(BaseModel):
     target_contact_id: uuid.UUID | None = None
     contact_name: str | None = None
     target_contact_name: str | None = None
+    conversation_id: uuid.UUID | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -99,6 +100,10 @@ class ConnectionRecommendationDetail(BaseModel):
     # Suggested message & conversation link
     suggested_intro: str | None = None
     conversation_id: uuid.UUID | None = None
+    target_user_bio: str | None = None
+    complementary_aspects: list[str] = Field(default_factory=list)
+    shared_interests: list[str] = Field(default_factory=list)
+
 
     # Legacy alias fields for backwards compatibility
     contact_a_id: uuid.UUID | None = None
