@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createConversation } from "@/lib/api/conversations";
 import { useConversationStore } from "@/lib/stores/conversation-store";
@@ -12,6 +13,8 @@ type NewChatModalProps = {
 };
 
 export function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [email, setEmail] = useState("");
   const queryClient = useQueryClient();
   const setActive = useConversationStore((s) => s.setActiveConversation);
@@ -23,8 +26,12 @@ export function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
       setActive(conversation.id);
       setEmail("");
       onClose();
+      if (pathname !== "/chats") {
+        router.push("/chats");
+      }
     },
   });
+
 
   if (!isOpen) return null;
 

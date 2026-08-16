@@ -80,8 +80,8 @@ export function AIContextBar() {
   return (
     <section className="border-b border-subtle bg-elevated/50 px-4 py-3">
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-secondary">
-          AI Context
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-secondary flex items-center gap-1.5">
+          <span>AI Context · Thông tin tóm tắt về đối phương</span>
         </h2>
         <div className="flex gap-2">
           {isEditing ? (
@@ -101,13 +101,13 @@ export function AIContextBar() {
                 className="h-8 w-8 p-0 text-secondary hover:text-primary" 
                 onClick={() => refreshMutation.mutate()} 
                 disabled={refreshMutation.isPending}
-                title="Refresh AI Context"
+                title="Làm mới AI Context"
               >
                 <RefreshCw size={14} className={refreshMutation.isPending ? "animate-spin" : ""} />
-                <span className="sr-only">Refresh AI Context</span>
+                <span className="sr-only">Làm mới AI Context</span>
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-                Edit
+                Chỉnh sửa
               </Button>
             </div>
           )}
@@ -118,22 +118,24 @@ export function AIContextBar() {
         <>
           <div className="mb-2">
             <ContextCard
-              label="Summary"
+              label="Tóm tắt về đối phương"
               value={editState.summary}
               isEditing={isEditing}
               onChange={(val) => setEditState({ ...editState, summary: val })}
+              placeholder="Chưa có thông tin tóm tắt về đối phương"
               isTextArea
             />
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <ContextCard
-              label="Last met"
+              label="Lần gặp / Bối cảnh"
               value={editState.last_met}
               isEditing={isEditing}
               onChange={(val) => setEditState({ ...editState, last_met: val })}
+              placeholder="Chưa có thông tin"
             />
             <ContextCard
-              label="Interested in"
+              label="Chủ đề đối phương quan tâm"
               value={editState.interested_in?.join(", ")}
               isEditing={isEditing}
               onChange={(val) =>
@@ -142,17 +144,20 @@ export function AIContextBar() {
                   interested_in: val.split(",").map((s) => s.trim()).filter(Boolean),
                 })
               }
+              placeholder="Chưa có thông tin"
             />
             <ContextCard
-              label="Follow-up"
+              label="Việc cần làm tiếp theo"
               value={editState.follow_up}
               isEditing={isEditing}
               onChange={(val) => setEditState({ ...editState, follow_up: val })}
+              placeholder="Chưa có ghi chú"
               isAccent
             />
           </div>
         </>
       )}
+
 
       <div className="mt-2 flex justify-center">
         <Button 
@@ -183,6 +188,7 @@ function ContextCard({
   onChange,
   isAccent,
   isTextArea,
+  placeholder,
 }: {
   label: string;
   value?: string;
@@ -190,7 +196,10 @@ function ContextCard({
   onChange: (val: string) => void;
   isAccent?: boolean;
   isTextArea?: boolean;
+  placeholder?: string;
 }) {
+  const defaultPlaceholder = placeholder || "Chưa có thông tin";
+
   return (
     <div className="rounded-button border border-subtle bg-surface px-3 py-2">
       <p className="mb-1 text-[11px] uppercase tracking-wide text-secondary">{label}</p>
@@ -199,7 +208,7 @@ function ContextCard({
           <textarea
             value={value || ""}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="No summary yet"
+            placeholder={defaultPlaceholder}
             rows={2}
             className="w-full bg-input px-2 py-1 text-sm outline-none ring-accent focus:ring-1 resize-none scrollbar-thin"
           />
@@ -207,7 +216,7 @@ function ContextCard({
           <input
             value={value || ""}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="No summary yet"
+            placeholder={defaultPlaceholder}
             className="w-full bg-input px-2 py-1 text-sm outline-none ring-accent focus:ring-1"
           />
         )
@@ -217,9 +226,10 @@ function ContextCard({
             !value ? "text-secondary italic" : isAccent ? "text-accent" : ""
           }`}
         >
-          {value || "No summary yet"}
+          {value || defaultPlaceholder}
         </p>
       )}
     </div>
   );
 }
+

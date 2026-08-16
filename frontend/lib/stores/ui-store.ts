@@ -19,9 +19,10 @@ type UIState = {
 
 export const useUIStore = create<UIState>((set) => ({
   navCollapsed: false,
-  infoPanelOpen: true,
+  infoPanelOpen: false,
   copilotOpen: false,
   connectionState: "offline",
+
   toggleNav: () => set((s) => ({ navCollapsed: !s.navCollapsed })),
   toggleInfoPanel: () => set((s) => ({ infoPanelOpen: !s.infoPanelOpen })),
   setInfoPanelOpen: (infoPanelOpen) => set({ infoPanelOpen }),

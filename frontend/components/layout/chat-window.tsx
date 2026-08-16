@@ -78,7 +78,11 @@ export function ChatWindow() {
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-app">
       <header className="flex items-center justify-between border-b border-subtle px-4 py-3">
-        <div className="flex items-center gap-3">
+        <div 
+          className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity"
+          onClick={toggleInfoPanel}
+          title="Xem thông tin đối phương"
+        >
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/20 text-sm font-semibold text-blue-300 uppercase">
             {peerShort}
           </div>
@@ -98,13 +102,16 @@ export function ChatWindow() {
             onClick={toggleCopilot}
             className="rounded-button p-2 text-secondary hover:bg-elevated hover:text-accent"
             aria-label="Open copilot"
+            title="Mở AI Copilot"
           >
             <Sparkles size={18} />
           </button>
           <button
             type="button"
+            onClick={toggleInfoPanel}
             className="rounded-button p-2 text-secondary hover:bg-elevated hover:text-primary"
             aria-label="View profile"
+            title="Thông tin đối phương"
           >
             <User size={18} />
           </button>
@@ -113,6 +120,7 @@ export function ChatWindow() {
             onClick={toggleInfoPanel}
             className="rounded-button p-2 text-secondary hover:bg-elevated hover:text-primary"
             aria-label={infoPanelOpen ? "Hide info panel" : "Show info panel"}
+            title={infoPanelOpen ? "Đóng thanh thông tin" : "Mở thanh thông tin"}
           >
             {infoPanelOpen ? (
               <PanelRightClose size={18} />
@@ -122,13 +130,16 @@ export function ChatWindow() {
           </button>
           <button
             type="button"
+            onClick={toggleInfoPanel}
             className="rounded-button p-2 text-secondary hover:bg-elevated hover:text-primary"
-            aria-label="More options"
+            aria-label="Contact info"
+            title="Tùy chọn & Thông tin đối phương"
           >
             <MoreVertical size={18} />
           </button>
         </div>
       </header>
+
 
       <AIContextBar />
 

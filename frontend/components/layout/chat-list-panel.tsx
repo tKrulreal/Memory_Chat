@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useConversationStore } from "@/lib/stores/conversation-store";
 
 import { useState, useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getConversations } from "@/lib/api/conversations";
 import { searchConversations } from "@/lib/api/search";
@@ -18,9 +19,20 @@ type ChatListPanelProps = {
 };
 
 export function ChatListPanel({ onSelect }: ChatListPanelProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const activeId = useConversationStore((s) => s.activeConversationId);
   const setActive = useConversationStore((s) => s.setActiveConversation);
+
+  const handleSelect = (conversationId: string) => {
+    setActive(conversationId);
+    onSelect?.(conversationId);
+    if (pathname !== "/chats") {
+      router.push("/chats");
+    }
+  };
+
 
   const { data: conversations = [], isLoading } = useQuery({
     queryKey: ["conversations"],
@@ -102,8 +114,7 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
                     key={result.conversation_id}
                     type="button"
                     onClick={() => {
-                      setActive(result.conversation_id);
-                      onSelect?.(result.conversation_id);
+                      handleSelect(result.conversation_id);
                       setSearchQuery("");
                       setIsDropdownOpen(false);
                     }}
@@ -184,8 +195,7 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
               <button
                 type="button"
                 onClick={() => {
-                  setActive(conversation.id);
-                  onSelect?.(conversation.id);
+                  handleSelect(conversation.id);
                 }}
                 className={cn(
                   "flex w-full gap-3 border-l-2 px-4 py-3 text-left transition-colors",
@@ -194,6 +204,7 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
                     : "border-transparent hover:bg-elevated",
                 )}
               >
+
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-sm font-semibold text-blue-300 uppercase">
                   {peerShort}
                 </div>

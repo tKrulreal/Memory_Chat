@@ -26,9 +26,33 @@ class User(Base):
     assistant_memories = relationship("AssistantMemory", back_populates="owner", cascade="all, delete-orphan")
     
     setting = relationship("Setting", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     search_history = relationship("SearchHistory", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     event_logs = relationship("EventLog", back_populates="user", cascade="all, delete-orphan")
+    contacts = relationship("Contact", back_populates="owner", cascade="all, delete-orphan")
+    recommendations = relationship("Recommendation", foreign_keys="[Recommendation.owner_user_id]", back_populates="owner", cascade="all, delete-orphan")
+
+
+class UserProfile(Base):
+    __tablename__ = "user_profiles"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    profession: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    company: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    skills: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    interests: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    looking_for: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    offering: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    bio: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+
+    created_at: Mapped[created_at_col]
+    updated_at: Mapped[updated_at_col]
+
+    user = relationship("User", back_populates="profile")
+
+
 
 
 class Setting(Base):

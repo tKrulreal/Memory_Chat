@@ -8,11 +8,14 @@ from sqlalchemy.orm import sessionmaker
 
 from src.api.routes import router
 from src.api.v1.auth import router as auth_router
+from src.api.v1.connections import router as connections_router
 from src.api.v1.conversations import router as conversations_router
 from src.api.v1.copilot import router as copilot_router
 from src.api.v1.messages import router as messages_router
 from src.api.v1.notifications import router as notifications_router
+from src.api.v1.profile import router as profile_router
 from src.api.v1.search import router as search_router
+
 from src.api.ws import router as websocket_router
 from src.config import get_settings
 from src.core.exceptions import setup_exception_handlers
@@ -21,6 +24,7 @@ from src.core.middlewares import RequestLoggingMiddleware
 from src.events.bus import EventBus
 from src.models.database import engine
 from src.workers.memory_worker import MemoryWorker
+from src.workers.connection_worker import ConnectionRecommendationWorker
 
 # Initialize structured logging
 settings = get_settings()
@@ -54,6 +58,13 @@ async def lifespan(app: FastAPI):
     )
     app.state.memory_worker.subscribe()
     logger.info("memory_worker_started")
+
+    # Start Connection Recommendation Worker
+    app.state.connection_worker = ConnectionRecommendationWorker(
+        event_bus=app.state.event_bus,
+    )
+    app.state.connection_worker.subscribe()
+    logger.info("connection_recommendation_worker_started")
 
     try:
         yield
@@ -90,6 +101,9 @@ app.include_router(messages_router, prefix="/api/v1", tags=["messages"])
 app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["notifications"])
 app.include_router(copilot_router, prefix="/api/v1/copilot", tags=["copilot"])
 app.include_router(search_router, prefix="/api/v1/search", tags=["search"])
+app.include_router(connections_router, prefix="/api/v1", tags=["connections"])
+app.include_router(profile_router, prefix="/api/v1", tags=["profile"])
+
 
 
 @app.get("/health")
