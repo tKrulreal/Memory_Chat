@@ -65,3 +65,10 @@ export type WSMessageEvent = {
   type: "message.created" | "message.read" | "ping" | "pong";
   payload?: Record<string, unknown>;
 };
+
+export type SearchResult = {
+  conversation_id: string;
+  peer: Participant;
+  summary_snippet: string | null;
+  score: number;
+};

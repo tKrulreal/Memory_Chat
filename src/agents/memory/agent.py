@@ -59,11 +59,16 @@ def chunk_messages(messages: list[dict[str, Any]], max_tokens: int = 500) -> lis
     return chunks
 
 
-def format_conversation_for_prompt(messages: list[dict[str, Any]]) -> str:
+def format_conversation_for_prompt(messages: list[dict[str, Any]], owner_id: str = "") -> str:
     """Format messages thành text để đưa vào prompt."""
     lines = []
     for msg in messages:
-        sender = msg.get("sender_type", "UNKNOWN").upper()
+        sender_id = msg.get("sender_user_id", "")
+        if sender_id and owner_id:
+            sender = "USER" if sender_id == str(owner_id) else "PEER"
+        else:
+            sender = msg.get("sender_type", "UNKNOWN").upper()
+            
         content = msg.get("content", "")
         time_str = ""
         if msg.get("created_at"):
@@ -112,25 +117,36 @@ MEMORY_SUMMARY_PROMPT = """Bạn là một AI assistant chuyên phân tích hộ
 Hội thoại:
 {conversation}
 
-Hãy đọc hội thoại trên và tạo một bản tóm tắt ngắn gọn (2-3 câu) về người này.
+Chú thích:
+- [USER] là người dùng hiện tại (chủ sở hữu trí nhớ này).
+- [PEER] là đối tác/người đang chat cùng.
+
+Hãy đọc hội thoại trên và tạo một bản tóm tắt ngắn gọn (2-3 câu) về người đối thoại ([PEER]).
 Bản tóm tắt nên bao gồm:
 - Họ là ai (nếu biết)
 - Tính cách / phong cách giao tiếp
 - Chủ đề họ quan tâm
 
+KHÔNG tóm tắt thông tin của [USER]. CHỈ tóm tắt thông tin của [PEER].
 Trả lời CHỈ bằng tiếng Việt, không giải thích thêm.
 """
 
 MEMORY_ENTITIES_PROMPT = """Bạn là một AI assistant chuyên trích xuất thông tin cá nhân từ hội thoại.
 
 Hội thoại:
+
+
 {conversation}
 
-Hãy trích xuất các thông tin sau (chỉ trả về JSON):
+Chú thích:
+- [USER] là người dùng hiện tại.
+- [PEER] là đối tác/người đang chat cùng.
+
+Hãy trích xuất các thông tin của người đối thoại ([PEER]) (chỉ trả về JSON):
 {{
-    "last_met": "Thông tin về lần gặp cuối hoặc bối cảnh quen biết (nếu có, nếu không thì null)",
-    "interested_in": ["danh sách chủ đề/sở thích người này quan tâm (nếu có, mảng rỗng nếu không có)"],
-    "follow_up": "Cuộc hẹn, lời hứa, hoặc việc cần làm tiếp theo (ví dụ: 'Đi cà phê', 'Gửi tài liệu'). CHỈ gợi ý chủ đề mở lời nếu không có cuộc hẹn/công việc nào được nhắc đến (nếu không có gì thì null)"
+    "last_met": "Thông tin về lần gặp cuối hoặc bối cảnh quen biết của [PEER] (nếu có, nếu không thì null)",
+    "interested_in": ["danh sách chủ đề/sở thích mà [PEER] quan tâm (nếu có, mảng rỗng nếu không có)"],
+    "follow_up": "Cuộc hẹn, lời hứa, hoặc việc cần làm tiếp theo với [PEER] (ví dụ: 'Đi cà phê', 'Gửi tài liệu'). CHỈ gợi ý chủ đề mở lời nếu không có cuộc hẹn/công việc nào được nhắc đến (nếu không có gì thì null)"
 }}
 
 Trả lời CHỈ bằng JSON, không giải thích thêm.
@@ -149,7 +165,7 @@ class MemoryAgent:
     def __init__(self, llm: LLMGateway | None = None):
         self._llm = llm or LLMGateway()
 
-    async def summarize(self, messages: list[dict[str, Any]]) -> str:
+    async def summarize(self, messages: list[dict[str, Any]], owner_id: str = "") -> str:
         """
         Tóm tắt conversation.
 
@@ -167,7 +183,7 @@ class MemoryAgent:
         summaries = []
 
         for i, chunk in enumerate(chunks):
-            text = format_conversation_for_prompt(chunk)
+            text = format_conversation_for_prompt(chunk, owner_id=owner_id)
             prompt = MEMORY_SUMMARY_PROMPT.format(conversation=text)
             try:
                 summary = self._llm.complete(prompt)
@@ -185,7 +201,8 @@ class MemoryAgent:
             return "Không thể tạo tóm tắt."
 
         final_prompt = (
-            f"Bạn hãy tóm tắt ngắn gọn các ý sau thành 1 đoạn (2-3 câu):\n{combined}"
+            f"Bạn hãy tóm tắt ngắn gọn các ý sau thành 1 đoạn (2-3 câu) mô tả về người đối thoại ([PEER]):\n{combined}\n\n"
+            f"TUYỆT ĐỐI KHÔNG đưa thông tin của [USER] vào bản tóm tắt."
         )
         try:
             return self._llm.complete(final_prompt).strip()
@@ -193,7 +210,7 @@ class MemoryAgent:
             logger.warning("LLM final summarize failed: %s", e)
             return combined[:200]
 
-    async def extract_entities(self, messages: list[dict[str, Any]]) -> dict[str, Any]:
+    async def extract_entities(self, messages: list[dict[str, Any]], owner_id: str = "") -> dict[str, Any]:
         """
         Trích xuất entities từ conversation.
 
@@ -210,7 +227,7 @@ class MemoryAgent:
         all_results: list[dict[str, Any]] = []
 
         for i, chunk in enumerate(chunks):
-            text = format_conversation_for_prompt(chunk)
+            text = format_conversation_for_prompt(chunk, owner_id=owner_id)
             prompt = MEMORY_ENTITIES_PROMPT.format(conversation=text)
             try:
                 raw = self._llm.complete(prompt)
@@ -401,8 +418,9 @@ class MemoryAgent:
         """
         logger.info("Building memory for conversation_id=%s, owner=%s with %d messages", conversation_id, user_id, len(messages))
 
-        summary = await self.summarize(messages)
-        entities = await self.extract_entities(messages)
+        owner_id_str = str(user_id)
+        summary = await self.summarize(messages, owner_id=owner_id_str)
+        entities = await self.extract_entities(messages, owner_id=owner_id_str)
         relationship_score = self.calculate_relationship_score(messages)
         timeline = self.build_timeline(messages)
 

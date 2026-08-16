@@ -23,7 +23,6 @@ import { NewChatModal } from "@/components/chat/new-chat-modal";
 
 const NAV_ITEMS = [
   { href: "/chats", label: "Chats", icon: MessageSquare },
-  { href: "/search", label: "Search", icon: Search },
   { href: "/ai-hub", label: "AI Hub", icon: Brain },
   { href: "/recommendations", label: "Recommendations", icon: Star },
   { href: "/copilot", label: "Copilot", icon: Sparkles },

@@ -1,4 +1,5 @@
 import logging
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -26,10 +27,10 @@ def search_conversations(
         return []
 
     try:
-        query_embedding = LLMGateway.get_instance().embed(query)
+        query_embedding = LLMGateway().embed(query)
     except Exception as e:
         logger.error(f"Error embedding query: {e}")
-        raise HTTPException(status_code=500, detail="Failed to process search query")
+        raise HTTPException(status_code=500, detail=f"Failed to embed query: {str(e)}")
 
     try:
         vector_results = VectorStoreService.get_instance().query(
@@ -56,7 +57,12 @@ def search_conversations(
             continue
             
         # Find the conversation to get the peer
-        conv = db.query(Conversation).filter(Conversation.id == conversation_id_str).first()
+        try:
+            conv_id = uuid.UUID(conversation_id_str)
+        except ValueError:
+            continue
+            
+        conv = db.query(Conversation).filter(Conversation.id == conv_id).first()
         if not conv:
             continue
             
