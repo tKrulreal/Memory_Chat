@@ -11,8 +11,8 @@ import { AIContextBar } from "@/components/ai/ai-context-bar";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useConversationStore } from "@/lib/stores/conversation-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { useQuery } from "@tanstack/react-query";
-import { getMessages } from "@/lib/api/messages";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getMessages, deleteMessage } from "@/lib/api/messages";
 import { getConversations } from "@/lib/api/conversations";
 import { Composer } from "@/components/chat/composer";
 import { MessageBubble } from "@/components/chat/message-bubble";
@@ -34,6 +34,21 @@ export function ChatWindow() {
     queryKey: ["conversations"],
     queryFn: getConversations,
     enabled: !!user,
+  });
+  
+  const queryClient = useQueryClient();
+
+  const recallMutation = useMutation({
+    mutationFn: (messageId: string) => deleteMessage(messageId),
+    onSuccess: (_, messageId) => {
+      // The websocket will handle updating the cache, but we could do it optimistically here too if wanted.
+      // Since the prompt requested: "Do not optimistically mark the message as recalled before the backend confirms success."
+      // We'll just let the websocket or the next fetch handle it.
+    },
+    onError: (error) => {
+      console.error("Failed to recall message:", error);
+      // Could show a toast here if a toast system was available
+    }
   });
   
   // Actually, I should use queryClient or just use the data from useQuery for conversations
@@ -175,6 +190,9 @@ export function ChatWindow() {
             outgoing={message.sender_user_id === user?.id || message.sender_user_id === "optimistic"}
             time={new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             status={message.sender_user_id === "optimistic" ? "pending" : "sent"}
+            deleted_at={message.deleted_at}
+            onRecall={() => recallMutation.mutate(message.id)}
+            isRecalling={recallMutation.isPending && recallMutation.variables === message.id}
           />
         ))}
       </div>

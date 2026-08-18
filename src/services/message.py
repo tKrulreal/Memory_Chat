@@ -89,6 +89,8 @@ class MessageService:
 
     def delete_message(self, db: Session, user_id: uuid.UUID, message_id: uuid.UUID) -> Message:
         message = self.get_owned_message(db, user_id, message_id)
+        if message.sender_user_id != user_id:
+            raise MessageOwnershipError("Only the sender can recall this message")
         message.deleted_at = datetime.now(UTC)
         db.commit()
         db.refresh(message)

@@ -56,6 +56,21 @@ export function WSBootstrap({ children }: { children: React.ReactNode }) {
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: ["context", message.conversation_id] });
         }, 3000);
+      } else if (data.type === "MESSAGE_RECALLED") {
+        if (!data.conversation_id || !data.message_id) return;
+        
+        queryClient.setQueryData(["messages", data.conversation_id], (old: any) => {
+          if (!old || !old.data) return old;
+          
+          return {
+            ...old,
+            data: old.data.map((m: Message) => 
+              m.id === data.message_id 
+                ? { ...m, deleted_at: data.deleted_at } 
+                : m
+            ),
+          };
+        });
       }
     });
 

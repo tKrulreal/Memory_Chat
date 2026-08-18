@@ -8,7 +8,6 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getConversations } from "@/lib/api/conversations";
-import { searchConversations } from "@/lib/api/search";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -41,21 +40,6 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
   });
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  const { data: searchResults = [], isLoading: isSearching } = useQuery({
-    queryKey: ["search_conversations", debouncedQuery],
-    queryFn: () => searchConversations(debouncedQuery),
-    enabled: debouncedQuery.length >= 3,
-  });
 
   // Local filtering for the main list
   const items = conversations.filter(c => {
@@ -80,63 +64,10 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
-              setIsDropdownOpen(true);
             }}
-            onFocus={() => setIsDropdownOpen(true)}
-            onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
             placeholder="Search chats..."
             className="h-10 w-full rounded-composer bg-input pl-9 pr-3 text-sm text-primary placeholder:text-secondary outline-none ring-accent focus:ring-1"
           />
-          
-          {isDropdownOpen && searchQuery.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 z-50 max-h-80 overflow-y-auto rounded-lg border border-subtle bg-surface shadow-lg">
-              <div className="p-2 text-xs font-medium text-secondary">
-                {searchQuery.length < 3 ? "Type at least 3 characters for AI search..." : "AI Search Results"}
-              </div>
-              
-              {searchQuery.length >= 3 && isSearching && (
-                <div className="p-4 flex flex-col gap-3">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                </div>
-              )}
-
-              {searchQuery.length >= 3 && !isSearching && searchResults.length === 0 && (
-                <div className="p-4 text-center text-sm text-secondary">No AI matches found.</div>
-              )}
-
-              {searchQuery.length >= 3 && !isSearching && searchResults.map((result) => {
-                const peerName = result.peer.full_name || result.peer.email.split("@")[0];
-                const peerShort = result.peer.email.substring(0, 2).toUpperCase();
-                
-                return (
-                  <button
-                    key={result.conversation_id}
-                    type="button"
-                    onClick={() => {
-                      handleSelect(result.conversation_id);
-                      setSearchQuery("");
-                      setIsDropdownOpen(false);
-                    }}
-                    className="flex w-full gap-3 p-3 text-left transition-colors hover:bg-elevated border-t border-subtle first:border-0"
-                  >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-500/20 text-xs font-semibold text-blue-300 uppercase">
-                      {peerShort}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-sm font-medium">{peerName}</span>
-                        {result.score && <span className="shrink-0 text-[10px] text-accent/80">AI Match</span>}
-                      </div>
-                      <p className="truncate text-xs text-secondary mt-0.5" title={result.summary_snippet || ""}>
-                        {result.summary_snippet || "Matched context..."}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
         <div className="mt-3 flex gap-2">
           {FILTERS.map((filter) => (
