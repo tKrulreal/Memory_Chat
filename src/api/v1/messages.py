@@ -67,12 +67,13 @@ async def create_message(
     db: DatabaseDep,
     service: MessageServiceDep,
     event_bus: EventBusDep,
+    response: Response,
 ):
     try:
-        message = service.create_message(db, current_user.id, conversation_id, message_in, event_bus)
-    except MessageConflictError as e:
-        # Idempotency: Return 409 as requested by user
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Message already exists") from None
+        message, is_new = service.create_message(db, current_user.id, conversation_id, message_in, event_bus)
+        if not is_new:
+            # Idempotency: Return 200 OK with the existing message instead of 201 Created
+            response.status_code = status.HTTP_200_OK
     except MessageConversationNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found") from None
     except MessageOwnershipError:

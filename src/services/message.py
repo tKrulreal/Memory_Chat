@@ -52,13 +52,13 @@ class MessageService:
 
     def create_message(
         self, db: Session, user_id: uuid.UUID, conversation_id: uuid.UUID, data: MessageCreate, event_bus: "EventBus"
-    ) -> Message:
+    ) -> tuple[Message, bool]:
         conversation = self._require_owned_conversation(db, user_id, conversation_id)
         
         # Check idempotency
         existing = self.repository.get_by_client_id(db, data.client_message_id)
         if existing:
-            raise MessageConflictError(existing)
+            return existing, False  # Return tuple: (message, is_new)
 
         message = Message(
             conversation_id=conversation_id,
@@ -87,7 +87,7 @@ class MessageService:
         except Exception:
             db.rollback()
             raise
-        return message
+        return message, True
 
     def get_owned_message(self, db: Session, user_id: uuid.UUID, message_id: uuid.UUID) -> Message:
         message = self.repository.get(db, id=message_id)

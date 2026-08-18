@@ -109,7 +109,8 @@ async def test_p2p_flow_e2e(
             json=msg_payload,
             headers=headers_a
         )
-        assert res_msg_a_retry.status_code == 409
+        assert res_msg_a_retry.status_code == 200
+        assert res_msg_a_retry.json()["id"] == msg_data["id"]
 
         # User B should receive it via WS
         # The WS manager will fanout the message
