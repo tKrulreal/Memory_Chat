@@ -10,6 +10,7 @@ import {
   acceptConnectionRequest,
   rejectConnectionRequest,
   cancelConnectionRequest,
+  ConnectionRequest,
 } from "@/lib/api/connection-requests";
 import { getConversations } from "@/lib/api/conversations";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -104,7 +105,7 @@ export default function ConnectionsPage() {
                 <div className="text-sm text-secondary">No pending requests.</div>
               ) : (
                 <div className="space-y-4">
-                  {requests.map((req) => {
+                  {requests.map((req: ConnectionRequest) => {
                     const peer = tab === "incoming" ? req.sender : req.receiver;
                     return (
                       <div

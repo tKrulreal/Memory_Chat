@@ -1,5 +1,5 @@
-import type { PaginatedResponse } from "@/types/pagination";
-import type { User } from "@/types/auth";
+import type { PaginatedResponse } from "@/types";
+import type { User } from "@/types";
 
 export interface ConnectionRequest {
   id: string;

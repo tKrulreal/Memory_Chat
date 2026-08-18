@@ -90,6 +90,7 @@ export function CopilotDrawer() {
     };
     window.addEventListener("copilot-query", handler);
     return () => window.removeEventListener("copilot-query", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConversationId, isLoading]);
 
   const handleCopy = (text: string) => {
