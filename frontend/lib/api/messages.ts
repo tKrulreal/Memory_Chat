@@ -1,11 +1,26 @@
 import { Message, PaginatedResponse } from "@/types";
 
+export type CursorPagination = {
+  has_next: boolean;
+  limit: number;
+};
+
+export type CursorPaginatedResponse<T> = {
+  data: T[];
+  pagination: CursorPagination;
+};
+
 export async function getMessages(
   conversationId: string,
-  page: number = 1,
+  beforeCreatedAt?: string,
+  beforeId?: string,
   limit: number = 50
-): Promise<PaginatedResponse<Message>> {
-  const response = await fetch(`/api/proxy/api/v1/direct-conversations/${conversationId}/messages?page=${page}&limit=${limit}`);
+): Promise<CursorPaginatedResponse<Message>> {
+  let url = `/api/proxy/api/v1/direct-conversations/${conversationId}/messages?limit=${limit}`;
+  if (beforeCreatedAt && beforeId) {
+    url += `&before_created_at=${encodeURIComponent(beforeCreatedAt)}&before_id=${encodeURIComponent(beforeId)}`;
+  }
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error("Failed to fetch messages");
   }

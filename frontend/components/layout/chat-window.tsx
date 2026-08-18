@@ -11,7 +11,7 @@ import { AIContextBar } from "@/components/ai/ai-context-bar";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useConversationStore } from "@/lib/stores/conversation-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { getMessages, deleteMessage } from "@/lib/api/messages";
 import { getConversations } from "@/lib/api/conversations";
 import { Composer } from "@/components/chat/composer";
@@ -68,9 +68,24 @@ export function ChatWindow() {
     peerShort = peer.email.substring(0, 2).toUpperCase();
   }
 
-  const { data: messagesResponse, isLoading } = useQuery({
+  const { 
+    data: messagesResponse, 
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
     queryKey: ["messages", activeId],
-    queryFn: () => getMessages(activeId!),
+    queryFn: ({ pageParam }) => getMessages(activeId!, pageParam?.beforeCreatedAt, pageParam?.beforeId),
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.pagination.has_next || lastPage.data.length === 0) return undefined;
+      const lastMessage = lastPage.data[lastPage.data.length - 1];
+      return {
+        beforeCreatedAt: lastMessage.created_at,
+        beforeId: lastMessage.id
+      };
+    },
+    initialPageParam: undefined as { beforeCreatedAt: string, beforeId: string } | undefined,
     enabled: !!activeId,
   });
 
@@ -88,7 +103,7 @@ export function ChatWindow() {
     );
   }
 
-  const messages = messagesResponse?.data ?? [];
+  const messages = messagesResponse?.pages.flatMap((page) => page.data) ?? [];
 
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-app">
@@ -181,6 +196,18 @@ export function ChatWindow() {
           </div>
         )}
         {!isLoading && messages.length === 0 && <p className="text-center text-xs text-secondary w-full">No messages yet. Say hi!</p>}
+        
+        {hasNextPage && (
+          <div className="flex justify-center w-full py-2">
+            <button
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+              className="text-xs text-accent hover:underline disabled:opacity-50"
+            >
+              {isFetchingNextPage ? "Loading more..." : "Load older messages"}
+            </button>
+          </div>
+        )}
         
         {/* Messages are returned DESC from API (newest first). flex-col-reverse puts the first item at the bottom. */}
         {messages.map((message) => (

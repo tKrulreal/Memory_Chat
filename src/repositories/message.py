@@ -10,14 +10,24 @@ class MessageRepository(BaseRepository[Message]):
     def __init__(self):
         super().__init__(Message)
 
-    def get_by_conversation_id(
-        self, db: Session, conversation_id: uuid.UUID, skip: int = 0, limit: int = 100
+    def get_by_cursor(
+        self,
+        db: Session,
+        conversation_id: uuid.UUID,
+        limit: int = 50,
+        before_created_at=None,
+        before_id=None,
     ) -> list[Message]:
+        query = db.query(self.model).filter(Message.conversation_id == conversation_id)
+        if before_created_at and before_id:
+            from sqlalchemy import tuple_
+            query = query.filter(
+                tuple_(Message.created_at, Message.id) < tuple_(before_created_at, before_id)
+            )
+        
         return (
-            db.query(self.model)
-            .filter(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.desc())
-            .offset(skip)
+            query
+            .order_by(Message.created_at.desc(), Message.id.desc())
             .limit(limit)
             .all()
         )

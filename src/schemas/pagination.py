@@ -14,3 +14,13 @@ class Pagination(BaseModel):
 class PaginatedResponse(BaseModel, Generic[DataT]):
     data: list[DataT]
     pagination: Pagination
+
+
+class CursorPagination(BaseModel):
+    has_next: bool
+    limit: int
+
+
+class CursorPaginatedResponse(BaseModel, Generic[DataT]):
+    data: list[DataT]
+    pagination: CursorPagination

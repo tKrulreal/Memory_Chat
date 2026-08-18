@@ -12,7 +12,8 @@ from src.models.user import User
 from src.repositories.conversation import ConversationRepository
 from src.repositories.message import MessageRepository
 from src.schemas.message import MessageCreate, MessageResponse
-from src.schemas.pagination import PaginatedResponse, Pagination
+from datetime import datetime
+from src.schemas.pagination import CursorPaginatedResponse, CursorPagination
 from src.services.message import (
     MessageConflictError,
     MessageConversationNotFoundError,
@@ -34,24 +35,27 @@ DatabaseDep = Annotated[Session, Depends(get_db)]
 EventBusDep = Annotated[EventBus, Depends(get_event_bus)]
 
 
-@router.get("/direct-conversations/{conversation_id}/messages", response_model=PaginatedResponse[MessageResponse])
+@router.get("/direct-conversations/{conversation_id}/messages", response_model=CursorPaginatedResponse[MessageResponse])
 def list_messages(
     conversation_id: uuid.UUID,
     current_user: CurrentUserDep,
     db: DatabaseDep,
     service: MessageServiceDep,
-    page: Annotated[int, Query(ge=1)] = 1,
+    before_created_at: datetime | None = None,
+    before_id: uuid.UUID | None = None,
     limit: Annotated[int, Query(ge=1, le=50)] = 50,
 ):
     try:
-        messages, total = service.list_messages(db, current_user.id, conversation_id, page, limit)
+        messages, has_next = service.list_messages(
+            db, current_user.id, conversation_id, limit, before_created_at, before_id
+        )
     except MessageConversationNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found") from None
     except MessageOwnershipError:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to access this conversation") from None
-    return PaginatedResponse(
+    return CursorPaginatedResponse(
         data=[MessageResponse.model_validate(message) for message in messages],
-        pagination=Pagination(page=page, limit=limit, total=total),
+        pagination=CursorPagination(has_next=has_next, limit=limit),
     )
 
 

@@ -32,14 +32,23 @@ class MessageService:
         self.conversation_repository = conversation_repository
 
     def list_messages(
-        self, db: Session, user_id: uuid.UUID, conversation_id: uuid.UUID, page: int, limit: int
-    ) -> tuple[list[Message], int]:
+        self,
+        db: Session,
+        user_id: uuid.UUID,
+        conversation_id: uuid.UUID,
+        limit: int,
+        before_created_at=None,
+        before_id=None,
+    ) -> tuple[list[Message], bool]:
         self._require_owned_conversation(db, user_id, conversation_id)
-        skip = (page - 1) * limit
-        return (
-            self.repository.get_by_conversation_id(db, conversation_id, skip, limit),
-            self.repository.count_by_conversation_id(db, conversation_id),
+        # Fetch limit + 1 to determine if there are more messages
+        messages = self.repository.get_by_cursor(
+            db, conversation_id, limit + 1, before_created_at, before_id
         )
+        has_next = len(messages) > limit
+        if has_next:
+            messages.pop()
+        return messages, has_next
 
     def create_message(
         self, db: Session, user_id: uuid.UUID, conversation_id: uuid.UUID, data: MessageCreate, event_bus: "EventBus"
