@@ -29,6 +29,7 @@ export type Message = {
   content: string;
   created_at: string;
   client_message_id?: string | null;
+  deleted_at?: string | null;
 };
 
 export type Pagination = {
@@ -62,8 +63,11 @@ export type CopilotResponse = {
 };
 
 export type WSMessageEvent = {
-  type: "message.created" | "message.read" | "ping" | "pong";
+  type: "message.created" | "message.read" | "ping" | "pong" | "MESSAGE_RECALLED";
   payload?: Record<string, unknown>;
+  conversation_id?: string;
+  message_id?: string;
+  deleted_at?: string | null;
 };
 
 export type SearchResult = {

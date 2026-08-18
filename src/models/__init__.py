@@ -5,6 +5,7 @@ from src.models.database import Base, SessionLocal, engine
 # 2. Models without foreign keys to other new tables
 from src.models.ai import AssistantMemory, EventLog, OutboxEvent, Recommendation
 from src.models.chat import Conversation, ConversationUserState, Message
+from src.models.connection import ConnectionRequest
 
 # 3. Models that are referenced by other models (Contact before User)
 from src.models.contact import Contact, ContactMemory
@@ -29,4 +30,5 @@ __all__ = [
     "Recommendation",
     "Contact",
     "ContactMemory",
+    "ConnectionRequest",
 ]

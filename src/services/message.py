@@ -87,10 +87,12 @@ class MessageService:
         self._require_owned_conversation(db, user_id, message.conversation_id)
         return message
 
-    def delete_message(self, db: Session, user_id: uuid.UUID, message_id: uuid.UUID) -> None:
+    def delete_message(self, db: Session, user_id: uuid.UUID, message_id: uuid.UUID) -> Message:
         message = self.get_owned_message(db, user_id, message_id)
         message.deleted_at = datetime.now(UTC)
         db.commit()
+        db.refresh(message)
+        return message
 
     def _require_owned_conversation(
         self, db: Session, user_id: uuid.UUID, conversation_id: uuid.UUID

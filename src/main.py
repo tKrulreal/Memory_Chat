@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from src.api.routes import router
 from src.api.v1.auth import router as auth_router
 from src.api.v1.connections import router as connections_router
+from src.api.v1.connection_requests import router as connection_requests_router
 from src.api.v1.conversations import router as conversations_router
 from src.api.v1.copilot import router as copilot_router
 from src.api.v1.messages import router as messages_router
@@ -102,6 +103,7 @@ app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["
 app.include_router(copilot_router, prefix="/api/v1/copilot", tags=["copilot"])
 app.include_router(search_router, prefix="/api/v1/search", tags=["search"])
 app.include_router(connections_router, prefix="/api/v1", tags=["connections"])
+app.include_router(connection_requests_router, prefix="/api/v1", tags=["connection_requests"])
 app.include_router(profile_router, prefix="/api/v1", tags=["profile"])
 
 

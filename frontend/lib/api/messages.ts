@@ -31,3 +31,13 @@ export async function sendMessage(
   }
   return response.json();
 }
+
+export async function deleteMessage(messageId: string): Promise<void> {
+  const response = await fetch(`/api/proxy/api/v1/messages/${messageId}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Failed to recall message");
+  }
+}

@@ -268,9 +268,9 @@ def accept_connection(
     """
     Chấp nhận một connection recommendation:
     1. Cập nhật trạng thái Recommendation thành ACCEPTED.
-    2. Tự động tạo Direct Conversation giữa Current User và Target User (nếu chưa có).
-    3. Gửi tin nhắn mở đầu (intro message) vào cuộc trò chuyện.
+    2. Tự động gửi một ConnectionRequest đến Target User.
     """
+    from src.models.connection import ConnectionRequest
     rec = (
         db.query(Recommendation)
         .filter(
@@ -301,8 +301,9 @@ def accept_connection(
         else f"Xin chào! Mình vừa nhận được gợi ý kết nối với bạn qua MemoryChat và rất mong có cơ hội trò chuyện cùng bạn."
     )
 
-    # If target user is a real user, create / find direct conversation
+    # If target user is a real user, create a Connection Request
     if target_user:
+        # Check if already connected or pending
         existing_conv = (
             db.query(Conversation)
             .filter(
@@ -313,48 +314,26 @@ def accept_connection(
             )
             .first()
         )
-
-        now = datetime.now(timezone.utc)
-        target_conv_id = None
         if not existing_conv:
-            new_conv = Conversation(
-                user_a_id=current_user.id,
-                user_b_id=target_user.id,
-                last_message_content=intro_content,
-                last_message_time=now,
-            )
-            db.add(new_conv)
-            db.commit()
-            db.refresh(new_conv)
-            target_conv_id = new_conv.id
-
-            # Create conversation user states
-            state_a = ConversationUserState(conversation_id=new_conv.id, user_id=current_user.id)
-            state_b = ConversationUserState(conversation_id=new_conv.id, user_id=target_user.id)
-            db.add_all([state_a, state_b])
-
-            # Send initial message
-            msg = Message(
-                conversation_id=new_conv.id,
-                sender_user_id=current_user.id,
-                content=intro_content,
-                message_type="TEXT",
-            )
-            db.add(msg)
-            db.commit()
-        else:
-            # Send message in existing conversation
-            target_conv_id = existing_conv.id
-            msg = Message(
-                conversation_id=existing_conv.id,
-                sender_user_id=current_user.id,
-                content=intro_content,
-                message_type="TEXT",
-            )
-            existing_conv.last_message_content = intro_content
-            existing_conv.last_message_time = now
-            db.add(msg)
-            db.commit()
+            existing_req = db.query(ConnectionRequest).filter(
+                or_(
+                    and_(ConnectionRequest.sender_id == current_user.id, ConnectionRequest.receiver_id == target_user.id),
+                    and_(ConnectionRequest.sender_id == target_user.id, ConnectionRequest.receiver_id == current_user.id),
+                ),
+                ConnectionRequest.status == "PENDING"
+            ).first()
+            if not existing_req:
+                new_req = ConnectionRequest(
+                    sender_id=current_user.id,
+                    receiver_id=target_user.id,
+                    status="PENDING"
+                )
+                db.add(new_req)
+            elif existing_req.sender_id == target_user.id:
+                # Target user already sent a request, so accept it!
+                existing_req.status = "ACCEPTED"
+                new_conv = Conversation(user_a_id=existing_req.sender_id, user_b_id=existing_req.receiver_id)
+                db.add(new_conv)
 
     db.commit()
     db.refresh(rec)

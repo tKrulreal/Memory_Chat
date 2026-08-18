@@ -94,11 +94,24 @@ def get_message(
 
 
 @router.delete("/messages/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_message(
+async def delete_message(
     message_id: uuid.UUID, current_user: CurrentUserDep, db: DatabaseDep, service: MessageServiceDep
 ) -> Response:
-    _get_owned_message(service, db, current_user.id, message_id)
-    service.delete_message(db, current_user.id, message_id)
+    message = service.delete_message(db, current_user.id, message_id)
+    
+    # Broadcast MESSAGE_RECALLED event
+    from src.api.ws import manager
+    conversation = service.conversation_repository.get(db, id=message.conversation_id)
+    if conversation:
+        event_payload = {
+            "type": "MESSAGE_RECALLED",
+            "conversation_id": str(message.conversation_id),
+            "message_id": str(message.id),
+            "deleted_at": message.deleted_at.isoformat() if message.deleted_at else None,
+        }
+        await manager.broadcast_to_user(conversation.user_a_id, event_payload)
+        await manager.broadcast_to_user(conversation.user_b_id, event_payload)
+
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

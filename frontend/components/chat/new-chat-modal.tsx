@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createConversation } from "@/lib/api/conversations";
-import { useConversationStore } from "@/lib/stores/conversation-store";
+import { sendConnectionRequest } from "@/lib/api/connection-requests";
 import { Button } from "@/components/ui/button";
 
 type NewChatModalProps = {
@@ -16,19 +15,24 @@ export function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [email, setEmail] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
   const queryClient = useQueryClient();
-  const setActive = useConversationStore((s) => s.setActiveConversation);
 
   const mutation = useMutation({
-    mutationFn: createConversation,
-    onSuccess: (conversation) => {
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      setActive(conversation.id);
-      setEmail("");
-      onClose();
-      if (pathname !== "/chats") {
-        router.push("/chats");
+    mutationFn: (email: string) => sendConnectionRequest(undefined, email),
+    onSuccess: (request) => {
+      queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
+      if (request.status === "ACCEPTED") {
+        setSuccessMsg("Connected! You can now chat.");
+        // Could redirect to chats here if we knew the conversation_id
+      } else {
+        setSuccessMsg("Connection request sent!");
       }
+      setTimeout(() => {
+        setSuccessMsg("");
+        setEmail("");
+        onClose();
+      }, 2000);
     },
   });
 
@@ -61,15 +65,20 @@ export function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
           </div>
           {mutation.isError && (
             <p className="mb-4 text-sm text-red-400">
-              {mutation.error instanceof Error ? mutation.error.message : "Failed to create chat"}
+              {mutation.error instanceof Error ? mutation.error.message : "Failed to send request"}
+            </p>
+          )}
+          {successMsg && (
+            <p className="mb-4 text-sm text-green-400">
+              {successMsg}
             </p>
           )}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending ? "Creating..." : "Create Chat"}
+            <Button type="submit" disabled={mutation.isPending || !!successMsg}>
+              {mutation.isPending ? "Sending..." : "Send Request"}
             </Button>
           </div>
         </form>

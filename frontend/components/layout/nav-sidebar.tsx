@@ -14,6 +14,7 @@ import {
   Settings,
   Sparkles,
   Star,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -23,6 +24,7 @@ import { NewChatModal } from "@/components/chat/new-chat-modal";
 
 const NAV_ITEMS = [
   { href: "/chats", label: "Chats", icon: MessageSquare },
+  { href: "/connections", label: "Connections", icon: Users },
   { href: "/ai-hub", label: "AI Hub", icon: Brain },
   { href: "/recommendations", label: "Recommendations", icon: Star },
   { href: "/copilot", label: "Copilot", icon: Sparkles },
