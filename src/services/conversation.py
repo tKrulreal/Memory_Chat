@@ -45,8 +45,9 @@ class ConversationService:
         if existing:
             return existing
 
+        user_a, user_b = sorted([user_id, data.target_user_id])
         conversation = Conversation(
-            user_a_id=user_id, user_b_id=data.target_user_id
+            user_a_id=user_a, user_b_id=user_b
         )
         db.add(conversation)
         db.flush()

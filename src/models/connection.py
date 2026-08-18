@@ -9,6 +9,9 @@ from src.models.database import Base, created_at_col, updated_at_col, uuid_pk
 
 class ConnectionRequest(Base):
     __tablename__ = "connection_requests"
+    __table_args__ = (
+        UniqueConstraint("sender_id", "receiver_id", name="uq_connection_request"),
+    )
 
     id: Mapped[uuid_pk]
     sender_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)

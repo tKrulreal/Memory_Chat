@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint, CheckConstraint, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.database import Base, created_at_col, updated_at_col, uuid_pk
@@ -9,6 +9,10 @@ from src.models.database import Base, created_at_col, updated_at_col, uuid_pk
 
 class Conversation(Base):
     __tablename__ = "direct_conversations"
+    __table_args__ = (
+        UniqueConstraint("user_a_id", "user_b_id", name="uq_direct_conversation"),
+        CheckConstraint("user_a_id < user_b_id", name="chk_user_order"),
+    )
 
     id: Mapped[uuid_pk]
     user_a_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
@@ -46,6 +50,10 @@ class ConversationUserState(Base):
 
 class Message(Base):
     __tablename__ = "messages"
+    __table_args__ = (
+        UniqueConstraint("sender_user_id", "client_message_id", name="uq_client_message_id"),
+        Index("ix_messages_conv_created_id", "conversation_id", "created_at", "id"),
+    )
 
     id: Mapped[uuid_pk]
     conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("direct_conversations.id", ondelete="CASCADE"), index=True)
