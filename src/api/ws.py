@@ -29,17 +29,44 @@ async def chat_websocket(
         return
 
     await manager.connect(websocket, user.id)
-    try:
+    
+    import time
+    last_activity = time.time()
+    
+    async def receive_loop():
+        nonlocal last_activity
         while True:
-            try:
-                payload = await asyncio.wait_for(websocket.receive_json(), timeout=30)
-            except TimeoutError:
-                await websocket.send_json({"type": "ping"})
-                continue
+            payload = await websocket.receive_json()
+            last_activity = time.time()
+            # WS is now one-way for chat messages.
+            # Client must use POST /messages to send.
             if payload.get("type") == "pong":
                 continue
-            # WS is now one-way. Client must use POST /messages to send.
             # We can support typing indicators here later.
+
+    async def ping_loop():
+        while True:
+            await asyncio.sleep(30)
+            if time.time() - last_activity > 65:
+                # Client missed two pings, disconnect
+                await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+                break
+            try:
+                await websocket.send_json({"type": "ping"})
+            except Exception:
+                break
+
+    receiver_task = asyncio.create_task(receive_loop())
+    pinger_task = asyncio.create_task(ping_loop())
+
+    try:
+        # Wait until either task fails/completes
+        done, pending = await asyncio.wait(
+            [receiver_task, pinger_task],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for task in pending:
+            task.cancel()
     except WebSocketDisconnect:
         pass
     finally:

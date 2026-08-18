@@ -2,7 +2,7 @@
 Memory Worker — background worker subscribe EventBus (via Outbox) → trigger Memory Refresh.
 
 Trigger logic:
-- SEND_MESSAGE → check: nếu conversation idle > 5 phút → trigger refresh cho CẢ 2 user
+- NEW_MESSAGE → check: nếu conversation idle > 5 phút → trigger refresh cho CẢ 2 user
 - CLOSE_CHAT → trigger refresh ngay cho CẢ 2 user
 - OPEN_AI (manual) → trigger refresh ngay cho 1 user cụ thể
 """
@@ -48,7 +48,7 @@ class MemoryWorker:
         return self._agent
 
     def subscribe(self) -> None:
-        self._event_bus.subscribe(EventType.SEND_MESSAGE, self._on_send_message)
+        self._event_bus.subscribe(EventType.NEW_MESSAGE, self._on_send_message)
         self._event_bus.subscribe(EventType.CLOSE_CHAT, self._on_close_chat)
         self._event_bus.subscribe(EventType.OPEN_AI, self._on_open_ai)
         logger.info("MemoryWorker subscribed to EventBus events")
@@ -87,7 +87,7 @@ class MemoryWorker:
 
             if should_trigger:
                 logger.info(
-                    "SEND_MESSAGE: triggering memory refresh for conversation_id=%s (idle detected)",
+                    "NEW_MESSAGE: triggering memory refresh for conversation_id=%s (idle detected)",
                     conversation_id,
                 )
                 await self._queue_refresh(conversation.user_a_id, conversation_id)

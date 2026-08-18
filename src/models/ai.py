@@ -75,7 +75,7 @@ class EventLog(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     conversation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("direct_conversations.id", ondelete="SET NULL"), nullable=True, index=True)
 
-    event_type: Mapped[str] = mapped_column(String(50)) # OPEN_CHAT, SEND_MESSAGE, SEARCH, etc.
+    event_type: Mapped[str] = mapped_column(String(50)) # OPEN_CHAT, NEW_MESSAGE, SEARCH, etc.
     payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[created_at_col]

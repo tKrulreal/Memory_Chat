@@ -77,7 +77,7 @@ class MessageService:
             from src.events.types import EventType
             event_bus.publish(
                 db=db,
-                event_type=EventType.SEND_MESSAGE,
+                event_type=EventType.NEW_MESSAGE,
                 user_id=user_id,
                 payload={"message_id": str(message.id), "content": message.content},
                 conversation_id=conversation_id,

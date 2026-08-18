@@ -3,10 +3,16 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
-
-
 class EventType(StrEnum):
-    SEND_MESSAGE = "SEND_MESSAGE"
+    # Real-time WebSocket standard events
+    NEW_MESSAGE = "NEW_MESSAGE"
+    MESSAGE_RECALLED = "MESSAGE_RECALLED"
+    MESSAGE_UPDATED = "MESSAGE_UPDATED"
+    TYPING = "TYPING"
+    READ_RECEIPT = "READ_RECEIPT"
+    CONNECTION_REQUEST = "CONNECTION_REQUEST"
+
+    # AI/Internal events
     OPEN_CHAT = "OPEN_CHAT"
     CLOSE_CHAT = "CLOSE_CHAT"
     MEMORY_REFRESH = "MEMORY_REFRESH"

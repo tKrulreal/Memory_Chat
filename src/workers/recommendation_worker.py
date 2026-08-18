@@ -17,7 +17,7 @@ class RecommendationWorker:
     def subscribe(self):
         # Trigger when Memory is updated or Message is created
         self._event_bus.subscribe(EventType.MEMORY_UPDATED, self._handle_trigger)
-        self._event_bus.subscribe(EventType.SEND_MESSAGE, self._handle_trigger)
+        self._event_bus.subscribe(EventType.NEW_MESSAGE, self._handle_trigger)
 
     async def _handle_trigger(self, event: ChatEvent):
         try:
