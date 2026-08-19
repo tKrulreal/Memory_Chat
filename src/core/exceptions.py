@@ -32,16 +32,26 @@ def setup_exception_handlers(app):
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+        # Flatten simple details
+        message = str(exc.detail) if not isinstance(exc.detail, dict) else exc.detail.get("message", str(exc.detail))
         return JSONResponse(
             status_code=exc.status_code,
-            content={"error": "HTTP Error", "message": str(exc.detail)},
+            content={"error": "HTTP Error", "message": message},
         )
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        # Format validation errors cleanly
+        errors = []
+        for err in exc.errors():
+            loc = ".".join(map(str, err.get("loc", [])))
+            msg = err.get("msg", "")
+            errors.append(f"{loc}: {msg}")
+        
+        message = ", ".join(errors) if errors else "Invalid request payload"
         return JSONResponse(
             status_code=422,
-            content={"error": "Validation Error", "details": exc.errors()},
+            content={"error": "Validation Error", "message": message},
         )
 
     @app.exception_handler(Exception)
