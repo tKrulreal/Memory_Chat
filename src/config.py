@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
 
     # Database
-    database_url: str = "sqlite:///./data/app.db"
+    database_url: str = "postgresql://postgres:postgres@localhost:5432/memorychat"
 
     # Vector Store
     qdrant_url: str = "http://localhost:6333"

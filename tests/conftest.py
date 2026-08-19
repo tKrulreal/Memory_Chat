@@ -18,15 +18,14 @@ from src.models import Base, User
 @pytest.fixture
 def db_session() -> Generator[Session]:
     """Provide a fresh database so tests cannot affect application data."""
+    import os
+    test_db_url = os.getenv("TEST_DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/memorychat_test")
     engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
+        test_db_url,
         poolclass=StaticPool,
     )
 
-    @event.listens_for(engine, "connect")
-    def enable_foreign_keys(dbapi_connection, _connection_record):
-        dbapi_connection.execute("PRAGMA foreign_keys=ON")
+    # PostgreSQL enforces foreign keys by default, no PRAGMA needed
 
     Base.metadata.create_all(engine)
     session = sessionmaker(bind=engine, autocommit=False, autoflush=False)()
