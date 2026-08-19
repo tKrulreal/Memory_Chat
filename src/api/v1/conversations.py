@@ -230,7 +230,7 @@ def update_assistant_context(
     )
     db.commit()
     
-    # Sync with ChromaDB
+    # Sync with Qdrant
     try:
         facts_str = "\n".join([f"- {k}: {v}" for k, v in (memory.facts or {}).items()])
         text_for_embedding = f"Summary: {memory.summary}\nFacts:\n{facts_str}"
@@ -251,7 +251,7 @@ def update_assistant_context(
         )
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning("Failed to sync updated context to ChromaDB: %s", e)
+        logging.getLogger(__name__).warning("Failed to sync updated context to Qdrant: %s", e)
         
     context_data = memory.facts or {}
     context_data["summary"] = memory.summary
@@ -335,7 +335,7 @@ async def trigger_context_refresh(
     db.commit()
     db.refresh(memory)
 
-    # 4. Đồng bộ với ChromaDB vector store
+    # 4. Đồng bộ với Qdrant vector store
     try:
         facts_str = "\n".join([f"- {k}: {v}" for k, v in facts.items()])
         text_for_embedding = f"Summary: {memory.summary}\nFacts:\n{facts_str}"
@@ -353,7 +353,7 @@ async def trigger_context_refresh(
             },
         )
     except Exception as e:
-        logging.getLogger(__name__).warning("Failed to sync updated context to ChromaDB: %s", e)
+        logging.getLogger(__name__).warning("Failed to sync updated context to Qdrant: %s", e)
 
     # 5. Phát sự kiện thông báo cập nhật
     event_bus.publish(

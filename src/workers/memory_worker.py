@@ -235,7 +235,7 @@ class MemoryWorker:
                         "updated_at": datetime.now(UTC).isoformat(),
                     },
                 )
-                logger.info("Upserted memory to ChromaDB for user_id=%s", user_id)
+                logger.info("Upserted memory to Qdrant for user_id=%s", user_id)
             except Exception as emb_e:
                 logger.warning("Failed to embed memory for user_id=%s: %s", user_id, emb_e)
 

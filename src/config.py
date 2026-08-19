@@ -35,7 +35,8 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/app.db"
 
     # Vector Store
-    chroma_persist_dir: str = "./data/chroma"
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: str = ""
 
     # Security Limits
     max_request_size_bytes: int = 10485760  # 10MB default
