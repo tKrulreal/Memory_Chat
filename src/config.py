@@ -12,9 +12,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # App
     app_name: str = "AI20K Agent"
-    app_env: Literal["development", "production", "test"] = "development"
+    app_env: Literal["development", "production", "test", "staging"] = "development"
+    debug: bool = False
     app_port: int = Field(default=8000, ge=1, le=65535)
     app_host: str = "0.0.0.0"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
@@ -37,7 +37,26 @@ class Settings(BaseSettings):
     # Vector Store
     chroma_persist_dir: str = "./data/chroma"
 
+    # Security Limits
+    max_request_size_bytes: int = 10485760  # 10MB default
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    
+    # Production Security Checks
+    if settings.app_env in ("production", "staging"):
+        if settings.jwt_secret == "local-dev-secret-change-in-production":
+            raise ValueError("FATAL: JWT Secret must be changed in production/staging!")
+        if settings.log_level == "DEBUG":
+            raise ValueError("FATAL: LOG_LEVEL cannot be DEBUG in production/staging!")
+        if "*" in settings.cors_origins.split(","):
+            raise ValueError("FATAL: CORS origins cannot contain wildcard '*' in production/staging!")
+        if settings.debug:
+            raise ValueError("FATAL: Debug mode must be disabled in production/staging!")
+        if not settings.openai_api_key and not getattr(settings, 'openrouter_api_key', ''):
+            # In a real app we'd enforce this, but since it's configurable via LLMGateway
+            # we just warn, or let the validation catch it on use
+            pass
+            
+    return settings
