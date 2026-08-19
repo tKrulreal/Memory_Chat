@@ -58,3 +58,11 @@ out/
 # AI logs — tracked structure, ignored content
 .ai-log/*.jsonl
 .ai-log/archive/
+.vibecoding
+*.jsonl
+!data/.gitkeep
+!backup/.gitkeep
+
+# Local backup files
+backup/*.tar.gz
+backup/latest.tar.gz
