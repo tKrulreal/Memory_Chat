@@ -53,41 +53,45 @@ class MessageService:
     def create_message(
         self, db: Session, user_id: uuid.UUID, conversation_id: uuid.UUID, data: MessageCreate, event_bus: "EventBus"
     ) -> tuple[Message, bool]:
-        conversation = self._require_owned_conversation(db, user_id, conversation_id)
+        from src.core.metrics import message_delivery_latency_seconds, message_send_failures_total
         
-        # Check idempotency
-        existing = self.repository.get_by_client_id(db, data.client_message_id)
-        if existing:
-            return existing, False  # Return tuple: (message, is_new)
+        with message_delivery_latency_seconds.time():
+            conversation = self._require_owned_conversation(db, user_id, conversation_id)
+            
+            # Check idempotency
+            existing = self.repository.get_by_client_id(db, data.client_message_id)
+            if existing:
+                return existing, False  # Return tuple: (message, is_new)
 
-        message = Message(
-            conversation_id=conversation_id,
-            sender_user_id=user_id,
-            client_message_id=data.client_message_id,
-            content=data.content,
-            message_type="TEXT",
-        )
-        conversation.last_message_id = str(data.client_message_id)
-        # Trim content if it exceeds 1024 chars to avoid DB error
-        conversation.last_message_content = data.content[:1024] if data.content else None
-        conversation.last_message_time = datetime.now(UTC)
-        try:
-            db.add_all([message, conversation])
-            db.flush() # Lấy message.id trước khi commit
-            from src.events.types import EventType
-            event_bus.publish(
-                db=db,
-                event_type=EventType.NEW_MESSAGE,
-                user_id=user_id,
-                payload={"message_id": str(message.id), "content": message.content},
+            message = Message(
                 conversation_id=conversation_id,
+                sender_user_id=user_id,
+                client_message_id=data.client_message_id,
+                content=data.content,
+                message_type="TEXT",
             )
-            db.commit()
-            db.refresh(message)
-        except Exception:
-            db.rollback()
-            raise
-        return message, True
+            conversation.last_message_id = str(data.client_message_id)
+            # Trim content if it exceeds 1024 chars to avoid DB error
+            conversation.last_message_content = data.content[:1024] if data.content else None
+            conversation.last_message_time = datetime.now(UTC)
+            try:
+                db.add_all([message, conversation])
+                db.flush() # Lấy message.id trước khi commit
+                from src.events.types import EventType
+                event_bus.publish(
+                    db=db,
+                    event_type=EventType.NEW_MESSAGE,
+                    user_id=user_id,
+                    payload={"message_id": str(message.id), "content": message.content},
+                    conversation_id=conversation_id,
+                )
+                db.commit()
+                db.refresh(message)
+            except Exception:
+                message_send_failures_total.inc()
+                db.rollback()
+                raise
+            return message, True
 
     def get_owned_message(self, db: Session, user_id: uuid.UUID, message_id: uuid.UUID) -> Message:
         message = self.repository.get(db, id=message_id)

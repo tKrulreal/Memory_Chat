@@ -135,16 +135,22 @@ class MemoryWorker:
         asyncio.create_task(self._refresh_memory(user_id, conversation_id))
 
     async def _refresh_memory(self, user_id: uuid.UUID, conversation_id: uuid.UUID) -> None:
+        from src.core.metrics import ai_job_failures_total, ai_job_duration_seconds
+        
         task_key = (user_id, conversation_id)
         try:
-            await self._do_refresh(user_id, conversation_id)
+            with ai_job_duration_seconds.labels(worker_type="memory_worker").time():
+                await self._do_refresh(user_id, conversation_id)
         except Exception as e:
             logger.exception("Memory refresh failed for %s: %s", task_key, e)
+            ai_job_failures_total.labels(worker_type="memory_worker").inc()
             await asyncio.sleep(30)
             try:
-                await self._do_refresh(user_id, conversation_id)
+                with ai_job_duration_seconds.labels(worker_type="memory_worker_retry").time():
+                    await self._do_refresh(user_id, conversation_id)
             except Exception as retry_e:
                 logger.exception("Memory refresh RETRY failed for %s: %s", task_key, retry_e)
+                ai_job_failures_total.labels(worker_type="memory_worker_retry").inc()
         finally:
             async with self._lock:
                 self._pending_tasks.discard(task_key)

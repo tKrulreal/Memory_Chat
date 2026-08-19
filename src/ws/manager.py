@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import WebSocket
-
+from src.core.metrics import websocket_active_connections, websocket_disconnects_total
 
 class ConnectionManager:
     def __init__(self):
@@ -10,12 +10,16 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, user_id: uuid.UUID) -> None:
         await websocket.accept()
         self._connections.setdefault(user_id, set()).add(websocket)
+        websocket_active_connections.inc()
 
     def disconnect(self, websocket: WebSocket, user_id: uuid.UUID) -> None:
         connections = self._connections.get(user_id)
         if connections is None:
             return
-        connections.discard(websocket)
+        if websocket in connections:
+            connections.discard(websocket)
+            websocket_active_connections.dec()
+            websocket_disconnects_total.inc()
         if not connections:
             del self._connections[user_id]
 

@@ -76,6 +76,14 @@ async def lifespan(app: FastAPI):
         logger.info("app_shutdown_complete")
 
 
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from src.core.security_middlewares import RequestSizeLimitMiddleware
+from fastapi.responses import JSONResponse
+from fastapi import Request
+
 app = FastAPI(
     title="MemoryChat API",
     description="AI-powered P2P messaging",
@@ -83,9 +91,25 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Set up Rate Limiter
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
+app.state.limiter = limiter
+
+@app.exception_handler(RateLimitExceeded)
+async def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"error": "Rate Limit Exceeded", "message": f"Rate limit exceeded: {exc.detail}"}
+    )
+
 setup_exception_handlers(app)
 
 app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(
+    RequestSizeLimitMiddleware,
+    max_request_size=settings.max_request_size_bytes,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins.split(","),
@@ -107,16 +131,21 @@ app.include_router(connection_requests_router, prefix="/api/v1", tags=["connecti
 app.include_router(profile_router, prefix="/api/v1", tags=["profile"])
 
 
+from prometheus_fastapi_instrumentator import Instrumentator
 
-@app.get("/health")
-async def health():
+Instrumentator().instrument(app).expose(app)
+
+@app.get("/health/liveness", tags=["health"])
+async def liveness():
     """
-    Health check endpoint.
+    Liveness probe for container orchestration.
+    """
+    return {"status": "ok", "version": APP_VERSION}
 
-    Returns:
-        - status: "ok" if healthy
-        - version: Application version
-        - db: Database connection status
+@app.get("/health/readiness", tags=["health"])
+async def readiness():
+    """
+    Readiness probe. Checks if dependencies (like DB) are healthy.
     """
     db_status = "ok"
     try:
@@ -125,9 +154,11 @@ async def health():
     except Exception as e:
         db_status = f"error: {str(e)}"
         logger.error("health_check_db_failed", error=str(e))
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="Service Unavailable: DB connection failed")
 
     return {
-        "status": "ok" if db_status == "ok" else "degraded",
+        "status": "ok",
         "version": APP_VERSION,
         "db": db_status,
     }
