@@ -26,13 +26,9 @@ def search_conversations(
     if not query.strip():
         return []
 
+    vector_results = None
     try:
         query_embedding = LLMGateway().embed(query)
-    except Exception as e:
-        logger.error(f"Error embedding query: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to embed query: {str(e)}")
-
-    try:
         vector_results = VectorStoreService.get_instance().query(
             query_embedding=query_embedding,
             owner_user_id=str(current_user.id),
@@ -40,44 +36,63 @@ def search_conversations(
             top_k=top_k
         )
     except Exception as e:
-        logger.error(f"Error querying vector store: {e}")
-        raise HTTPException(status_code=500, detail="Search service unavailable")
-
-    if not vector_results["ids"]:
-        return []
+        logger.warning(f"Vector search failed, falling back to DB: {e}")
 
     results = []
-    
-    # In ChromaDB response, distances are returned. We don't have access to distances in the VectorSearchResult dict yet,
-    # because VectorSearchResult doesn't include distances. Let's just mock score for now or omit it.
-    # The documents list contains the snippet.
-    for doc, meta in zip(vector_results["documents"], vector_results["metadatas"]):
-        conversation_id_str = meta.get("conversation_id")
-        if not conversation_id_str:
-            continue
+
+    if vector_results and vector_results.get("ids"):
+        # Process vector search results
+        for doc, meta in zip(vector_results["documents"], vector_results["metadatas"]):
+            conversation_id_str = meta.get("conversation_id")
+            if not conversation_id_str:
+                continue
+                
+            try:
+                conv_id = uuid.UUID(conversation_id_str)
+            except ValueError:
+                continue
+                
+            conv = db.query(Conversation).filter(Conversation.id == conv_id).first()
+            if not conv:
+                continue
+                
+            peer = conv.user_b if str(conv.user_a_id) == str(current_user.id) else conv.user_a
             
-        # Find the conversation to get the peer
-        try:
-            conv_id = uuid.UUID(conversation_id_str)
-        except ValueError:
-            continue
-            
-        conv = db.query(Conversation).filter(Conversation.id == conv_id).first()
-        if not conv:
-            continue
-            
-        # Determine peer
-        peer = conv.user_b if str(conv.user_a_id) == str(current_user.id) else conv.user_a
+            if any(r.conversation_id == conversation_id_str for r in results):
+                continue
+                
+            results.append(SearchResult(
+                conversation_id=conversation_id_str,
+                peer=ParticipantResponse.model_validate(peer),
+                summary_snippet=doc,
+                score=1.0 
+            ))
+    else:
+        # Graceful Fallback: Search by peer name or email in PostgreSQL
+        from sqlalchemy import or_
+        conversations = db.query(Conversation).filter(
+            or_(
+                Conversation.user_a_id == current_user.id,
+                Conversation.user_b_id == current_user.id
+            )
+        ).all()
         
-        # Avoid duplicates if multiple chunks from same conversation match
-        if any(r.conversation_id == conversation_id_str for r in results):
-            continue
+        query_lower = query.lower()
+        for conv in conversations:
+            peer = conv.user_b if str(conv.user_a_id) == str(current_user.id) else conv.user_a
+            peer_name = (peer.full_name or "").lower()
+            peer_email = (peer.email or "").lower()
             
-        results.append(SearchResult(
-            conversation_id=conversation_id_str,
-            peer=ParticipantResponse.model_validate(peer),
-            summary_snippet=doc,
-            score=1.0  # Dummy score since distances aren't in VectorSearchResult
-        ))
+            if query_lower in peer_name or query_lower in peer_email:
+                results.append(SearchResult(
+                    conversation_id=str(conv.id),
+                    peer=ParticipantResponse.model_validate(peer),
+                    summary_snippet="Tìm thấy thông tin khớp từ khóa.",
+                    score=0.5
+                ))
+                if len(results) >= top_k:
+                    break
 
     return results
+
+

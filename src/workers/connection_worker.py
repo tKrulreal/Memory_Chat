@@ -60,14 +60,28 @@ class ConnectionRecommendationWorker:
                 self._pending_tasks.add(task_key)
 
             try:
-                # Debounce: wait before processing
-                await asyncio.sleep(self._debounce_seconds)
+                # Instead of blocking the OutboxWorker, run the slow LLM job in background
+                asyncio.create_task(self._process_task(user_id, task_key))
+            except Exception as task_err:
+                logger.error(f"Failed to create task for {user_id}: {task_err}")
+                async with self._lock:
+                    self._pending_tasks.discard(task_key)
 
-                # Check if another task was queued after us
-                if task_key not in self._pending_tasks:
-                    logger.debug(f"Task cancelled for user {user_id}")
-                    return
+        except Exception as e:
+            logger.error(f"Error in ConnectionRecommendationWorker: {e}")
 
+    async def _process_task(self, user_id: uuid.UUID, task_key: str):
+        from src.core.metrics import ai_job_failures_total, ai_job_duration_seconds
+        try:
+            # Debounce: wait before processing
+            await asyncio.sleep(self._debounce_seconds)
+
+            # Check if another task was queued after us
+            if task_key not in self._pending_tasks:
+                logger.debug(f"Task cancelled for user {user_id}")
+                return
+
+            with ai_job_duration_seconds.labels(worker_type="connection_worker").time():
                 logger.info(f"ConnectionRecommendationWorker processing for user {user_id}")
 
                 # Generate recommendations
@@ -83,12 +97,12 @@ class ConnectionRecommendationWorker:
                 if recommendations:
                     await self._create_notifications(user_id, len(recommendations))
 
-            finally:
-                async with self._lock:
-                    self._pending_tasks.discard(task_key)
-
         except Exception as e:
-            logger.error(f"Error in ConnectionRecommendationWorker: {e}")
+            logger.error(f"Error in ConnectionRecommendationWorker background task: {e}")
+            ai_job_failures_total.labels(worker_type="connection_worker").inc()
+        finally:
+            async with self._lock:
+                self._pending_tasks.discard(task_key)
 
     async def _create_notifications(self, user_id: uuid.UUID, count: int):
         """Tạo notification cho user về recommendations mới."""

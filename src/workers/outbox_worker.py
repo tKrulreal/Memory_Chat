@@ -48,6 +48,12 @@ class OutboxWorker:
     async def _process_pending_events(self):
         session = self.session_factory()
         try:
+            from src.core.metrics import outbox_queue_backlog
+            
+            # Update backlog metric
+            pending_count = session.query(OutboxEvent).filter(OutboxEvent.status == "PENDING").count()
+            outbox_queue_backlog.set(pending_count)
+
             # Query up to 50 pending events
             events = (
                 session.query(OutboxEvent)
