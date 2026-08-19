@@ -30,6 +30,7 @@ export type Message = {
   created_at: string;
   client_message_id?: string | null;
   deleted_at?: string | null;
+  local_status?: "sending" | "sent" | "failed";
 };
 
 export type Pagination = {

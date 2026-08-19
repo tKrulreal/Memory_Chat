@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Undo2 } from "lucide-react";
+import { Undo2, RefreshCw } from "lucide-react";
 
 type MessageBubbleProps = {
   content: string;
@@ -9,6 +9,7 @@ type MessageBubbleProps = {
   deleted_at?: string | null;
   onRecall?: () => void;
   isRecalling?: boolean;
+  onRetry?: () => void;
 };
 
 export function MessageBubble({ 
@@ -18,7 +19,8 @@ export function MessageBubble({
   status = "sent",
   deleted_at,
   onRecall,
-  isRecalling
+  isRecalling,
+  onRetry
 }: MessageBubbleProps) {
   if (deleted_at) {
     return (
@@ -59,7 +61,7 @@ export function MessageBubble({
               ? "rounded-bubble rounded-br-sm bg-accent text-black"
               : "rounded-bubble rounded-bl-sm bg-elevated text-primary",
             status === "pending" && "opacity-70",
-            status === "error" && "border border-red-500",
+            status === "error" && "border-2 border-red-500 bg-red-500/10 text-red-500",
             isRecalling && "opacity-50"
           )}
         >
@@ -77,12 +79,23 @@ export function MessageBubble({
             <Undo2 size={16} />
           </button>
         )}
+        
+        {outgoing && status === "error" && onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="flex items-center justify-center p-1.5 text-red-500 hover:bg-elevated rounded-full transition-colors"
+            title="Thử lại"
+          >
+            <RefreshCw size={16} />
+          </button>
+        )}
       </div>
       <span className="mt-1 flex items-center gap-1 text-[11px] text-secondary">
         {time}
-        {status === "pending" && <span>(sending...)</span>}
-        {status === "error" && <span className="text-red-500">(failed)</span>}
-        {isRecalling && <span>(recalling...)</span>}
+        {status === "pending" && <span>(đang gửi...)</span>}
+        {status === "error" && <span className="text-red-500">(lỗi mạng)</span>}
+        {isRecalling && <span>(đang thu hồi...)</span>}
       </span>
     </div>
   );

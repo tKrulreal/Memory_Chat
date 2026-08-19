@@ -3,10 +3,8 @@
 import { useState } from "react";
 import { Paperclip, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { sendMessage } from "@/lib/api/messages";
+import { useSendMessage } from "@/hooks/use-send-message";
 import { v4 as uuidv4 } from "uuid";
-import type { Message } from "@/types";
 import { useEffect } from "react";
 import { useUIStore } from "@/lib/stores/ui-store";
 
@@ -16,7 +14,7 @@ type ComposerProps = {
 
 export function Composer({ conversationId }: ComposerProps) {
   const [content, setContent] = useState("");
-  const queryClient = useQueryClient();
+  const mutation = useSendMessage(conversationId);
   const setCopilotOpen = useUIStore((s) => s.setCopilotOpen);
 
   useEffect(() => {
@@ -29,40 +27,7 @@ export function Composer({ conversationId }: ComposerProps) {
     return () => window.removeEventListener("insert-composer", handleInsert);
   }, []);
 
-  const mutation = useMutation({
-    mutationFn: ({ content, clientMessageId }: { content: string; clientMessageId: string }) =>
-      sendMessage(conversationId, content, clientMessageId),
-    onMutate: async ({ content, clientMessageId }) => {
-      await queryClient.cancelQueries({ queryKey: ["messages", conversationId] });
-      const previousMessages = queryClient.getQueryData(["messages", conversationId]);
-      
-      const optimisticMessage: Message = {
-        id: clientMessageId,
-        conversation_id: conversationId,
-        sender_user_id: "optimistic",
-        content,
-        created_at: new Date().toISOString(),
-        client_message_id: clientMessageId,
-      };
-      
-      queryClient.setQueryData(["messages", conversationId], (old: any) => {
-        if (!old) return { data: [optimisticMessage], pagination: { page: 1, limit: 50, total: 1 } };
-        return {
-          ...old,
-          data: [optimisticMessage, ...old.data],
-        };
-      });
 
-      return { previousMessages, clientMessageId };
-    },
-    onError: (err, newTodo, context) => {
-      queryClient.setQueryData(["messages", conversationId], context?.previousMessages);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    },
-  });
 
   const handleSend = () => {
     const text = content.trim();

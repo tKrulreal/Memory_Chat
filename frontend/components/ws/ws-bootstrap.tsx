@@ -25,28 +25,29 @@ export function WSBootstrap({ children }: { children: React.ReactNode }) {
         // Ignore optimistic messages that we already sent 
         // Or actually, we should replace the optimistic message or just append if it's from someone else
         
-        // 1. Update message list for the specific conversation
+        // 1. Update message list for the specific conversation (Infinite Query shape)
         queryClient.setQueryData(["messages", message.conversation_id], (old: any) => {
-          if (!old) return old;
+          if (!old || !old.pages || old.pages.length === 0) return old;
+          
+          const newPages = [...old.pages];
+          const firstPage = { ...newPages[0] };
           
           // Check if we already have it (optimistic)
-          const exists = old.data.find((m: Message) => m.id === message.id || (message.client_message_id && m.client_message_id === message.client_message_id));
-          
-          if (exists) {
-            // Update it to remove "pending" state (it's now confirmed by the server)
-            return {
-              ...old,
-              data: old.data.map((m: Message) => 
-                (m.id === message.id || m.client_message_id === message.client_message_id) ? message : m
-              ),
-            };
-          }
+          let exists = false;
+          firstPage.data = firstPage.data.map((m: Message) => {
+            if (m.id === message.id || (m.client_message_id && m.client_message_id === message.client_message_id)) {
+              exists = true;
+              return message;
+            }
+            return m;
+          });
 
-          // Otherwise append
-          return {
-            ...old,
-            data: [message, ...old.data].sort((a: Message, b: Message) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-          };
+          if (!exists) {
+            firstPage.data = [message, ...firstPage.data].sort((a: Message, b: Message) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          }
+          
+          newPages[0] = firstPage;
+          return { ...old, pages: newPages };
         });
 
         // 2. Invalidate conversations list so it updates the last message preview
@@ -60,15 +61,18 @@ export function WSBootstrap({ children }: { children: React.ReactNode }) {
         if (!data.conversation_id || !data.message_id) return;
         
         queryClient.setQueryData(["messages", data.conversation_id], (old: any) => {
-          if (!old || !old.data) return old;
+          if (!old || !old.pages) return old;
           
           return {
             ...old,
-            data: old.data.map((m: Message) => 
-              m.id === data.message_id 
-                ? { ...m, deleted_at: data.deleted_at } 
-                : m
-            ),
+            pages: old.pages.map((page: any) => ({
+              ...page,
+              data: page.data.map((m: Message) => 
+                m.id === data.message_id 
+                  ? { ...m, deleted_at: data.deleted_at } 
+                  : m
+              )
+            }))
           };
         });
       }

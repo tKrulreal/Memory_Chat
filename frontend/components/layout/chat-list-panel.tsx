@@ -6,8 +6,9 @@ import { useConversationStore } from "@/lib/stores/conversation-store";
 
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getConversations } from "@/lib/api/conversations";
+import { getMessages } from "@/lib/api/messages";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -23,6 +24,7 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
   const user = useAuthStore((s) => s.user);
   const activeId = useConversationStore((s) => s.activeConversationId);
   const setActive = useConversationStore((s) => s.setActiveConversation);
+  const queryClient = useQueryClient();
 
   const handleSelect = (conversationId: string) => {
     setActive(conversationId);
@@ -127,6 +129,15 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
                 type="button"
                 onClick={() => {
                   handleSelect(conversation.id);
+                }}
+                onMouseEnter={() => {
+                  if (!active) {
+                    queryClient.prefetchInfiniteQuery({
+                      queryKey: ["messages", conversation.id],
+                      queryFn: ({ pageParam }) => getMessages(conversation.id, pageParam?.beforeCreatedAt, pageParam?.beforeId),
+                      initialPageParam: undefined as { beforeCreatedAt: string, beforeId: string } | undefined,
+                    });
+                  }
                 }}
                 className={cn(
                   "flex w-full gap-3 border-l-2 px-4 py-3 text-left transition-colors",

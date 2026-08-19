@@ -7,6 +7,9 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
+import { useEffect } from "react";
+import { useInView } from "react-intersection-observer";
+import { useSendMessage } from "@/hooks/use-send-message";
 import { AIContextBar } from "@/components/ai/ai-context-bar";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useConversationStore } from "@/lib/stores/conversation-store";
@@ -29,6 +32,8 @@ export function ChatWindow() {
   const user = useAuthStore((s) => s.user);
   const activeId = useConversationStore((s) => s.activeConversationId);
   const conversations = useConversationStore((s) => s.conversations);
+  
+  const sendMessageMutation = useSendMessage(activeId || "");
 
   const { data: activeConversations = [] } = useQuery({
     queryKey: ["conversations"],
@@ -88,6 +93,14 @@ export function ChatWindow() {
     initialPageParam: undefined as { beforeCreatedAt: string, beforeId: string } | undefined,
     enabled: !!activeId,
   });
+
+  const { ref, inView } = useInView();
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (!activeId) {
     return (
@@ -198,14 +211,10 @@ export function ChatWindow() {
         {!isLoading && messages.length === 0 && <p className="text-center text-xs text-secondary w-full">No messages yet. Say hi!</p>}
         
         {hasNextPage && (
-          <div className="flex justify-center w-full py-2">
-            <button
-              onClick={() => fetchNextPage()}
-              disabled={isFetchingNextPage}
-              className="text-xs text-accent hover:underline disabled:opacity-50"
-            >
-              {isFetchingNextPage ? "Loading more..." : "Load older messages"}
-            </button>
+          <div ref={ref} className="flex justify-center w-full py-2">
+            <span className="text-xs text-secondary opacity-50">
+              {isFetchingNextPage ? "Loading older messages..." : "Scroll for more"}
+            </span>
           </div>
         )}
         
@@ -216,10 +225,18 @@ export function ChatWindow() {
             content={message.content}
             outgoing={message.sender_user_id === user?.id || message.sender_user_id === "optimistic"}
             time={new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            status={message.sender_user_id === "optimistic" ? "pending" : "sent"}
+            status={message.local_status === "failed" ? "error" : message.local_status === "sending" || message.sender_user_id === "optimistic" ? "pending" : "sent"}
             deleted_at={message.deleted_at}
             onRecall={() => recallMutation.mutate(message.id)}
             isRecalling={recallMutation.isPending && recallMutation.variables === message.id}
+            onRetry={() => {
+              if (message.client_message_id) {
+                sendMessageMutation.mutate({
+                  content: message.content,
+                  clientMessageId: message.client_message_id,
+                });
+              }
+            }}
           />
         ))}
       </div>
