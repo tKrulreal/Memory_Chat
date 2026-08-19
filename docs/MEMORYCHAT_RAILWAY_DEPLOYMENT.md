@@ -1,14 +1,14 @@
-# MemoryChat Railway Deployment Guide
+# Hướng Dẫn Triển Khai MemoryChat Trên Railway
 
-This document is the official operational runbook for deploying the MemoryChat application to Railway. It conforms to the architecture and rules defined in `MEMORYCHAT_RAILWAY_DEPLOYMENT_PLAN.md`.
+Tài liệu này là cẩm nang vận hành chính thức để triển khai ứng dụng MemoryChat lên nền tảng Railway. Tài liệu tuân thủ nghiêm ngặt các quy tắc và kiến trúc đã được định nghĩa trong `MEMORYCHAT_RAILWAY_DEPLOYMENT_PLAN.md`.
 
-## 1. Railway Architecture Overview
+## 1. Tổng Quan Kiến Trúc Trên Railway
 
-MemoryChat requires a multi-service architecture on Railway:
+MemoryChat yêu cầu một kiến trúc gồm nhiều Service độc lập trên Railway:
 
-1. **PostgreSQL Service**: Managed database for persistent relational data.
-2. **Backend Service (FastAPI)**: Handles REST APIs, WebSockets, background AI workers, and ChromaDB.
-3. **Frontend Service (Next.js)**: Handles the UI.
+1. **PostgreSQL Service**: Database được quản lý tự động (Managed database) dùng để lưu trữ dữ liệu quan hệ (Tin nhắn, User, Connection...).
+2. **Backend Service (FastAPI)**: Chịu trách nhiệm xử lý REST APIs, WebSockets, các tác vụ AI ngầm (background workers), và ChromaDB.
+3. **Frontend Service (Next.js)**: Chịu trách nhiệm hiển thị giao diện người dùng (UI).
 
 ```text
                     🌐 Internet
@@ -29,107 +29,107 @@ MemoryChat requires a multi-service architecture on Railway:
 
 ---
 
-## 2. PostgreSQL Setup (Phase 5)
+## 2. Cài Đặt PostgreSQL (Phase 5)
 
-1. Create a **New Project** in Railway.
-2. Click **Add a Plugin** -> **PostgreSQL**.
-3. Railway will provision a Postgres database and automatically expose internal networking variables (e.g., `DATABASE_URL`).
+1. Tạo một **New Project** (Dự án mới) trên Railway.
+2. Click **Add a Plugin** (Thêm Plugin) -> **PostgreSQL**.
+3. Railway sẽ tự động khởi tạo một cơ sở dữ liệu Postgres và cung cấp các biến môi trường nội bộ (ví dụ: `DATABASE_URL`).
 
 ---
 
-## 3. Backend Deployment (Phases 2, 4, 6, 9)
+## 3. Triển Khai Backend (Phases 2, 4, 6, 9)
 
-### A. Create the Service
-1. In your Railway Project, click **New** -> **GitHub Repo**.
-2. Select your `MemoryChat` repository.
-3. Under **Settings -> General**, set the **Root Directory** to `/` (default).
+### A. Tạo Service
+1. Trong Project Railway của bạn, click **New** -> **GitHub Repo**.
+2. Chọn kho lưu trữ `MemoryChat` của bạn.
+3. Tại phần **Settings -> General**, đặt **Root Directory** (Thư mục gốc) là `/` (mặc định).
 
-### B. Persistent Storage (ChromaDB)
-Because ChromaDB stores vector embeddings locally, you MUST attach a volume so data survives redeploys.
-1. Go to **Settings -> Volumes**.
+### B. Lưu Trữ Dữ Liệu Bền Vững (Persistent Storage - ChromaDB)
+Bởi vì ChromaDB lưu trữ dữ liệu vector AI dưới dạng file local, bạn BẮT BUỘC phải gắn một Volume (ổ cứng) để dữ liệu không bị mất mỗi khi deploy lại.
+1. Vào **Settings -> Volumes**.
 2. Click **New Volume**.
-3. Set the **Mount Path** to `/app/data`.
+3. Đặt **Mount Path** (Đường dẫn gắn) là `/app/data`.
 
-### C. Environment Variables (Secrets)
-Go to the **Variables** tab of the Backend service and add:
+### C. Biến Môi Trường (Secrets)
+Vào tab **Variables** của Backend service và thêm các biến sau:
 
-| Variable | Secret | Value / Purpose |
+| Variable | Bí mật | Giá Trị / Mục Đích |
 |---|---|---|
-| `DATABASE_URL` | Yes | *Use Reference: `${{Postgres.DATABASE_URL}}`* |
-| `JWT_SECRET` | Yes | *Generate a strong secure random string* |
-| `OPENAI_API_KEY` | Yes | *Your OpenAI key (or OpenRouter key)* |
-| `APP_ENV` | No | `production` |
-| `CORS_ORIGINS` | No | `https://your-frontend-domain.up.railway.app` |
+| `DATABASE_URL` | Có | *Sử dụng biến Reference của Railway: `${{Postgres.DATABASE_URL}}`* |
+| `JWT_SECRET` | Có | *Tạo một chuỗi ngẫu nhiên, dài và bảo mật* |
+| `OPENAI_API_KEY` | Có | *API Key của OpenAI (hoặc OpenRouter)* |
+| `APP_ENV` | Không | `production` |
+| `CORS_ORIGINS` | Không | `https://ten-mien-frontend-cua-ban.up.railway.app` |
 
-*(Note: Never commit these to Git).*
+*(Lưu ý: Không bao giờ commit các biến bí mật này lên Git).*
 
-### D. Start Command
-Railway automatically injects a dynamic `$PORT`. You must override the default `uvicorn` command.
-1. Go to **Settings -> Deploy**.
-2. Set **Custom Start Command**:
+### D. Lệnh Khởi Chạy (Start Command)
+Railway sẽ tự động cấp một cổng (`$PORT`) ngẫu nhiên. Bạn phải ghi đè lệnh chạy `uvicorn` mặc định để ứng dụng lắng nghe đúng cổng này.
+1. Vào **Settings -> Deploy**.
+2. Thiết lập **Custom Start Command**:
    `uvicorn src.main:app --host 0.0.0.0 --port $PORT --workers 1`
 
-### E. Database Migration
-Once the backend is deployed, you must run migrations to set up tables.
-1. Go to **Deployments** -> **View Logs**.
-2. Open the **Terminal** tab for the Backend service.
-3. Run: `alembic upgrade head`
-4. Verify the database tables exist in the PostgreSQL Data explorer.
+### E. Chạy Migration Database (Khởi tạo bảng)
+Ngay sau khi backend deploy thành công, bạn phải chạy lệnh tạo bảng cho Database.
+1. Vào tab **Deployments** -> **View Logs**.
+2. Mở tab **Terminal** của Backend service.
+3. Chạy lệnh: `alembic upgrade head`
+4. Kiểm tra trong PostgreSQL Data (Mục Data ở góc trên trang Railway) xem các bảng đã được tạo thành công chưa.
 
 ---
 
-## 4. Frontend Deployment (Phases 2, 4, 8)
+## 4. Triển Khai Frontend (Phases 2, 4, 8)
 
-### A. Create the Service
+### A. Tạo Service
 1. Click **New** -> **GitHub Repo**.
-2. Select your `MemoryChat` repository again.
-3. Under **Settings -> General**, set the **Root Directory** to `/frontend`.
-*(Railway will automatically detect the Next.js `frontend/Dockerfile` and build it).*
+2. Chọn kho lưu trữ `MemoryChat` của bạn một lần nữa.
+3. Tại phần **Settings -> General**, đặt **Root Directory** (Thư mục gốc) là `/frontend`.
+*(Railway sẽ tự động nhận diện file `frontend/Dockerfile` và tiến hành build).*
 
-### B. Environment Variables
-Go to the **Variables** tab of the Frontend service and add:
+### B. Biến Môi Trường
+Vào tab **Variables** của Frontend service và thêm:
 
-| Variable | Secret | Value / Purpose |
+| Variable | Bí mật | Giá Trị / Mục Đích |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | No | `https://<your-backend-railway-domain>/api/v1` |
-| `NEXT_PUBLIC_WS_URL` | No | `wss://<your-backend-railway-domain>/ws` |
+| `NEXT_PUBLIC_API_URL` | Không | `https://<ten-mien-backend-cua-ban>/api/v1` |
+| `NEXT_PUBLIC_WS_URL` | Không | `wss://<ten-mien-backend-cua-ban>/ws` |
 
-*Do NOT put JWT secrets or OpenAI keys here.*
+*KHÔNG ĐƯỢC để JWT_SECRET hay OPENAI_API_KEY ở Frontend.*
 
-### C. Start Command
-The `frontend/Dockerfile` already exports `ENV PORT=3000` and uses `node server.js`. Railway will successfully override `$PORT` at runtime. No custom start command is necessary.
-
----
-
-## 5. Domain Configuration (Phase 10)
-
-1. For both Backend and Frontend, go to **Settings -> Networking**.
-2. Click **Generate Domain** to get a free `.up.railway.app` domain, OR click **Custom Domain** to map your own domain.
-3. Ensure the Frontend's `CORS_ORIGINS` matches the Frontend domain, and the Frontend's `NEXT_PUBLIC_*` URLs match the Backend domain.
+### C. Lệnh Khởi Chạy
+File `frontend/Dockerfile` đã xuất sẵn biến `ENV PORT=3000` và dùng lệnh `node server.js`. Railway sẽ tự động ghi đè biến `$PORT` lúc chạy (runtime) nên bạn không cần cài đặt Custom Start Command cho Frontend.
 
 ---
 
-## 6. Staging vs Production (Phases 11 & 12)
+## 5. Cấu Hình Tên Miền (Domain) (Phase 10)
 
-Do not deploy straight to Production. 
-1. Create a Railway Environment named **Staging**.
-2. Deploy the Frontend and Backend to Staging.
-3. Run the [Smoke Test Checklist](./SMOKE_TESTING.md).
-4. Only if all tests pass (including WebSocket reconnects and AI RAG queries), promote or replicate the environment variables to the **Production** environment.
+1. Đối với cả Backend và Frontend, vào **Settings -> Networking**.
+2. Click **Generate Domain** để lấy một tên miền miễn phí `.up.railway.app`, HOẶC click **Custom Domain** để trỏ tên miền riêng của bạn.
+3. Đảm bảo rằng biến `CORS_ORIGINS` của Backend phải khớp chính xác với Domain của Frontend, và các biến `NEXT_PUBLIC_*` của Frontend phải trỏ đúng vào Domain của Backend.
 
 ---
 
-## 7. Rollback Procedures (Phase 13)
+## 6. Staging và Production (Phases 11 & 12)
 
-If a deployment breaks:
-1. **Frontend/Backend Code**: In Railway, go to the Service's **Deployments** tab. Find the previous stable deployment, click the three dots (...), and select **Redeploy**.
-2. **Configuration**: If a bad environment variable caused the crash, revert it in the **Variables** tab (Railway tracks configuration history).
-3. **Database**: Do NOT rollback migrations automatically. Always attempt a forward-fix. If critical, use `alembic downgrade -1` via the Railway Terminal *before* reverting the backend code.
+Đừng vội vã đưa bản deploy đầu tiên cho người dùng cuối (Production).
+1. Tạo một Environment trong Railway và đặt tên là **Staging**.
+2. Triển khai cả Frontend và Backend lên Staging.
+3. Chạy các bài test thủ công theo file [SMOKE_TESTING.md](./SMOKE_TESTING.md).
+4. Chỉ khi TẤT CẢ các bài test đều Pass (Đặc biệt là tính năng Reconnect WebSocket và AI RAG), bạn mới tạo một môi trường **Production**, sao chép các biến môi trường sang và deploy bản chính thức.
 
 ---
 
-## 8. Monitoring and Cost Control (Phases 14 & 15)
+## 7. Quy Trình Cứu Hộ / Rollback (Phase 13)
 
-- **Metrics**: Use Railway's built-in **Metrics** tab to monitor CPU, RAM, and Network for both services.
-- **RAM Warnings**: ChromaDB requires significant RAM during vector ingestion. If the Backend service restarts randomly with `OOMKilled` (Out of Memory), you must upgrade the Railway resource limits for the Backend.
-- **Cost**: Railway charges based on usage. To minimize costs, ensure the Frontend and Backend do not have unnecessary horizontal scaling replicas enabled.
+Nếu bản cập nhật gây lỗi hệ thống:
+1. **Code Frontend/Backend**: Trong giao diện Railway, vào tab **Deployments** của Service bị lỗi. Tìm bản deploy cũ đang chạy ổn định, nhấn vào dấu 3 chấm (...), và chọn **Redeploy**.
+2. **Cấu Hình**: Nếu lỗi do biến môi trường, hãy sửa lại trong tab **Variables** (Railway có lưu lịch sử thay đổi biến).
+3. **Database**: KHÔNG được tự động rollback database migrations. Luôn ưu tiên viết code mới để sửa (forward-fix). Nếu đặc biệt nghiêm trọng, vào Terminal của Railway gõ `alembic downgrade -1` *TRƯỚC KHI* rollback code Backend.
+
+---
+
+## 8. Giám Sát và Tối Ưu Chi Phí (Phases 14 & 15)
+
+- **Giám Sát (Metrics)**: Sử dụng tab **Metrics** có sẵn của Railway để theo dõi CPU, RAM, và Network.
+- **Cảnh báo RAM**: AI ChromaDB ngốn khá nhiều RAM khi xử lý vector dữ liệu. Nếu Backend Service hay bị sập ngẫu nhiên với lỗi `OOMKilled` (Out of Memory), bạn cần nới lỏng giới hạn RAM cho Backend trong Railway (chọn gói tài nguyên cao hơn).
+- **Chi phí**: Railway tính tiền theo mức sử dụng (pay-as-you-go). Để tiết kiệm nhất, đừng bật tính năng Scale (Replicas) nếu chưa thực sự có nhiều người dùng. Mặc định 1 Replica cho mỗi service là đủ.
