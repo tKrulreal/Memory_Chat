@@ -1,16 +1,54 @@
+# Git
 .git
 .gitignore
+
+# Environment
 .env
-.venv
+.env.*
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python
 __pycache__
 *.pyc
+*.pyo
 .pytest_cache
 .ruff_cache
+
+# Documentation
 docs/
 presentation/
 eval/
 *.md
-!requirements.txt
-.dockerignore
-Dockerfile
-docker-compose.yml
+
+# Frontend build artifacts
+node_modules/
+.next/
+out/
+.nuxt/
+
+# Data
+data/
+*.db
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# AI logs (content ignored, structure tracked)
+.ai-log/

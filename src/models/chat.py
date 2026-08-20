@@ -18,10 +18,12 @@ class Conversation(Base):
     user_a_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     user_b_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
 
+    type: Mapped[str] = mapped_column(String(50), default="P2P")
+    title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     last_message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     last_message_content: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     last_message_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    
+
     created_at: Mapped[created_at_col]
     updated_at: Mapped[updated_at_col]
 
@@ -38,9 +40,11 @@ class ConversationUserState(Base):
     conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("direct_conversations.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
 
+    role: Mapped[str] = mapped_column(String(50), default="MEMBER")
     last_read_message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
     is_muted: Mapped[bool] = mapped_column(Boolean, default=False)
+    joined_at: Mapped[created_at_col]
 
     updated_at: Mapped[updated_at_col]
 
@@ -59,9 +63,10 @@ class Message(Base):
     conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("direct_conversations.id", ondelete="CASCADE"), index=True)
     sender_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     client_message_id: Mapped[str | None] = mapped_column(String(255), index=True, nullable=True)
-    
+    reply_to_message_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("messages.id", ondelete="SET NULL"), nullable=True)
+
     content: Mapped[str] = mapped_column(String)
-    message_type: Mapped[str] = mapped_column(String(50)) # TEXT, SYSTEM, v.v.
+    message_type: Mapped[str] = mapped_column(String(50))  # TEXT, SYSTEM, v.v.
 
     created_at: Mapped[created_at_col]
     edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -69,3 +74,21 @@ class Message(Base):
 
     conversation = relationship("Conversation", back_populates="messages")
     sender = relationship("User", back_populates="sent_messages")
+    reactions = relationship("MessageReaction", back_populates="message", cascade="all, delete-orphan")
+
+
+class MessageReaction(Base):
+    __tablename__ = "message_reactions"
+    __table_args__ = (
+        UniqueConstraint("message_id", "user_id", "emoji", name="uq_message_user_emoji"),
+    )
+
+    id: Mapped[uuid_pk]
+    message_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("messages.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    emoji: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    created_at: Mapped[created_at_col]
+
+    message = relationship("Message", back_populates="reactions")
+    user = relationship("User", back_populates="message_reactions")

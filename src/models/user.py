@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, ForeignKey, String
+from sqlalchemy import JSON, Boolean, ForeignKey, String, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.database import Base, created_at_col, updated_at_col, uuid_pk
@@ -17,6 +18,8 @@ class User(Base):
 
     created_at: Mapped[created_at_col]
     updated_at: Mapped[updated_at_col]
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    is_ai: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Relationships
     conversations_as_a = relationship("Conversation", foreign_keys="[Conversation.user_a_id]", back_populates="user_a", cascade="all, delete-orphan")
@@ -32,6 +35,7 @@ class User(Base):
     event_logs = relationship("EventLog", back_populates="user", cascade="all, delete-orphan")
     contacts = relationship("Contact", back_populates="owner", cascade="all, delete-orphan")
     recommendations = relationship("Recommendation", foreign_keys="[Recommendation.owner_user_id]", back_populates="owner", cascade="all, delete-orphan")
+    message_reactions = relationship("MessageReaction", back_populates="user", cascade="all, delete-orphan")
 
 
 class UserProfile(Base):

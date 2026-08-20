@@ -30,9 +30,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /install /usr/local
 ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages
 
-# Install Python packages directly (no --user flag)
-RUN pip install --no-cache-dir -r requirements.txt
-
 # Copy application code
 COPY . .
 

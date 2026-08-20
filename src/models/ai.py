@@ -90,11 +90,13 @@ class AssistantMemory(Base):
     id: Mapped[uuid_pk]
     owner_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("direct_conversations.id", ondelete="CASCADE"), index=True)
-    
+
+    scope: Mapped[str] = mapped_column(String(50), default="CONVERSATION")  # CONVERSATION, GLOBAL, CONTACT
     through_message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     summary: Mapped[str | None] = mapped_column(String, nullable=True)
     facts: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    
+
+    created_at: Mapped[created_at_col]
     updated_at: Mapped[updated_at_col]
 
     owner = relationship("User", back_populates="assistant_memories")
