@@ -1,4 +1,7 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const IS_SERVER = typeof window === "undefined";
+const API_URL = IS_SERVER
+  ? (process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000")
+  : (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000");
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? "memorychat_session";
 
 export const authConfig = {
