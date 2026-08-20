@@ -64,6 +64,11 @@ out/
 !data/.gitkeep
 !backup/.gitkeep
 
-# Local backup files
+# Local backup files — timestamped backups stay local
 backup/*.tar.gz
+backup/*.sql
 backup/latest.tar.gz
+
+# Database dumps — development.sql IS committed intentionally
+# If you need to exclude it, uncomment:
+# database/development.sql

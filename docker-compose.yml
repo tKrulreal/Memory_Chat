@@ -1,29 +1,38 @@
-version: "3.8"
-
 services:
+  # ============================================================
+  # PostgreSQL — Primary database
+  # First run: auto-restores database/development.sql
+  # Subsequent runs: uses persistent volume (data is preserved)
+  # ============================================================
   postgres:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=memorychat
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-memorychat}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      # Init scripts — only run when volume is brand new
+      - ./database:/docker-entrypoint-initdb.d
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d memorychat"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-memorychat}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
+  # ============================================================
+  # Backend — FastAPI / Uvicorn
+  # ============================================================
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "${APP_PORT:-8000}:8000"
     env_file:
       - .env
     volumes:
@@ -38,21 +47,25 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 15s
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - APP_ENV=${APP_ENV:-development}
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/memorychat
+      # Use Docker service name — NOT localhost
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-memorychat}
 
+  # ============================================================
+  # Frontend — Next.js
+  # ============================================================
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # Pass NEXT_PUBLIC_API_URL so it gets baked into the frontend build
+        # Baked into Next.js build at compile time
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     restart: unless-stopped
     depends_on:
       backend:
@@ -60,5 +73,10 @@ services:
     environment:
       - PORT=3000
 
+# ============================================================
+# Volumes
+# ============================================================
 volumes:
   pgdata:
+    # Persistent PostgreSQL data
+    # WARNING: 'docker compose down -v' will DELETE this volume and all data!
