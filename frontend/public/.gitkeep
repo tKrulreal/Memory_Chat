@@ -1,0 +1,2 @@
+# This directory is required for Docker builds
+# Place static assets here that should be served as-is

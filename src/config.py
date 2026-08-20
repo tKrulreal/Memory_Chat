@@ -10,6 +10,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        case_sensitive=False,  # Allow env vars like DATABASE_URL, CORS_ORIGINS
     )
 
     app_name: str = "AI20K Agent"
@@ -18,7 +19,7 @@ class Settings(BaseSettings):
     app_port: int = Field(default=8000, ge=1, le=65535)
     app_host: str = "0.0.0.0"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
-    cors_origins: str = "http://localhost:5173,http://localhost:3000"
+    cors_origins: str = Field(default="http://localhost:5173,http://localhost:3000")
 
     # Auth
     jwt_secret: str = Field(default="local-dev-secret-change-in-production")
@@ -32,14 +33,14 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
 
     # Database
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/memorychat"
+    database_url: str = Field(default="postgresql://postgres:postgres@localhost:5432/memorychat")
 
     # Vector Store
-    qdrant_url: str = "http://localhost:6333"
+    qdrant_url: str = Field(default="http://localhost:6333")
     qdrant_api_key: str = ""
 
     # Security Limits
-    max_request_size_bytes: int = 10485760  # 10MB default
+    max_request_size_bytes: int = Field(default=10485760)  # 10MB default
 
 @lru_cache
 def get_settings() -> Settings:
