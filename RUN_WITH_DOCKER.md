@@ -8,11 +8,16 @@ git clone <repo-url>
 cd P-214
 ```
 
-### 2. Tạo file .env (hoặc dùng .env có sẵn)
+### 2. Cài đặt `.env`
 ```bash
-# Đã có .env rồi thì bỏ qua bước này
+# Nếu chưa có .env, copy từ .env.example
 cp .env.example .env
-# Rồi chỉnh sửa .env với API key của bạn
+
+# Chỉnh sửa .env với API key của bạn
+# Các giá trị quan trọng cần có:
+# - OPENAI_API_KEY
+# - DATABASE_URL (đã có sẵn cho Docker)
+# - QDRANT_URL và QDRANT_API_KEY (Qdrant Cloud)
 ```
 
 ### 3. Build và chạy
@@ -20,15 +25,33 @@ cp .env.example .env
 docker-compose up --build
 ```
 
+> ✅ **Tự động chạy migrations**: Backend sẽ tự động chạy `alembic upgrade head` khi khởi động.
+
 ### 4. Truy cập
-- **Backend API**: http://localhost:8000
-- **Frontend**: http://localhost:3000
-- **API Docs**: http://localhost:8000/docs
-- **Qdrant Dashboard**: http://localhost:6333/dashboard
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs |
+
+## Cấu trúc Services
+
+```
+┌─────────────────────────────────────────────────┐
+│              docker-compose                      │
+├─────────────────────────────────────────────────┤
+│  postgres:5432  │  Database PostgreSQL          │
+│  backend:8000   │  FastAPI Backend             │
+│  frontend:3000  │  Next.js Frontend            │
+│  Qdrant Cloud   │  Vector Store (external)     │
+└─────────────────────────────────────────────────┘
+```
+
+> **Lưu ý**: Project sử dụng **Qdrant Cloud** cho vector storage (đã cấu hình trong `.env`).
 
 ## Các lệnh hữu ích
 
-### Chạy background (khuyến nghị)
+### Chạy background
 ```bash
 docker-compose up --build -d
 ```
@@ -55,30 +78,16 @@ docker-compose restart
 docker-compose down
 ```
 
-### Xóa hoàn toàn (reset)
+### Reset hoàn toàn (xóa database)
 ```bash
 docker-compose down -v
+docker-compose up --build
 ```
 
 ### Rebuild không cache
 ```bash
 docker-compose build --no-cache
 ```
-
-## Cấu trúc services
-
-```
-┌─────────────────────────────────────────────────┐
-│              docker-compose                      │
-├─────────────────────────────────────────────────┤
-│  postgres:5432  │  Database (local)           │
-│  backend:8000   │  FastAPI Backend             │
-│  frontend:3000  │  Next.js Frontend            │
-│  Qdrant Cloud   │  Vector Store (external)     │
-└─────────────────────────────────────────────────┘
-```
-
-> **Lưu ý**: Qdrant đang dùng **Qdrant Cloud** (đã có trong `.env`), không cần chạy local.
 
 ## Troubleshooting
 
@@ -88,69 +97,54 @@ docker-compose build --no-cache
 netstat -ano | findstr :8000
 netstat -ano | findstr :5432
 netstat -ano | findstr :3000
-
-# Hoặc đổi port trong docker-compose.yml
 ```
 
-### Lỗi "Module not found"
+### Backend không healthy
 ```bash
-# Rebuild lại image
-docker-compose build --no-cache backend
+# Xem logs backend
+docker-compose logs backend
+
+# Restart backend
+docker-compose restart backend
 ```
 
-### Lỗi database connection
+### Database migration lỗi
 ```bash
-# Kiểm tra postgres đã healthy chưa
-docker-compose ps
+# Chạy migration thủ công
+docker exec p-214-backend-1 python -m alembic upgrade head
 
-# Reset database
-docker-compose down -v
-docker-compose up -d postgres
-# Đợi 10s rồi chạy tiếp
-docker-compose up -d
-```
-
-### Xem logs chi tiết
-```bash
-docker-compose logs --tail=100 backend
+# Hoặc xem chi tiết
+docker-compose logs backend | grep -A5 "alembic"
 ```
 
 ## Environment Variables quan trọng
 
-Trong file `.env`:
+File `.env` cần có các biến sau:
 
 ```env
-# Database - dùng Docker
+# Database (PostgreSQL trong Docker)
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/memorychat
 
-# Khi chạy trong Docker, QDRANT_URL phải là tên service
-# QDRANT_URL=http://qdrant:6333  # trong docker-compose
-
-# Qdrant Cloud (nếu dùng external)
-QDRANT_URL=https://xxx.qdrant.io
-QDRANT_API_KEY=your-key
-
 # LLM
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=sk-...          # Required
+
+# Vector Store (Qdrant Cloud)
+QDRANT_URL=https://xxx.qdrant.io
+QDRANT_API_KEY=your-qdrant-key
+
+# Auth
+JWT_SECRET=your-secret-key
 ```
 
-## Development với Docker
+## Development
 
-### Hot reload cho backend
-Backend đã có volumes mount code, nhưng uvicorn trong Docker mặc định không hot reload.
-
-Để enable hot reload, sửa Dockerfile hoặc chạy trực tiếp:
-
+### Chạy backend ngoài Docker (với hot reload)
 ```bash
-# Sửa CMD trong Dockerfile thành:
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-```
+# Chỉ chạy postgres trong Docker
+docker-compose up -d postgres
 
-Hoặc chạy backend ngoài Docker, chỉ dùng Docker cho postgres + qdrant:
-```bash
-# Chỉ chạy database
-docker-compose up -d postgres qdrant
-
-# Rồi chạy backend bình thường
-python -m uvicorn src.main:app --reload
+# Chạy backend trực tiếp với hot reload
+cd P-214
+source .venv/Scripts/activate  # Windows: .venv\Scripts\activate
+python -m uvicorn src.main:app --reload --port 8000
 ```

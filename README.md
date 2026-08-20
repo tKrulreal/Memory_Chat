@@ -13,152 +13,159 @@
 - [Git](https://git-scm.com/)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 
-### First Setup
+### Quick Start
 
 ```bash
+# 1. Clone và cd vào project
 git clone <repository-url>
 cd P-214
 
-# 1. Copy env file và điền API keys
+# 2. Copy và chỉnh sửa .env
 cp .env.example .env
-# Bắt buộc điền: OPENAI_API_KEY, QDRANT_URL, QDRANT_API_KEY, JWT_SECRET
+# Chỉnh sửa .env: OPENAI_API_KEY, QDRANT_URL, QDRANT_API_KEY, JWT_SECRET
 
-# 2. Khởi động tất cả services
+# 3. Build và chạy
 docker compose up --build
 ```
 
-> **Lần đầu chạy**: PostgreSQL tự động restore từ `database/development.sql` — có sẵn development data.
+> ✅ **Tự động hoàn toàn**: Backend tự động chạy database migrations khi khởi động.
 
 ### Services
 
-| Service  | Port | Purpose                          |
-|----------|------|----------------------------------|
-| frontend | 3000 | Next.js UI → http://localhost:3000 |
-| backend  | 8000 | FastAPI API → http://localhost:8000 |
-| postgres | 5432 | PostgreSQL Database              |
+| Service  | Port | URL                          |
+|----------|------|------------------------------|
+| Frontend | 3000 | http://localhost:3000        |
+| Backend | 8000 | http://localhost:8000        |
+| API Docs | 8000 | http://localhost:8000/docs   |
+| Postgres| 5432 | localhost:5432              |
 
-> **Qdrant**: Cloud SaaS — cần cung cấp `QDRANT_URL` và `QDRANT_API_KEY` trong `.env`.  
-> Đăng ký miễn phí tại [cloud.qdrant.io](https://cloud.qdrant.io).
+> **Qdrant**: Sử dụng **Qdrant Cloud** (SaaS). Cấu hình trong `.env`:
+> - `QDRANT_URL`
+> - `QDRANT_API_KEY`
+> - Đăng ký miễn phí tại [cloud.qdrant.io](https://cloud.qdrant.io)
 
 ### Everyday Commands
 
 ```bash
-docker compose up -d          # Start background
-docker compose up --build     # Rebuild images và start
-docker compose down           # Stop (giữ data)
-docker compose restart        # Restart services
-docker compose logs -f        # Follow logs
-docker compose logs backend   # Logs của service cụ thể
-docker compose ps             # Xem trạng thái containers
+# Start background
+docker compose up -d
+
+# Rebuild và start
+docker compose up --build
+
+# Stop (giữ data)
+docker compose down
+
+# Restart
+docker compose restart
+
+# Xem logs
+docker compose logs -f         # Tất cả
+docker compose logs -f backend # Backend only
+
+# Kiểm tra trạng thái
+docker compose ps
 ```
 
 ### Database
 
 Database PostgreSQL chạy hoàn toàn trong Docker:
 
-- **Development dump**: `database/development.sql` — được restore tự động lần đầu
 - **Volume**: `pgdata` — data được giữ nguyên sau `docker compose down`
-- **Migration**: Alembic — chạy `make migrate` sau khi containers up
+- **Migrations**: Tự động chạy khi backend khởi động
+- **Development dump**: `database/development.sql` — được restore lần đầu tiên
 
 ```bash
-# Backup database hiện tại
-make db-backup                    # → backup/db-TIMESTAMP.sql
+# Backup database
+make db-backup
 
 # Update development.sql từ database hiện tại
-make db-dump                      # → database/development.sql (overwrite)
+make db-dump
 
-# Restore từ backup cụ thể
-make db-restore FILE=backup/db-20240820-120000.sql
+# Restore từ backup
+make db-restore FILE=backup/db-TIMESTAMP.sql
 
-# ⚠️ DANGER: Reset về development.sql
+# Reset về development.sql
 make db-reset
 ```
 
-> **⚠️ WARNING**: `docker compose down -v` sẽ **XÓA** Docker volume `pgdata` và toàn bộ data!  
-> Luôn backup trước: `make db-backup`
-
-### Troubleshooting
-
-<details>
-<summary>Port 5432 already in use</summary>
-
-Máy bạn đang có PostgreSQL local đang chạy port 5432. Giải pháp:
-
-```bash
-# Option 1: Đổi port trong .env
-POSTGRES_PORT=5433
-
-# Option 2: Dừng PostgreSQL local
-# macOS: brew services stop postgresql
-# Linux: sudo systemctl stop postgresql
-```
-</details>
-
-<details>
-<summary>Database connection refused / backend không start</summary>
-
-```bash
-# Kiểm tra postgres có healthy không
-docker compose ps
-
-# Xem logs postgres
-docker compose logs postgres
-
-# Nếu postgres không healthy, restart
-docker compose restart postgres
-```
-</details>
-
-<details>
-<summary>Frontend không gọi được backend API</summary>
-
-Kiểm tra `NEXT_PUBLIC_API_URL` trong `.env`:
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-Rebuild frontend sau khi thay đổi:
-```bash
-docker compose up --build frontend
-```
-</details>
-
-<details>
-<summary>Qdrant connection error</summary>
-
-Kiểm tra `QDRANT_URL` và `QDRANT_API_KEY` trong `.env`.  
-Qdrant là Cloud SaaS — cần internet access và API key hợp lệ.
-</details>
-
-<details>
-<summary>Reset toàn bộ và start lại từ đầu</summary>
-
-```bash
-# ⚠️ Xóa tất cả: containers, images, volumes
-docker compose down -v
-docker compose up --build
-# PostgreSQL sẽ restore từ database/development.sql
-```
-</details>
+> ⚠️ **Cảnh báo**: `docker compose down -v` sẽ **XÓA** volume `pgdata` và toàn bộ data!
 
 ---
 
-## ⚡ Quick Start (Local Development)
+## ⚡ Local Development
+
+### Backend ngoài Docker (với hot reload)
 
 ```bash
-cp .env.example .env
-# Edit .env
+# Chỉ chạy database trong Docker
+docker compose up -d postgres
+
+# Chạy backend trực tiếp với hot reload
+cd P-214
+source .venv/Scripts/activate  # Windows: .venv\Scripts\activate
+python -m uvicorn src.main:app --reload --port 8000
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Port đã được sử dụng
+
+```bash
+# Kiểm tra port
+netstat -ano | findstr :8000
+netstat -ano | findstr :5432
+
+# Đổi port trong .env
+POSTGRES_PORT=5433
+```
+
+### Backend không healthy
+
+```bash
+# Xem logs
+docker compose logs backend
+
+# Restart
+docker compose restart backend
+```
+
+### Database migration lỗi
+
+```bash
+# Chạy migration thủ công
+docker compose exec backend python -m alembic upgrade head
+
+# Kiểm tra migrations hiện tại
+docker compose exec backend python -m alembic history
+```
+
+### Reset hoàn toàn
+
+```bash
+docker compose down -v
 docker compose up --build
 ```
 
+---
+
 ## 🏗 Architecture
 
-```text
-Frontend (Next.js :3000)
-        ↓
-Backend (FastAPI :8000)
-        ├──→ PostgreSQL (Docker :5432)
-        └──→ Qdrant Cloud (SaaS external)
+```
+┌─────────────────────────────────────────────────┐
+│              Frontend (Next.js :3000)            │
+└──────────────────────┬──────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────┐
+│              Backend (FastAPI :8000)             │
+├──────────────────────┬──────────────────────────┤
+│                      │                          │
+│      PostgreSQL      │     Qdrant Cloud        │
+│     (:5432 Docker)   │   (Vector Store)        │
+└──────────────────────┴──────────────────────────┘
 ```
 
 Documentation:
@@ -166,6 +173,8 @@ Documentation:
 - [AI Agents](docs/specs/ai-agents.md)
 - [Database Schema](docs/specs/database.md)
 - [API Endpoints](docs/specs/api.md)
+
+---
 
 ## 🛠 Tech Stack
 
@@ -176,10 +185,10 @@ Documentation:
 | Agent | LangGraph Orchestrator |
 | Database | PostgreSQL 15 (Docker) + Alembic |
 | Vector DB | Qdrant Cloud |
-| Validation | Pydantic v2 |
 | Frontend | Next.js + TypeScript |
 | Container | Docker Compose |
-| Dev Tool | Makefile |
+
+---
 
 ## 🌍 Environment Variables
 
@@ -187,67 +196,54 @@ Xem [`.env.example`](.env.example) để biết tất cả biến cần thiết.
 
 ```bash
 cp .env.example .env
-# Bắt buộc: OPENAI_API_KEY, QDRANT_URL, QDRANT_API_KEY, JWT_SECRET
+# Bắt buộc:
+# - OPENAI_API_KEY
+# - QDRANT_URL
+# - QDRANT_API_KEY
+# - JWT_SECRET
 ```
 
-## 📦 Database Migrations
-
-```bash
-# Chạy migrations (sau khi docker compose up)
-make migrate
-
-# Tạo migration mới
-make migrate-create MSG="add column"
-
-# Rollback
-docker compose exec backend alembic downgrade -1
-```
-
-## 🧪 Running Tests
-
-```bash
-make test           # All tests
-make test-cov       # With coverage report
-```
+---
 
 ## 📁 Project Structure
 
 ```
 ├── alembic/              # Database migrations
 ├── database/             # Development database dump
-│   └── development.sql   # Auto-restored on first Docker run
+│   └── development.sql  # Auto-restored on first run
 ├── src/
 │   ├── agents/          # LangGraph AI Agents
 │   ├── api/v1/          # FastAPI Routers
 │   ├── models/          # SQLAlchemy Models
 │   ├── services/        # Business Logic & LLM Gateway
 │   └── main.py          # Application Entrypoint
-├── frontend/            # Next.js Frontend
-├── scripts/             # Utility scripts
-│   ├── backup-db.sh     # Backup PostgreSQL (bash)
-│   ├── backup-db.ps1    # Backup PostgreSQL (PowerShell)
-│   ├── restore-db.sh    # Restore PostgreSQL (bash)
-│   └── restore-db.ps1   # Restore PostgreSQL (PowerShell)
-├── .env.example         # Environment Variables Template
-├── Makefile             # Development commands
-└── docker-compose.yml   # Docker services
+├── frontend/             # Next.js Frontend
+├── scripts/              # Utility scripts
+├── .env.example          # Environment Variables Template
+├── Makefile              # Development commands
+├── docker-compose.yml    # Docker services
+└── RUN_WITH_DOCKER.md   # Docker setup guide
 ```
+
+---
 
 ## 🎯 Features
 
-- **💬 Chat**: Real-time messaging với WebSocket
-- **🧠 AI Memory**: Tự động ghi nhớ thông tin về Contact
-- **🔍 Semantic Search**: Tìm kiếm theo ngữ nghĩa
-- **🤖 AI Copilot**: Trợ lý AI trả lời theo ngữ cảnh
-- **💡 Recommendations**: Đề xuất follow-up, reply, priority
-- **🏷️ Tags & Connections**: Tự động gợi ý tags và kết nối
+- 💬 **Chat**: Real-time messaging với WebSocket
+- 🧠 **AI Memory**: Tự động ghi nhớ thông tin về Contact
+- 🔍 **Semantic Search**: Tìm kiếm theo ngữ nghĩa
+- 🤖 **AI Copilot**: Trợ lý AI trả lời theo ngữ cảnh
+- 💡 **Recommendations**: Đề xuất follow-up, reply, priority
+- 🏷️ **Tags & Connections**: Tự động gợi ý tags và kết nối
+
+---
 
 ## 📚 Documentation
 
 | Document | Description |
 |----------|-------------|
 | [SPEC.md](docs/specs/SPEC.md) | Project specifications |
-| [Architecture](docs/specs/architecture.md) | System architecture |
+| [RUN_WITH_DOCKER.md](RUN_WITH_DOCKER.md) | Docker setup guide |
 | [AI Agents](docs/specs/ai-agents.md) | AI agent architecture |
 | [API](docs/specs/api.md) | API endpoints reference |
 | [Frontend](docs/specs/frontend.md) | Frontend architecture |
