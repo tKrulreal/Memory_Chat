@@ -3,7 +3,20 @@
 # Simple and reliable
 # ============================================
 
-FROM python:3.11-slim
+# ---- Stage 1: Build ----
+# Use full image to avoid needing gcc (all packages have binary wheels)
+FROM python:3.11-slim-bookworm AS builder
+
+WORKDIR /app
+
+# Copy only requirements first for better caching
+COPY requirements.txt .
+
+# Install Python packages with --prefix so bin/ and lib/ are structured correctly
+RUN pip install --no-cache-dir --prefer-binary --prefix=/install -r requirements.txt
+
+# ---- Stage 2: Production ----
+FROM python:3.11-slim-bookworm AS runtime
 
 WORKDIR /app
 
@@ -13,8 +26,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Overlay /install onto /usr/local so uvicorn, alembic etc. are on PATH for all users
+COPY --from=builder /install /usr/local
+ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages
 
 # Install Python packages directly (no --user flag)
 RUN pip install --no-cache-dir -r requirements.txt

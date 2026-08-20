@@ -73,24 +73,42 @@ migrate-create: ## Create new migration (Usage: make migrate-create MSG="add col
 seed: ## Seed database with sample data
 	PYTHONPATH=. python scripts/seed.py
 
-# ---- Backup & Restore ----
-backup: ## Create database backup
+# ---- Backup & Restore (PostgreSQL) ----
+db-backup: ## Backup PostgreSQL → backup/db-TIMESTAMP.sql
 	@mkdir -p backup
-	docker compose exec backend bash -c "tar -czf /tmp/backup-$$(date +%Y%m%d-%H%M%S).tar.gz -C /app data .ai-log 2>/dev/null || true"
-	@echo "Backup created in ./backup/"
+	docker compose exec -T postgres pg_dump -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-memorychat} --no-owner --no-acl > backup/db-$$(date +%Y%m%d-%H%M%S).sql
+	@echo "✅ Backup saved to ./backup/"
 
-restore: ## Restore from backup (Usage: make restore FILE=backup-20240101-120000.tar.gz)
+db-restore: ## Restore PostgreSQL from dump (Usage: make db-restore FILE=backup/db-XXX.sql)
 	@if [ -z "$(FILE)" ]; then \
-		echo "Usage: make restore FILE=<filename>"; \
+		echo "Usage: make db-restore FILE=<path/to/dump.sql>"; \
 		echo "Available backups:"; \
-		ls -la backup/ 2>/dev/null || echo "No backups found"; \
+		ls -la backup/*.sql 2>/dev/null || echo "No SQL backups found"; \
 		exit 1; \
 	fi
-	@if [ ! -f "backup/$(FILE)" ]; then \
-		echo "File not found: backup/$(FILE)"; \
-		exit 1; \
+	docker compose exec -T postgres psql -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-memorychat} -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+	docker compose exec -T postgres psql -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-memorychat} < $(FILE)
+	@echo "✅ Database restored from $(FILE)"
+
+db-dump: ## Update database/development.sql from running PostgreSQL (overwrites!)
+	@mkdir -p database
+	docker compose exec -T postgres pg_dump -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-memorychat} --no-owner --no-acl > database/development.sql
+	@echo "✅ database/development.sql updated"
+
+db-reset: ## ⚠️  DANGER: Drop and re-init database from development.sql
+	@echo "⚠️  WARNING: This will erase all data and restore from database/development.sql!"
+	@read -p "Type 'yes' to confirm: " confirm; \
+	if [ "$$confirm" = "yes" ]; then \
+		docker compose exec -T postgres psql -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-memorychat} -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"; \
+		docker compose exec -T postgres psql -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-memorychat} < database/development.sql; \
+		echo "✅ Database reset complete."; \
+	else \
+		echo "Aborted."; \
 	fi
-	docker compose exec -T backend bash -c "cd /app && tar -xzf /tmp/$(FILE) || tar -xzf /backup/$(FILE) || echo 'Extracting from current dir'; ls -la data/"
+
+backup: db-backup ## Alias for db-backup
+restore: ## Restore from backup — use: make db-restore FILE=<path>
+	@echo "Use: make db-restore FILE=<path/to/dump.sql>"
 
 # ---- Utility ----
 clean: ## Clean cache files
