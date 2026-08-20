@@ -34,9 +34,10 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql://postgres:postgres@localhost:5432/memorychat"
 
-    # Vector Store
+    # Vector Store — Qdrant Cloud
     qdrant_url: str = "http://localhost:6333"
     qdrant_api_key: str = ""
+    qdrant_collection: str = "assistant_memories"  # Tên collection trên Qdrant Cloud
 
     # Security Limits
     max_request_size_bytes: int = 10485760  # 10MB default
