@@ -6,6 +6,7 @@ import { useUIStore } from "@/lib/stores/ui-store";
 import { wsManager } from "@/lib/ws/manager";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Message } from "@/types";
+import { toast } from "sonner";
 
 export function WSBootstrap({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
@@ -74,6 +75,12 @@ export function WSBootstrap({ children }: { children: React.ReactNode }) {
               )
             }))
           };
+        });
+      } else if (data.type === "NEW_RECOMMENDATION") {
+        queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+        toast("✨ New AI Connection Found!", {
+          description: data.message || "AI Matchmaker has analyzed your recent context.",
+          duration: 6000,
         });
       }
     });
