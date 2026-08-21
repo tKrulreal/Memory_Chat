@@ -416,7 +416,7 @@ export default function ConnectionsPage() {
                 <input
                   id="people-search-input"
                   type="text"
-                  placeholder="Search people..."
+                  placeholder="Search by name, email, or phone number..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full rounded-button bg-input pl-9 pr-4 py-2 text-sm text-primary outline-none focus:ring-1 focus:ring-accent"
