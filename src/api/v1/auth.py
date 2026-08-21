@@ -19,6 +19,8 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     email: str
     full_name: str
+    gender: str | None = None
+    phone: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

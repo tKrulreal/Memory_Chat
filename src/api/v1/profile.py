@@ -22,6 +22,8 @@ router = APIRouter(prefix="/profile", tags=["profile"])
 class ProfileUpdateRequest(BaseModel):
     full_name: str | None = None
     avatar: str | None = None
+    gender: str | None = None
+    phone: str | None = None
     profession: str | None = Field(default=None, description="Chuyên môn / Chức danh")
     company: str | None = Field(default=None, description="Công ty / Tổ chức công tác")
     location: str | None = Field(default=None, description="Địa điểm / Thành phố (Hà Nội, TP.HCM, ...)")
@@ -37,6 +39,8 @@ class ProfileResponse(BaseModel):
     email: str
     full_name: str | None
     avatar: str | None
+    gender: str | None
+    phone: str | None
     profession: str | None
     company: str | None
     location: str | None
@@ -82,6 +86,8 @@ def get_my_profile(
         email=current_user.email,
         full_name=current_user.full_name or unified_dict["full_name"],
         avatar=current_user.avatar,
+        gender=current_user.gender,
+        phone=current_user.phone,
         profession=user_profile.profession if (user_profile and user_profile.profession) else unified_dict.get("profession"),
         company=user_profile.company if (user_profile and user_profile.company) else unified_dict.get("company"),
         location=user_profile.location if (user_profile and user_profile.location) else unified_dict.get("location"),
@@ -111,6 +117,10 @@ def update_my_profile(
         current_user.full_name = req.full_name
     if req.avatar is not None:
         current_user.avatar = req.avatar
+    if req.gender is not None:
+        current_user.gender = req.gender
+    if req.phone is not None:
+        current_user.phone = req.phone
     db.commit()
 
     # 2. Cập nhật hoặc tạo mới UserProfile record
@@ -152,6 +162,8 @@ def update_my_profile(
         email=current_user.email,
         full_name=current_user.full_name,
         avatar=current_user.avatar,
+        gender=current_user.gender,
+        phone=current_user.phone,
         profession=user_profile.profession,
         company=user_profile.company,
         location=user_profile.location,

@@ -11,6 +11,8 @@ class UserCreate(BaseModel):
     email: str
     password: str
     full_name: str
+    gender: str | None = None
+    phone: str | None = None
 
 class UserLogin(BaseModel):
     email: str
@@ -31,7 +33,9 @@ class AuthService:
         obj_in = {
             "email": data.email,
             "password_hash": hashed_password,
-            "full_name": data.full_name
+            "full_name": data.full_name,
+            "gender": data.gender,
+            "phone": data.phone,
         }
         user = user_repo.create(db, obj_in=obj_in)
         return user

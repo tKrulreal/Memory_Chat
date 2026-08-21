@@ -22,6 +22,8 @@ class UserSearchResult(BaseModel):
     full_name: str | None
     email: str
     avatar: str | None
+    gender: str | None = None
+    phone: str | None = None
     relation: UserRelation
     conversation_id: uuid.UUID | None
 
