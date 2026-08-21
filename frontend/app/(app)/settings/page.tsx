@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getMyProfile, updateMyProfile, ProfileUpdatePayload } from "@/lib/api/profile";
+import { getMySettings, updateMySettings } from "@/lib/api/settings";
 import { generateConnections } from "@/lib/api/recommendations";
 import { useRouter } from "next/navigation";
 
@@ -26,9 +27,16 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  const { data: profile, isLoading, error } = useQuery({
+  const [activeTab, setActiveTab] = useState<"profile" | "preferences">("profile");
+
+  const { data: profile, isLoading: isLoadingProfile, error } = useQuery({
     queryKey: ["my-profile"],
     queryFn: getMyProfile,
+  });
+
+  const { data: settings, isLoading: isLoadingSettings } = useQuery({
+    queryKey: ["my-settings"],
+    queryFn: getMySettings,
   });
 
   const [fullName, setFullName] = useState("");
@@ -48,6 +56,12 @@ export default function SettingsPage() {
   const [bio, setBio] = useState("");
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Settings State
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [memoryWindow, setMemoryWindow] = useState("7 days");
+  const [theme, setTheme] = useState("system");
+  const [saveSettingsSuccess, setSaveSettingsSuccess] = useState(false);
+
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || "");
@@ -64,6 +78,14 @@ export default function SettingsPage() {
     }
   }, [profile]);
 
+  useEffect(() => {
+    if (settings) {
+      setAiEnabled(settings.ai_enabled ?? true);
+      setMemoryWindow(settings.ai_memory_window || "7 days");
+      setTheme(settings.theme || "system");
+    }
+  }, [settings]);
+
   const updateMutation = useMutation({
     mutationFn: (payload: ProfileUpdatePayload) => updateMyProfile(payload),
     onSuccess: (data) => {
@@ -71,6 +93,15 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 4000);
+    },
+  });
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: (payload: any) => updateMySettings(payload),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["my-settings"], data);
+      setSaveSettingsSuccess(true);
+      setTimeout(() => setSaveSettingsSuccess(false), 4000);
     },
   });
 
@@ -131,6 +162,15 @@ export default function SettingsPage() {
     setOffering(offering.filter((item) => item !== o));
   };
 
+  const handleUpdateSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateSettingsMutation.mutate({
+      ai_enabled: aiEnabled,
+      ai_memory_window: memoryWindow,
+      theme,
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateMutation.mutate({
@@ -148,7 +188,7 @@ export default function SettingsPage() {
     });
   };
 
-  if (isLoading) {
+  if (isLoadingProfile || isLoadingSettings) {
     return (
       <main className="flex-1 overflow-y-auto bg-app p-6 md:p-10">
         <div className="mx-auto max-w-4xl space-y-6">
@@ -164,30 +204,125 @@ export default function SettingsPage() {
     <main className="flex-1 overflow-y-auto bg-app p-6 md:p-10">
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-subtle pb-4">
           <div>
             <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
               <User className="h-7 w-7 text-accent" />
-              Hồ sơ & Tiêu chí Kết nối AI
+              Cài đặt & Hồ sơ
             </h1>
-            <p className="text-sm text-secondary mt-1">
-              Nhập trực tiếp các thông tin của bạn để AI Matchmaker ưu tiên so khớp với những đối tác phù hợp nhất.
-            </p>
+            <div className="flex gap-6 mt-4">
+              <button
+                className={`pb-2 text-sm font-medium transition-colors ${
+                  activeTab === "profile"
+                    ? "border-b-2 border-primary text-primary"
+                    : "text-secondary hover:text-primary"
+                }`}
+                onClick={() => setActiveTab("profile")}
+              >
+                Hồ sơ & Tiêu chí AI
+              </button>
+              <button
+                className={`pb-2 text-sm font-medium transition-colors ${
+                  activeTab === "preferences"
+                    ? "border-b-2 border-primary text-primary"
+                    : "text-secondary hover:text-primary"
+                }`}
+                onClick={() => setActiveTab("preferences")}
+              >
+                Cài đặt Hệ thống
+              </button>
+            </div>
           </div>
 
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => generateMutation.mutate()}
-            disabled={generateMutation.isPending}
-            className="flex items-center gap-1.5 shrink-0"
-          >
-            <Sparkles size={15} className="text-accent" />
-            {generateMutation.isPending ? "Đang quét AI..." : "Quét gợi ý kết nối mới"}
-          </Button>
+          {activeTab === "profile" && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => generateMutation.mutate()}
+              disabled={generateMutation.isPending}
+              className="flex items-center gap-1.5 shrink-0"
+            >
+              <Sparkles size={15} className="text-accent" />
+              {generateMutation.isPending ? "Đang quét AI..." : "Quét gợi ý kết nối mới"}
+            </Button>
+          )}
         </div>
 
-        {/* Priority Explanation Banner */}
+        {activeTab === "preferences" ? (
+          <form onSubmit={handleUpdateSettings} className="space-y-6">
+            <div className="rounded-card border border-subtle bg-surface p-6 space-y-4">
+              <h2 className="text-base font-semibold text-primary border-b border-subtle pb-2">
+                Tùy chỉnh AI
+              </h2>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-primary">Bật AI Assistant</h3>
+                  <p className="text-xs text-secondary">Cho phép AI phân tích tin nhắn để gợi ý kết nối</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={aiEnabled}
+                    onChange={(e) => setAiEnabled(e.target.checked)}
+                  />
+                  <div className="w-11 h-6 bg-elevated peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  Cửa sổ thời gian phân tích bộ nhớ (Memory Window)
+                </label>
+                <p className="text-xs text-secondary mb-2">Độ dài thời gian AI dùng để tổng hợp nhu cầu (vd: 7 days, 1 month)</p>
+                <input
+                  type="text"
+                  value={memoryWindow}
+                  onChange={(e) => setMemoryWindow(e.target.value)}
+                  className="w-full max-w-sm rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary focus:border-accent focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  Giao diện (Theme)
+                </label>
+                <select
+                  value={theme}
+                  onChange={(e) => setTheme(e.target.value)}
+                  className="w-full max-w-sm rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary focus:border-accent focus:outline-none"
+                >
+                  <option value="system">Theo hệ thống</option>
+                  <option value="light">Sáng</option>
+                  <option value="dark">Tối</option>
+                </select>
+              </div>
+            </div>
+
+            {saveSettingsSuccess && (
+              <div className="flex items-center gap-2.5 rounded-card border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-400">
+                <CheckCircle2 size={18} />
+                <span>Đã lưu cài đặt thành công.</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                disabled={updateSettingsMutation.isPending}
+                className="flex items-center gap-2"
+              >
+                <Save size={16} />
+                {updateSettingsMutation.isPending ? "Đang lưu..." : "Lưu Cài đặt"}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <>
+            {/* Priority Explanation Banner */}
         <div className="rounded-card border border-subtle bg-surface p-4.5 space-y-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2 text-sm font-semibold text-primary">
@@ -555,6 +690,8 @@ export default function SettingsPage() {
             </Button>
           </div>
         </form>
+        </>
+        )}
       </div>
     </main>
   );
