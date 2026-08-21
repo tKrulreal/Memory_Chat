@@ -119,6 +119,7 @@ app.add_middleware(
 )
 
 from src.api.v1.settings import router as settings_router
+from src.api.v1.tags import router as tags_router
 
 app.include_router(router, prefix="/api/v1")
 app.include_router(websocket_router)
@@ -132,6 +133,7 @@ app.include_router(connections_router, prefix="/api/v1", tags=["connections"])
 app.include_router(connection_requests_router, prefix="/api/v1", tags=["connection_requests"])
 app.include_router(profile_router, prefix="/api/v1", tags=["profile"])
 app.include_router(settings_router, prefix="/api/v1", tags=["settings"])
+app.include_router(tags_router, prefix="/api/v1", tags=["tags"])
 
 
 from prometheus_fastapi_instrumentator import Instrumentator
