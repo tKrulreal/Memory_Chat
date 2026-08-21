@@ -143,6 +143,22 @@ def _get_owned_conversation(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to access this conversation") from None
 
 
+@router.post("/{conversation_id}/read", status_code=status.HTTP_200_OK)
+def mark_conversation_as_read(
+    conversation_id: uuid.UUID,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+    service: ConversationServiceDep,
+) -> dict[str, str]:
+    try:
+        service.mark_as_read(db, current_user.id, conversation_id)
+        return {"status": "success"}
+    except ConversationNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found") from None
+    except ConversationOwnershipError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to access this conversation") from None
+
+
 @router.get("/{conversation_id}/assistant/context", response_model=AIContext)
 def get_assistant_context(
     conversation_id: uuid.UUID,

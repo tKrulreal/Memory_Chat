@@ -35,6 +35,14 @@ class ConversationService:
         skip = (page - 1) * limit
         conversations = self.repository.get_by_user_id(db, user_id, skip, limit, status)
         total = self.repository.count_by_user_id(db, user_id, status)
+        
+        # Attach unread_count
+        if conversations:
+            conv_ids = [c.id for c in conversations]
+            unread_counts = self.repository.get_unread_counts(db, user_id, conv_ids)
+            for c in conversations:
+                setattr(c, "unread_count", unread_counts.get(c.id, 0))
+                
         return conversations, total
 
     def create_conversation(self, db: Session, user_id: uuid.UUID, data: ConversationCreate, event_bus: "EventBus") -> Conversation:
@@ -73,6 +81,9 @@ class ConversationService:
             raise ConversationNotFoundError
         if user_id not in (conversation.user_a_id, conversation.user_b_id):
             raise ConversationOwnershipError
+            
+        unread_counts = self.repository.get_unread_counts(db, user_id, [conversation_id])
+        setattr(conversation, "unread_count", unread_counts.get(conversation.id, 0))
         return conversation
 
     def update_conversation(
@@ -113,3 +124,31 @@ class ConversationService:
     def delete_conversation(self, db: Session, user_id: uuid.UUID, conversation_id: uuid.UUID) -> None:
         self.get_owned_conversation(db, user_id, conversation_id)
         self.repository.delete(db, conversation_id)
+
+    def mark_as_read(self, db: Session, user_id: uuid.UUID, conversation_id: uuid.UUID) -> None:
+        self.get_owned_conversation(db, user_id, conversation_id)
+        
+        from src.models.chat import ConversationUserState, Message
+        from sqlalchemy import desc
+        
+        # Get latest message
+        latest_msg = db.query(Message).filter(Message.conversation_id == conversation_id).order_by(desc(Message.created_at)).first()
+        if not latest_msg:
+            return
+            
+        state = db.query(ConversationUserState).filter(
+            ConversationUserState.user_id == user_id,
+            ConversationUserState.conversation_id == conversation_id
+        ).first()
+        
+        if not state:
+            state = ConversationUserState(
+                user_id=user_id,
+                conversation_id=conversation_id,
+                last_read_message_id=str(latest_msg.id)
+            )
+            db.add(state)
+        else:
+            state.last_read_message_id = str(latest_msg.id)
+            
+        db.commit()

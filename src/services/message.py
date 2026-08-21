@@ -85,6 +85,23 @@ class MessageService:
                     payload={"message_id": str(message.id), "content": message.content},
                     conversation_id=conversation_id,
                 )
+                
+                # Mark sender's own messages as read
+                from src.models.chat import ConversationUserState
+                state = db.query(ConversationUserState).filter(
+                    ConversationUserState.user_id == user_id,
+                    ConversationUserState.conversation_id == conversation_id
+                ).first()
+                if not state:
+                    state = ConversationUserState(
+                        user_id=user_id,
+                        conversation_id=conversation_id,
+                        last_read_message_id=str(message.id)
+                    )
+                    db.add(state)
+                else:
+                    state.last_read_message_id = str(message.id)
+                    
                 db.commit()
                 db.refresh(message)
             except Exception:

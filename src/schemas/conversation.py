@@ -43,5 +43,6 @@ class ConversationResponse(ConversationBase):
     
     user_a: ParticipantResponse | None = None
     user_b: ParticipantResponse | None = None
+    unread_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
