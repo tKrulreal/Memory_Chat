@@ -155,9 +155,16 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
                     <span className="truncate text-sm font-medium">{peerName}</span>
                     <span className="shrink-0 text-xs text-secondary">{dateStr}</span>
                   </div>
-                  <p className="truncate text-xs text-secondary">
-                    {conversation.last_message ?? "No messages yet"}
-                  </p>
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <p className="truncate text-xs text-secondary flex-1">
+                      {conversation.last_message ?? "No messages yet"}
+                    </p>
+                    {!!conversation.unread_count && conversation.unread_count > 0 && (
+                      <span className="flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-white shadow-sm">
+                        {conversation.unread_count > 99 ? '99+' : conversation.unread_count}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </button>
             </li>

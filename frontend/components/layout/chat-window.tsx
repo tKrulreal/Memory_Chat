@@ -102,6 +102,18 @@ export function ChatWindow() {
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // Mark as read when active conversation changes or new messages arrive
+  useEffect(() => {
+    if (activeId) {
+      import('@/lib/api/conversations').then(({ markAsRead }) => {
+        markAsRead(activeId).then(() => {
+          // Invalidate conversations to update unread badge
+          queryClient.invalidateQueries({ queryKey: ["conversations"] });
+        }).catch(console.error);
+      });
+    }
+  }, [activeId, queryClient, messagesResponse]);
+
   if (!activeId) {
     return (
       <section className="flex min-w-0 flex-1 flex-col items-center justify-center bg-app">
