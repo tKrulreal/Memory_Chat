@@ -22,6 +22,15 @@ export async function createConversation(userEmail: string): Promise<Conversatio
   return response.json();
 }
 
+export async function markAsRead(conversationId: string): Promise<void> {
+  const response = await fetch(`/api/proxy/api/v1/direct-conversations/${conversationId}/read`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error("Failed to mark conversation as read");
+  }
+}
+
 // Since BE User search is blocked, we will use a dummy endpoint or direct search via BFF if implemented later.
 // Currently MVP: just search by exact email using the create conversation endpoint which should resolve it.
 // If we need a dedicated search endpoint later:

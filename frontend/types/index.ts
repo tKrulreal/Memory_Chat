@@ -2,6 +2,9 @@ export type User = {
   id: string;
   email: string;
   full_name: string;
+  avatar?: string | null;
+  gender?: string | null;
+  phone?: string | null;
 };
 
 export type Participant = {
@@ -9,6 +12,8 @@ export type Participant = {
   email: string;
   full_name: string | null;
   avatar: string | null;
+  gender?: string | null;
+  phone?: string | null;
 };
 
 export type Conversation = {
@@ -18,6 +23,7 @@ export type Conversation = {
   status: string;
   last_message_at: string | null;
   last_message: string | null;
+  unread_count?: number;
   user_a?: Participant;
   user_b?: Participant;
 };
@@ -76,4 +82,26 @@ export type SearchResult = {
   peer: Participant;
   summary_snippet: string | null;
   score: number;
+};
+
+export type Setting = {
+  id: string;
+  user_id: string;
+  theme: string;
+  notifications_enabled: boolean;
+  ai_enabled: boolean;
+  ai_memory_window: string;
+};
+
+export type Tag = {
+  id: string;
+  name: string;
+  category: string;
+  is_active: boolean;
+};
+
+export type AISystemConfig = {
+  key: string;
+  value: string;
+  description: string | null;
 };
