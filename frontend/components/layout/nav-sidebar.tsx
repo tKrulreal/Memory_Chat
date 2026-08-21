@@ -17,6 +17,7 @@ import {
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { cn } from "@/lib/utils";
+import { useAISettings } from "@/hooks/use-ai-settings";
 
 const NAV_ITEMS = [
   { href: "/chats", label: "Chats", icon: MessageSquare },
@@ -39,6 +40,13 @@ export function NavSidebar() {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  const { features } = useAISettings();
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (item.href === "/copilot" && !features.copilot) return false;
+    if (item.href === "/recommendations" && !features.recommendation) return false;
+    return true;
+  });
 
   return (
     <>
@@ -67,7 +75,7 @@ export function NavSidebar() {
 
 
         <nav className="flex-1 space-y-1 px-2 py-1">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+          {visibleNavItems.map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href);
             return (
               <Link

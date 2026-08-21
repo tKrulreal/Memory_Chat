@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Send, Bot, User, Sparkles, Wrench } from "lucide-react";
+import { Send, Bot, User, Sparkles, Wrench, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { renderCopilotMessageWithCards } from "@/components/ai/copilot-card";
+import { useAISettings } from "@/hooks/use-ai-settings";
 
 type Message = {
   role: "user" | "assistant";
@@ -26,6 +27,8 @@ export default function CopilotPage() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const { features, isLoading: settingsLoading } = useAISettings();
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -33,6 +36,23 @@ export default function CopilotPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  if (!settingsLoading && !features.copilot) {
+    return (
+      <main className="flex h-full w-full flex-col bg-app items-center justify-center">
+        <div className="flex flex-col items-center gap-4 p-8 text-center bg-surface border border-subtle rounded-2xl max-w-md">
+          <Lock className="text-secondary" size={48} />
+          <h1 className="text-xl font-bold text-primary">Copilot Disabled</h1>
+          <p className="text-sm text-secondary">
+            AI Copilot has been disabled in the AI Hub settings. Enable it to chat with Copilot.
+          </p>
+          <button onClick={() => router.push("/ai-hub")} className="mt-4 px-4 py-2 bg-accent text-white rounded-md text-sm font-semibold hover:bg-accent/80 transition-colors">
+            Go to AI Settings
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();

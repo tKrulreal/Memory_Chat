@@ -56,7 +56,7 @@ export async function getAiConfigs(): Promise<AISystemConfig[]> {
   return response.json();
 }
 
-export async function updateAiConfig(key: string, value: string, description?: string): Promise<AISystemConfig> {
+export async function updateAiConfig(key: string, value: any, description?: string): Promise<AISystemConfig> {
   const response = await fetch(`/api/proxy/api/v1/ai-config/${key}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

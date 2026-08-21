@@ -6,6 +6,7 @@ export type AIContext = {
   interested_in?: string[];
   follow_up?: string;
   tags?: string[];
+  pending_tags?: string[];
 };
 
 export type SuggestedReply = {
@@ -83,6 +84,26 @@ export async function updateConversationTags(conversationId: string, tags: strin
     throw new Error("Failed to update tags");
   }
 
+  return res.json();
+}
+
+export async function approveConversationTag(conversationId: string, tag: string): Promise<{ tags: string[], pending_tags: string[] }> {
+  const res = await fetch(`/api/proxy/api/v1/direct-conversations/${conversationId}/assistant/tags/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tag }),
+  });
+  if (!res.ok) throw new Error("Failed to approve tag");
+  return res.json();
+}
+
+export async function rejectConversationTag(conversationId: string, tag: string): Promise<{ tags: string[], pending_tags: string[] }> {
+  const res = await fetch(`/api/proxy/api/v1/direct-conversations/${conversationId}/assistant/tags/reject`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tag }),
+  });
+  if (!res.ok) throw new Error("Failed to reject tag");
   return res.json();
 }
 

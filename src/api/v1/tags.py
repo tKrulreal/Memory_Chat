@@ -27,11 +27,37 @@ def create_system_tag(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    tag = Tag(name=req.name, category=req.category, is_active=req.is_active)
+    normalized_name = " ".join([word.capitalize() for word in req.name.strip().split()])
+    
+    # Check if exists
+    existing = db.query(Tag).filter(Tag.name.ilike(normalized_name)).first()
+    if existing:
+        if not existing.is_active:
+            existing.is_active = True
+            db.commit()
+            db.refresh(existing)
+            return existing
+        return existing
+        
+    tag = Tag(name=normalized_name, category=req.category, is_active=req.is_active)
     db.add(tag)
     db.commit()
     db.refresh(tag)
     return tag
+
+@router.delete("/tags/{tag_id}")
+def delete_system_tag(
+    tag_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    tag = db.query(Tag).filter(Tag.id == tag_id).first()
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    
+    tag.is_active = False
+    db.commit()
+    return {"status": "success"}
 
 @router.get("/users/me/tags", response_model=list[TagResponse])
 def get_my_tags(

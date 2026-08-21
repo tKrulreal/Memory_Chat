@@ -102,6 +102,6 @@ export type Tag = {
 
 export type AISystemConfig = {
   key: string;
-  value: string;
+  value: any;
   description: string | null;
 };

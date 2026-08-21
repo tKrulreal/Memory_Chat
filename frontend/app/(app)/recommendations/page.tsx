@@ -2,11 +2,32 @@
 
 import { useState } from "react";
 import { ConnectionList, ConnectionDetailPanel } from "@/components/recommendations";
-import { Sparkles, Star, Users, Info } from "lucide-react";
+import { Sparkles, Star, Users, Info, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAISettings } from "@/hooks/use-ai-settings";
+import { useRouter } from "next/navigation";
 
 export default function RecommendationsPage() {
   const [selectedRecommendationId, setSelectedRecommendationId] = useState<string | null>(null);
+  const { features, isLoading } = useAISettings();
+  const router = useRouter();
+
+  if (!isLoading && !features.recommendation) {
+    return (
+      <main className="flex h-full w-full flex-col bg-app items-center justify-center">
+        <div className="flex flex-col items-center gap-4 p-8 text-center bg-surface border border-subtle rounded-2xl max-w-md">
+          <Lock className="text-secondary" size={48} />
+          <h1 className="text-xl font-bold text-primary">Recommendations Disabled</h1>
+          <p className="text-sm text-secondary">
+            AI Connection Recommendations have been disabled in the AI Hub settings.
+          </p>
+          <button onClick={() => router.push("/ai-hub")} className="mt-4 px-4 py-2 bg-accent text-white rounded-md text-sm font-semibold hover:bg-accent/80 transition-colors">
+            Go to AI Settings
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col h-full bg-app min-w-0 overflow-hidden">

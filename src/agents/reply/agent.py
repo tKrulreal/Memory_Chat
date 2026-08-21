@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from src.gateways.llm import LLMGateway
 from src.models.chat import Conversation, Message
 from src.models.user import User
+from src.models.tag import AISystemConfig
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,20 @@ class ReplySuggestionAgent:
                 "suggested_reply": "Chào bạn, mình rất vui được kết nối!",
                 "created_at": None,
             }
+
+        ai_config = db.query(AISystemConfig).filter(
+            AISystemConfig.user_id == user_id,
+            AISystemConfig.key == "ai_settings"
+        ).first()
+        if ai_config and isinstance(ai_config.value, dict):
+            features = ai_config.value.get("features", {})
+            if features.get("copilot") is False:
+                return {
+                    "peer_name": "Đối phương",
+                    "peer_last_message": None,
+                    "suggested_reply": "Tính năng AI Copilot đã bị tắt.",
+                    "created_at": None,
+                }
 
         other_user_id = conv.user_b_id if str(conv.user_a_id) == str(user_id) else conv.user_a_id
         other_user = db.get(User, other_user_id)

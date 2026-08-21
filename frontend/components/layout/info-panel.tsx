@@ -13,6 +13,7 @@ import { useConversationStore } from "@/lib/stores/conversation-store";
 import { useQuery } from "@tanstack/react-query";
 import { getConversations } from "@/lib/api/conversations";
 import { getConversationContext } from "@/lib/api/context";
+import { useAISettings } from "@/hooks/use-ai-settings";
 import { cn } from "@/lib/utils";
 
 const MIN_WIDTH = 280;
@@ -159,6 +160,8 @@ function PanelContent({ onClose }: { onClose: () => void }) {
     enabled: !!activeId,
   });
 
+  const { features } = useAISettings();
+
   const activeConversation = conversations.find((c) => c.id === activeId);
   const isUserA = user?.id === activeConversation?.user_a_id;
   const peerId = activeConversation
@@ -226,7 +229,7 @@ function PanelContent({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Peer AI Summary Box */}
-        {context?.summary && (
+        {features.memory && context?.summary && (
           <div className="rounded-2xl border border-subtle bg-elevated/40 p-3.5 space-y-1 text-left">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-secondary flex items-center gap-1">
               <Sparkles size={12} className="text-accent" />
@@ -237,10 +240,10 @@ function PanelContent({ onClose }: { onClose: () => void }) {
         )}
 
         {/* AI Recommendation Follow-up Card */}
-        <AIRecommendationCard />
+        {features.recommendation && <AIRecommendationCard />}
 
         {/* Contact Category Tags Card */}
-        <ContactTagsCard />
+        {features.tagging && <ContactTagsCard />}
 
         {/* Extra details accordions */}
         <details className="group rounded-2xl border border-subtle overflow-hidden">

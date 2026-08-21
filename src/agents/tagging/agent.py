@@ -15,6 +15,7 @@ from src.gateways.llm import LLMGateway
 from src.models.ai import AssistantMemory
 from src.models.chat import Conversation, Message
 from src.models.user import User, UserProfile
+from src.models.tag import AISystemConfig
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,20 @@ class TaggingAgent:
         """
         Tự động phân tích hội thoại và sinh ra danh sách tag cho đối tác.
         """
+        # Get limit and features toggle
+        ai_config = db.query(AISystemConfig).filter(
+            AISystemConfig.user_id == user_id,
+            AISystemConfig.key == "ai_settings"
+        ).first()
+        
+        limit = 3
+        if ai_config and isinstance(ai_config.value, dict):
+            features = ai_config.value.get("features", {})
+            # If tagging is explicitly disabled
+            if features.get("tagging") is False:
+                return []
+            limit = int(ai_config.value.get("tag_limit", 3))
+
         conv = db.get(Conversation, conversation_id)
         if not conv:
             return []
@@ -136,7 +151,7 @@ class TaggingAgent:
             if other_profile.skills:
                 initial_tags.extend(other_profile.skills[:2])
             
-            cleaned = self._clean_tags(initial_tags)
+            cleaned = self._clean_tags(initial_tags)[:limit]
             self._save_tags_to_memory(conversation_id, user_id, cleaned, db)
             return cleaned
 
@@ -168,6 +183,7 @@ class TaggingAgent:
                 fallback.append(other_profile.company)
             tags = self._clean_tags(fallback)
 
+        tags = tags[:limit]
         self._save_tags_to_memory(conversation_id, user_id, tags, db)
         return tags
 
@@ -192,13 +208,13 @@ class TaggingAgent:
             memory = AssistantMemory(
                 owner_user_id=user_id,
                 conversation_id=conversation_id,
-                facts={"tags": tags},
+                facts={"pending_tags": tags},
                 summary="",
             )
             db.add(memory)
         else:
             facts = dict(memory.facts or {})
-            facts["tags"] = tags
+            facts["pending_tags"] = tags
             memory.facts = facts
 
         db.commit()

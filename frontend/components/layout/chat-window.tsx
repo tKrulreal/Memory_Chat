@@ -22,6 +22,7 @@ import { MessageBubble } from "@/components/chat/message-bubble";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAISettings } from "@/hooks/use-ai-settings";
 
 export function ChatWindow() {
   const infoPanelOpen = useUIStore((s) => s.infoPanelOpen);
@@ -34,6 +35,7 @@ export function ChatWindow() {
   const conversations = useConversationStore((s) => s.conversations);
   
   const sendMessageMutation = useSendMessage(activeId || "");
+  const { features } = useAISettings();
 
   const { data: activeConversations = [] } = useQuery({
     queryKey: ["conversations"],
@@ -152,15 +154,17 @@ export function ChatWindow() {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={toggleCopilot}
-            className="rounded-button p-2 text-secondary hover:bg-elevated hover:text-accent"
-            aria-label="Open copilot"
-            title="Mở AI Copilot"
-          >
-            <Sparkles size={18} />
-          </button>
+          {features.copilot && (
+            <button
+              type="button"
+              onClick={toggleCopilot}
+              className="rounded-button p-2 text-secondary hover:bg-elevated hover:text-accent"
+              aria-label="Open copilot"
+              title="Mở AI Copilot"
+            >
+              <Sparkles size={18} />
+            </button>
+          )}
           <button
             type="button"
             onClick={toggleInfoPanel}
@@ -196,7 +200,7 @@ export function ChatWindow() {
       </header>
 
 
-      <AIContextBar />
+      {features.memory && <AIContextBar />}
 
       <div className="flex items-center gap-2 border-b border-subtle px-4 py-2">
         <span 

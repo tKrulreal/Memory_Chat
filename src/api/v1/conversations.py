@@ -441,7 +441,7 @@ def refresh_assistant_tags(
     from src.agents.tagging import TaggingAgent
     agent = TaggingAgent()
     tags = agent.generate_tags(conversation_id, current_user.id, db)
-    return {"tags": tags}
+    return {"pending_tags": tags}
 
 
 @router.put("/{conversation_id}/assistant/tags")
@@ -458,8 +458,22 @@ def update_assistant_tags(
     _get_owned_conversation(service, db, current_user.id, conversation_id)
 
     from src.agents.tagging.agent import TaggingAgent
+    from src.models.tag import Tag
+    
     agent = TaggingAgent()
     cleaned_tags = agent._clean_tags(payload.tags)
+
+    # Ensure all cleaned tags exist in the global System Tags repository
+    for tag_name in cleaned_tags:
+        existing_tag = db.query(Tag).filter(Tag.name.ilike(tag_name)).first()
+        if existing_tag:
+            if not existing_tag.is_active:
+                existing_tag.is_active = True
+                db.commit()
+        else:
+            new_tag = Tag(name=tag_name, category=None, is_active=True)
+            db.add(new_tag)
+            db.commit()
 
     memory = (
         db.query(AssistantMemory)
@@ -486,4 +500,82 @@ def update_assistant_tags(
     db.commit()
     db.refresh(memory)
     return {"tags": cleaned_tags}
+
+class TagApproveRejectRequest(BaseModel):
+    tag: str
+
+@router.post("/{conversation_id}/assistant/tags/approve")
+def approve_assistant_tag(
+    conversation_id: uuid.UUID,
+    payload: TagApproveRejectRequest,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+    service: ConversationServiceDep,
+) -> dict[str, Any]:
+    _get_owned_conversation(service, db, current_user.id, conversation_id)
+    
+    memory = db.query(AssistantMemory).filter(
+        AssistantMemory.owner_user_id == current_user.id,
+        AssistantMemory.conversation_id == conversation_id
+    ).first()
+    
+    if not memory:
+        raise HTTPException(status_code=404, detail="Context not found")
+        
+    facts = dict(memory.facts or {})
+    pending_tags = facts.get("pending_tags", [])
+    active_tags = facts.get("tags", [])
+    
+    if payload.tag in pending_tags:
+        pending_tags.remove(payload.tag)
+        if payload.tag not in active_tags:
+            active_tags.append(payload.tag)
+            
+            # Ensure global System Tag exists
+            from src.models.tag import Tag
+            existing_tag = db.query(Tag).filter(Tag.name.ilike(payload.tag)).first()
+            if existing_tag:
+                if not existing_tag.is_active:
+                    existing_tag.is_active = True
+            else:
+                new_tag = Tag(name=payload.tag, category=None, is_active=True)
+                db.add(new_tag)
+        
+        facts["pending_tags"] = pending_tags
+        facts["tags"] = active_tags
+        memory.facts = facts
+        db.commit()
+        db.refresh(memory)
+        
+    return {"tags": active_tags, "pending_tags": pending_tags}
+
+@router.post("/{conversation_id}/assistant/tags/reject")
+def reject_assistant_tag(
+    conversation_id: uuid.UUID,
+    payload: TagApproveRejectRequest,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+    service: ConversationServiceDep,
+) -> dict[str, Any]:
+    _get_owned_conversation(service, db, current_user.id, conversation_id)
+    
+    memory = db.query(AssistantMemory).filter(
+        AssistantMemory.owner_user_id == current_user.id,
+        AssistantMemory.conversation_id == conversation_id
+    ).first()
+    
+    if not memory:
+        raise HTTPException(status_code=404, detail="Context not found")
+        
+    facts = dict(memory.facts or {})
+    pending_tags = facts.get("pending_tags", [])
+    
+    if payload.tag in pending_tags:
+        pending_tags.remove(payload.tag)
+        facts["pending_tags"] = pending_tags
+        memory.facts = facts
+        db.commit()
+        db.refresh(memory)
+        
+    return {"tags": facts.get("tags", []), "pending_tags": pending_tags}
 

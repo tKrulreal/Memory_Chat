@@ -8,6 +8,8 @@ import {
   getConversationContext,
   refreshConversationTags,
   updateConversationTags,
+  approveConversationTag,
+  rejectConversationTag
 } from "@/lib/api/context";
 import { cn } from "@/lib/utils";
 
@@ -24,14 +26,15 @@ export function ContactTagsCard() {
   });
 
   const tags = context?.tags || [];
+  const pendingTags = context?.pending_tags || [];
 
   // Mutation to refresh tags using AI Agent
   const refreshMutation = useMutation({
     mutationFn: () => refreshConversationTags(activeId!),
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.setQueryData(["context", activeId], (old: any) => ({
         ...old,
-        tags: data.tags,
+        pending_tags: data.pending_tags || data.tags, // Fallback if API hasn't updated
       }));
     },
   });
@@ -43,6 +46,28 @@ export function ContactTagsCard() {
       queryClient.setQueryData(["context", activeId], (old: any) => ({
         ...old,
         tags: data.tags,
+      }));
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: (tag: string) => approveConversationTag(activeId!, tag),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["context", activeId], (old: any) => ({
+        ...old,
+        tags: data.tags,
+        pending_tags: data.pending_tags,
+      }));
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (tag: string) => rejectConversationTag(activeId!, tag),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["context", activeId], (old: any) => ({
+        ...old,
+        tags: data.tags,
+        pending_tags: data.pending_tags,
       }));
     },
   });
@@ -200,6 +225,46 @@ export function ContactTagsCard() {
           </button>
         )}
       </div>
+
+      {/* Pending AI Tags */}
+      {pendingTags.length > 0 && (
+        <div className="pt-2 border-t border-subtle mt-2 space-y-2">
+          <p className="text-[10px] font-medium text-accent uppercase tracking-wider">
+            AI Đề Xuất
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {pendingTags.map((tag: string, idx: number) => (
+              <span
+                key={`pending-${idx}`}
+                className="group inline-flex items-center gap-1 rounded-lg border border-accent/40 bg-accent/5 px-2 py-0.5 text-xs font-medium text-primary/80"
+              >
+                <Sparkles size={10} className="text-accent" />
+                <span>{tag}</span>
+                <div className="flex items-center gap-0.5 ml-1 border-l border-accent/20 pl-1">
+                  <button
+                    type="button"
+                    onClick={() => approveMutation.mutate(tag)}
+                    disabled={approveMutation.isPending}
+                    className="rounded text-green-500 hover:bg-green-500/20 p-0.5 cursor-pointer"
+                    title="Duyệt"
+                  >
+                    <Check size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => rejectMutation.mutate(tag)}
+                    disabled={rejectMutation.isPending}
+                    className="rounded text-red-500 hover:bg-red-500/20 p-0.5 cursor-pointer"
+                    title="Từ chối"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <p className="text-[10px] text-secondary/70 italic">
         Nhãn được AI tự động nhận diện theo mối quan hệ, ngành nghề & kỹ năng từ cuộc hội thoại.

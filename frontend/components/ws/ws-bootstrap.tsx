@@ -1,16 +1,23 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { wsManager } from "@/lib/ws/manager";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Message } from "@/types";
 import { toast } from "sonner";
+import { useAISettings } from "@/hooks/use-ai-settings";
 
 export function WSBootstrap({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
+  const { features } = useAISettings();
+  const featuresRef = useRef(features);
+  
+  useEffect(() => {
+    featuresRef.current = features;
+  }, [features]);
 
   useEffect(() => {
     if (!user) {
@@ -78,10 +85,12 @@ export function WSBootstrap({ children }: { children: React.ReactNode }) {
         });
       } else if (data.type === "NEW_RECOMMENDATION") {
         queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
-        toast("✨ New AI Connection Found!", {
-          description: data.message || "AI Matchmaker has analyzed your recent context.",
-          duration: 6000,
-        });
+        if (featuresRef.current.recommendation !== false) {
+          toast("✨ New AI Connection Found!", {
+            description: data.message || "AI Matchmaker has analyzed your recent context.",
+            duration: 6000,
+          });
+        }
       }
     });
 
