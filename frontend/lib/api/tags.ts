@@ -8,6 +8,18 @@ export async function getSystemTags(): Promise<Tag[]> {
   return response.json();
 }
 
+export async function createSystemTag(name: string, category: string): Promise<Tag> {
+  const response = await fetch("/api/proxy/api/v1/tags", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, category }),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to create tag");
+  }
+  return response.json();
+}
+
 export async function getMyTags(): Promise<Tag[]> {
   const response = await fetch("/api/proxy/api/v1/users/me/tags");
   if (!response.ok) {
