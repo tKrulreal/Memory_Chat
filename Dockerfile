@@ -1,10 +1,9 @@
 # ============================================
 # MemoryChat - Production Dockerfile
-# Simple and reliable
+# Auto-runs migrations on startup
 # ============================================
 
 # ---- Stage 1: Build ----
-# Use full image to avoid needing gcc (all packages have binary wheels)
 FROM python:3.11-slim-bookworm AS builder
 
 WORKDIR /app
@@ -42,5 +41,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/readiness')" || exit 1
 
-# Run with uvicorn (run as root for simplicity)
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Auto-run migrations and start uvicorn
+# NOTE: docker-compose waits for postgres to be healthy before starting backend
+CMD ["sh", "-c", "echo 'Running database migrations...' && python -m alembic upgrade head && echo 'Starting uvicorn...' && exec uvicorn src.main:app --host 0.0.0.0 --port 8000 --workers 1"]
