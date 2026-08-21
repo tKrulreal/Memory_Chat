@@ -41,9 +41,14 @@ class AISystemConfig(Base):
     __tablename__ = "ai_system_config"
 
     id: Mapped[uuid_pk]
-    key: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    key: Mapped[str] = mapped_column(String(255), index=True)
     value: Mapped[dict] = mapped_column(JSON)
     description: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     created_at: Mapped[created_at_col]
     updated_at: Mapped[updated_at_col]
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "key", name="uq_user_ai_config"),
+    )

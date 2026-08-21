@@ -25,7 +25,7 @@ def get_system_tags(db: Session = Depends(get_db)):
 def create_system_tag(
     req: TagCreate,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_admin_user)
+    current_user: User = Depends(get_current_user)
 ):
     tag = Tag(name=req.name, category=req.category, is_active=req.is_active)
     db.add(tag)
@@ -83,21 +83,42 @@ def remove_my_tag(
         db.commit()
     return {"status": "success"}
     
-# AI System Config endpoints (Admin only)
+# AI System Config endpoints
 @router.get("/ai-config", response_model=list[AISystemConfigResponse])
-def get_ai_configs(db: Session = Depends(get_db), admin: User = Depends(get_admin_user)):
-    return db.query(AISystemConfig).all()
+def get_ai_configs(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    configs = db.query(AISystemConfig).filter(AISystemConfig.user_id == current_user.id).all()
+    if not configs:
+        default_config = AISystemConfig(
+            user_id=current_user.id,
+            key="system_prompt",
+            value={"role": "system", "content": "You are a helpful AI Matchmaker agent. Analyze user chats to find common interests and propose connections."},
+            description="System rules for AI Matchmaker"
+        )
+        db.add(default_config)
+        db.commit()
+        db.refresh(default_config)
+        configs.append(default_config)
+    return configs
 
 @router.patch("/ai-config/{key}", response_model=AISystemConfigResponse)
 def update_ai_config(
     key: str,
     req: AISystemConfigUpdate,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_admin_user)
+    current_user: User = Depends(get_current_user)
 ):
-    config = db.query(AISystemConfig).filter(AISystemConfig.key == key).first()
+    config = db.query(AISystemConfig).filter(
+        AISystemConfig.user_id == current_user.id,
+        AISystemConfig.key == key
+    ).first()
+    
     if not config:
-        config = AISystemConfig(key=key, value=req.value, description=req.description)
+        config = AISystemConfig(
+            user_id=current_user.id,
+            key=key,
+            value=req.value,
+            description=req.description
+        )
         db.add(config)
     else:
         config.value = req.value

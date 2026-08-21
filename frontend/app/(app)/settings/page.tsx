@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getMyProfile, updateMyProfile, ProfileUpdatePayload } from "@/lib/api/profile";
-import { getMySettings, updateMySettings } from "@/lib/api/settings";
+import { getSettings, updateSettings } from "@/lib/api/settings";
 import { generateConnections } from "@/lib/api/recommendations";
 import { useRouter } from "next/navigation";
 
@@ -36,7 +36,7 @@ export default function SettingsPage() {
 
   const { data: settings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ["my-settings"],
-    queryFn: getMySettings,
+    queryFn: getSettings,
   });
 
   const [fullName, setFullName] = useState("");
@@ -97,7 +97,7 @@ export default function SettingsPage() {
   });
 
   const updateSettingsMutation = useMutation({
-    mutationFn: (payload: any) => updateMySettings(payload),
+    mutationFn: (payload: any) => updateSettings(payload),
     onSuccess: (data) => {
       queryClient.setQueryData(["my-settings"], data);
       setSaveSettingsSuccess(true);
