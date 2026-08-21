@@ -52,6 +52,7 @@ def search_users(
             or_(
                 func.lower(User.full_name).like(func.lower(q_pattern)),
                 func.lower(User.email).like(func.lower(q_pattern)),
+                User.phone.like(q_pattern),
             ),
         )
         .order_by(User.full_name.asc(), User.email.asc())
@@ -69,6 +70,8 @@ def search_users(
                 full_name=user.full_name,
                 email=user.email,
                 avatar=user.avatar,
+                gender=user.gender,
+                phone=user.phone,
                 relation=relation,
                 conversation_id=conversation_id if relation == "friend" else None,
             )
@@ -146,8 +149,9 @@ def search_conversations(
             peer = conv.user_b if str(conv.user_a_id) == str(current_user.id) else conv.user_a
             peer_name = (peer.full_name or "").lower()
             peer_email = (peer.email or "").lower()
+            peer_phone = (peer.phone or "").lower()
             
-            if query_lower in peer_name or query_lower in peer_email:
+            if query_lower in peer_name or query_lower in peer_email or query_lower in peer_phone:
                 results.append(SearchResult(
                     conversation_id=str(conv.id),
                     peer=ParticipantResponse.model_validate(peer),
