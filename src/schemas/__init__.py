@@ -8,7 +8,8 @@ from src.schemas.enums import ConversationStatus, MessageRole
 from src.schemas.message import MessageBase, MessageCreate, MessageResponse
 from src.schemas.pagination import PaginatedResponse, Pagination
 from src.schemas.search import UserSearchResponse, UserSearchResult
-from src.schemas.tag import TagResponse, TagCreate, TagUpdate, AISystemConfigResponse, AISystemConfigCreate, AISystemConfigUpdate
+from src.schemas.tag import TagResponse, TagCreate, TagUpdate, AISystemConfigResponse, AISystemConfigUpdate
+from src.schemas.settings import SettingResponse, SettingUpdate, SettingBase
 
 __all__ = [
     "ConversationBase",
