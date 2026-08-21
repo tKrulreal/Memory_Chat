@@ -42,6 +42,12 @@ class RecommendationWorker:
                         )
                         db.add(notif)
                     db.commit()
+                    
+                    from src.api.ws import manager
+                    await manager.broadcast_to_user(
+                        user_id=user_id,
+                        message={"type": "NEW_RECOMMENDATION", "count": len(recs)}
+                    )
                 except Exception as db_e:
                     db.rollback()
                     logger.error(f"Failed to save notifications: {db_e}")
