@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 import {
   Bell,
   Brain,
@@ -10,17 +9,14 @@ import {
   ChevronRight,
   LogOut,
   MessageSquare,
-  Search,
   Settings,
   Sparkles,
   Star,
   Users,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { cn } from "@/lib/utils";
-import { NewChatModal } from "@/components/chat/new-chat-modal";
 
 const NAV_ITEMS = [
   { href: "/chats", label: "Chats", icon: MessageSquare },
@@ -36,7 +32,6 @@ export function NavSidebar() {
   const user = useAuthStore((s) => s.user);
   const navCollapsed = useUIStore((s) => s.navCollapsed);
   const toggleNav = useUIStore((s) => s.toggleNav);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const initials = user?.full_name
     ?.split(" ")
@@ -70,16 +65,6 @@ export function NavSidebar() {
           </button>
         </div>
 
-        <div className="p-3">
-          <Button
-            onClick={() => setIsModalOpen(true)}
-            className={cn("w-full", navCollapsed && "px-0")}
-            size="md"
-            aria-label="New chat"
-          >
-            {navCollapsed ? "+" : "+ New Chat"}
-          </Button>
-        </div>
 
         <nav className="flex-1 space-y-1 px-2 py-1">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -145,7 +130,6 @@ export function NavSidebar() {
           )}
         </div>
       </aside>
-      <NewChatModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </>
   );
 }

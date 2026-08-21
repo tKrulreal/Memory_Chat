@@ -1,6 +1,7 @@
 import logging
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 
 from src.api.deps import get_db
@@ -8,13 +9,77 @@ from src.core.security import get_current_user
 from src.gateways.llm import LLMGateway
 from src.models.chat import Conversation
 from src.models.user import User
-from src.schemas.search import SearchResult
+from src.schemas.search import SearchResult, UserSearchResult, UserSearchResponse
 from src.schemas.conversation import ParticipantResponse
 from src.services.vector_store import VectorStoreService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+# ---------------------------------------------------------------------------
+# User / People search
+# ---------------------------------------------------------------------------
+
+@router.get("/users", response_model=UserSearchResponse)
+def search_users(
+    q: str = Query(..., description="Search query (name or email)"),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Search all registered users by name or email.
+
+    - Case-insensitive, database-side filtering.
+    - Excludes the authenticated user from results.
+    - Returns relationship state computed by the backend.
+    """
+    from src.api.v1.connection_requests import get_relationship  # avoid circular import at module level
+
+    q_trimmed = q.strip()
+    if not q_trimmed:
+        return UserSearchResponse(items=[], total=0, limit=limit, offset=offset)
+
+    q_pattern = f"%{q_trimmed}%"
+
+    base_query = (
+        db.query(User)
+        .filter(
+            User.id != current_user.id,
+            User.deleted_at.is_(None),
+            or_(
+                func.lower(User.full_name).like(func.lower(q_pattern)),
+                func.lower(User.email).like(func.lower(q_pattern)),
+            ),
+        )
+        .order_by(User.full_name.asc(), User.email.asc())
+    )
+
+    total = base_query.count()
+    users = base_query.offset(offset).limit(limit).all()
+
+    items: list[UserSearchResult] = []
+    for user in users:
+        relation, conversation_id = get_relationship(db, current_user.id, user.id)
+        items.append(
+            UserSearchResult(
+                id=user.id,
+                full_name=user.full_name,
+                email=user.email,
+                avatar=user.avatar,
+                relation=relation,
+                conversation_id=conversation_id if relation == "friend" else None,
+            )
+        )
+
+    return UserSearchResponse(items=items, total=total, limit=limit, offset=offset)
+
+
+# ---------------------------------------------------------------------------
+# Conversation / semantic search (existing)
+# ---------------------------------------------------------------------------
 
 @router.get("/conversations", response_model=list[SearchResult])
 def search_conversations(
@@ -69,7 +134,6 @@ def search_conversations(
             ))
     else:
         # Graceful Fallback: Search by peer name or email in PostgreSQL
-        from sqlalchemy import or_
         conversations = db.query(Conversation).filter(
             or_(
                 Conversation.user_a_id == current_user.id,
@@ -94,5 +158,3 @@ def search_conversations(
                     break
 
     return results
-
-

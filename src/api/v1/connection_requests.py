@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
@@ -20,6 +20,108 @@ router = APIRouter(prefix="/connection-requests", tags=["connection_requests"])
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 DatabaseDep = Annotated[Session, Depends(get_db)]
 EventBusDep = Annotated[EventBus, Depends(get_event_bus)]
+
+# ---------------------------------------------------------------------------
+# Relationship resolver — single source of truth
+# ---------------------------------------------------------------------------
+
+UserRelation = Literal["none", "pending_sent", "pending_received", "friend"]
+
+
+def get_relationship(
+    db: Session,
+    current_user_id: uuid.UUID,
+    target_user_id: uuid.UUID,
+) -> tuple[UserRelation, uuid.UUID | None]:
+    """Return (relation, conversation_id).
+
+    Resolution order:
+    1. ACCEPTED connection   → friend
+    2. Pending sent by me    → pending_sent
+    3. Pending sent by them  → pending_received
+    4. Otherwise             → none
+    """
+    # 1. Check accepted connection (means a direct conversation exists)
+    existing_conv = (
+        db.query(Conversation)
+        .filter(
+            or_(
+                and_(
+                    Conversation.user_a_id == current_user_id,
+                    Conversation.user_b_id == target_user_id,
+                ),
+                and_(
+                    Conversation.user_a_id == target_user_id,
+                    Conversation.user_b_id == current_user_id,
+                ),
+            )
+        )
+        .first()
+    )
+    if existing_conv:
+        return "friend", existing_conv.id
+
+    # 2 & 3. Check pending request in either direction
+    pending_req = (
+        db.query(ConnectionRequest)
+        .filter(
+            or_(
+                and_(
+                    ConnectionRequest.sender_id == current_user_id,
+                    ConnectionRequest.receiver_id == target_user_id,
+                ),
+                and_(
+                    ConnectionRequest.sender_id == target_user_id,
+                    ConnectionRequest.receiver_id == current_user_id,
+                ),
+            ),
+            ConnectionRequest.status == "PENDING",
+        )
+        .first()
+    )
+
+    if pending_req:
+        if pending_req.sender_id == current_user_id:
+            return "pending_sent", None
+        else:
+            return "pending_received", None
+
+    return "none", None
+
+
+# ---------------------------------------------------------------------------
+# Conversation helper
+# ---------------------------------------------------------------------------
+
+def _find_or_create_conversation(
+    db: Session,
+    user_id_a: uuid.UUID,
+    user_id_b: uuid.UUID,
+) -> Conversation:
+    """Return existing direct conversation or create one.
+
+    Enforces user_a_id < user_b_id to satisfy the chk_user_order constraint.
+    """
+    uid_a, uid_b = sorted([str(user_id_a), str(user_id_b)])
+    existing = (
+        db.query(Conversation)
+        .filter(
+            Conversation.user_a_id == uid_a,
+            Conversation.user_b_id == uid_b,
+        )
+        .first()
+    )
+    if existing:
+        return existing
+    conv = Conversation(user_a_id=uid_a, user_b_id=uid_b)
+    db.add(conv)
+    db.flush()
+    return conv
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 
 @router.get("", response_model=PaginatedResponse[ConnectionRequestResponse])
@@ -63,6 +165,7 @@ def send_connection_request(
     current_user: CurrentUserDep,
     db: DatabaseDep,
 ):
+    # Resolve target user
     if not request_in.target_user_id and request_in.peer_email:
         peer = db.query(User).filter(User.email == request_in.peer_email).first()
         if not peer:
@@ -75,51 +178,34 @@ def send_connection_request(
     if current_user.id == request_in.target_user_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot send request to yourself")
 
-    # Check if target user exists
     target_user = db.get(User, request_in.target_user_id)
     if not target_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target user not found")
 
-    # Check if a conversation already exists
-    existing_conv = db.query(Conversation).filter(
-        or_(
-            and_(Conversation.user_a_id == current_user.id, Conversation.user_b_id == target_user.id),
-            and_(Conversation.user_a_id == target_user.id, Conversation.user_b_id == current_user.id),
+    # Resolve relationship — backend is the single source of truth
+    relation, _ = get_relationship(db, current_user.id, target_user.id)
+
+    if relation == "friend":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Already connected",
         )
-    ).first()
+    if relation == "pending_sent":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Connection request already sent",
+        )
+    if relation == "pending_received":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This user already sent you a request — accept it instead",
+        )
 
-    if existing_conv:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already connected")
-
-    # Check existing connection request
-    existing_req = db.query(ConnectionRequest).filter(
-        or_(
-            and_(ConnectionRequest.sender_id == current_user.id, ConnectionRequest.receiver_id == target_user.id),
-            and_(ConnectionRequest.sender_id == target_user.id, ConnectionRequest.receiver_id == current_user.id),
-        ),
-        ConnectionRequest.status == "PENDING"
-    ).first()
-
-    if existing_req:
-        if existing_req.sender_id == current_user.id:
-            return existing_req
-        else:
-            # Mutual request intent: The other person already sent a request, so we auto-accept it.
-            # However, for simplicity here, we can either return an error or accept it.
-            # The prompt says: "treat this as mutual intent and avoid creating duplicate requests/conversations."
-            existing_req.status = "ACCEPTED"
-            
-            # Create conversation
-            new_conv = Conversation(user_a_id=existing_req.sender_id, user_b_id=existing_req.receiver_id)
-            db.add(new_conv)
-            db.commit()
-            db.refresh(existing_req)
-            return existing_req
-
+    # Create new pending request
     new_req = ConnectionRequest(
         sender_id=current_user.id,
         receiver_id=target_user.id,
-        status="PENDING"
+        status="PENDING",
     )
     db.add(new_req)
     db.commit()
@@ -145,28 +231,18 @@ def accept_connection_request(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request is not pending")
 
     req.status = "ACCEPTED"
-    
-    # Check if conversation already exists just in case
-    existing_conv = db.query(Conversation).filter(
-        or_(
-            and_(Conversation.user_a_id == req.sender_id, Conversation.user_b_id == req.receiver_id),
-            and_(Conversation.user_a_id == req.receiver_id, Conversation.user_b_id == req.sender_id),
-        )
-    ).first()
 
-    if not existing_conv:
-        new_conv = Conversation(user_a_id=req.sender_id, user_b_id=req.receiver_id)
-        db.add(new_conv)
-        db.flush()
-        
-        # Publish event
-        event_bus.publish(
-            db=db,
-            event_type=EventType.OPEN_CHAT,
-            user_id=current_user.id,
-            payload={"conversation_id": str(new_conv.id)},
-            conversation_id=new_conv.id,
-        )
+    # Find or create exactly one direct conversation (transactional, idempotent)
+    conv = _find_or_create_conversation(db, req.sender_id, req.receiver_id)
+
+    # Publish event so the UI can navigate to the conversation
+    event_bus.publish(
+        db=db,
+        event_type=EventType.OPEN_CHAT,
+        user_id=current_user.id,
+        payload={"conversation_id": str(conv.id)},
+        conversation_id=conv.id,
+    )
 
     db.commit()
     db.refresh(req)
