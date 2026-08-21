@@ -7,6 +7,8 @@ export interface UserProfileData {
   email: string;
   full_name: string | null;
   avatar: string | null;
+  gender: string | null;
+  phone: string | null;
   profession: string | null;
   company: string | null;
   location: string | null;
@@ -23,6 +25,8 @@ export interface UserProfileData {
 export interface ProfileUpdatePayload {
   full_name?: string | null;
   avatar?: string | null;
+  gender?: string | null;
+  phone?: string | null;
   profession?: string | null;
   company?: string | null;
   location?: string | null;

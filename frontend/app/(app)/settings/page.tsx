@@ -32,6 +32,8 @@ export default function SettingsPage() {
   });
 
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [gender, setGender] = useState("");
   const [profession, setProfession] = useState("");
   const [company, setCompany] = useState("");
   const [location, setLocation] = useState("");
@@ -49,6 +51,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || "");
+      setPhone(profile.phone || "");
+      setGender(profile.gender || "");
       setProfession(profile.profession || "");
       setCompany(profile.company || "");
       setLocation(profile.location || "");
@@ -131,6 +135,8 @@ export default function SettingsPage() {
     e.preventDefault();
     updateMutation.mutate({
       full_name: fullName.trim() || null,
+      phone: phone.trim() || null,
+      gender: gender || null,
       profession: profession.trim() || null,
       company: company.trim() || null,
       location: location.trim() || null,
@@ -252,6 +258,35 @@ export default function SettingsPage() {
                   disabled
                   className="w-full rounded-button border border-subtle bg-elevated/40 px-3 py-2 text-sm text-secondary/70 cursor-not-allowed"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-secondary mb-1">
+                  Số điện thoại
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Ví dụ: 0912345678"
+                  className="w-full rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary placeholder:text-secondary/50 focus:border-accent focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-secondary mb-1">
+                  Giới tính
+                </label>
+                <select
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  className="w-full rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary focus:border-accent focus:outline-none"
+                >
+                  <option value="">Chọn giới tính</option>
+                  <option value="male">Nam</option>
+                  <option value="female">Nữ</option>
+                  <option value="other">Khác</option>
+                </select>
               </div>
 
               <div>

@@ -8,6 +8,8 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [gender, setGender] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -24,6 +26,8 @@ export default function RegisterPage() {
           email,
           password,
           full_name: fullName,
+          gender: gender || undefined,
+          phone: phone || undefined,
         }),
       });
 
@@ -87,6 +91,34 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               className="h-11 w-full rounded-button bg-input px-3 text-sm outline-none ring-accent focus:ring-1"
             />
+          </div>
+          <div>
+            <label htmlFor="phone" className="mb-1 block text-sm text-secondary">
+              Phone (optional)
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="h-11 w-full rounded-button bg-input px-3 text-sm outline-none ring-accent focus:ring-1"
+            />
+          </div>
+          <div>
+            <label htmlFor="gender" className="mb-1 block text-sm text-secondary">
+              Gender (optional)
+            </label>
+            <select
+              id="gender"
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              className="h-11 w-full rounded-button bg-input px-3 text-sm outline-none ring-accent focus:ring-1"
+            >
+              <option value="">Select gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
           </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
