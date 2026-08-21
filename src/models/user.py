@@ -70,6 +70,8 @@ class Setting(Base):
     theme: Mapped[str] = mapped_column(String(50), default="system")
     language: Mapped[str] = mapped_column(String(50), default="vi")
     notification: Mapped[bool] = mapped_column(Boolean, default=True)
+    ai_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    ai_memory_window: Mapped[str] = mapped_column(String(50), default="unlimited")
 
     user = relationship("User", back_populates="setting")
 
