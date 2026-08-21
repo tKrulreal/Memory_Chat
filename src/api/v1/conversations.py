@@ -314,6 +314,7 @@ async def trigger_context_refresh(
             user_id=current_user.id,
             conversation_id=conversation_id,
             messages=msg_dicts,
+            db=db,
         )
     except Exception as e:
         logging.getLogger(__name__).error("Failed to build memory: %s", e)

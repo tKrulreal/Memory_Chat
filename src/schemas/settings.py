@@ -6,13 +6,13 @@ class SettingBase(BaseModel):
     theme: str = "light"
     notifications_enabled: bool = True
     ai_enabled: bool = True
-    ai_memory_window: int = 10
+    ai_memory_window: str = "unlimited"
 
 class SettingUpdate(BaseModel):
     theme: Optional[str] = None
     notifications_enabled: Optional[bool] = None
     ai_enabled: Optional[bool] = None
-    ai_memory_window: Optional[int] = None
+    ai_memory_window: Optional[str] = None
 
 class SettingResponse(SettingBase):
     id: uuid.UUID

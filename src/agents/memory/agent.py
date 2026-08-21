@@ -121,6 +121,8 @@ Chú thích:
 - [USER] là người dùng hiện tại (chủ sở hữu trí nhớ này).
 - [PEER] là đối tác/người đang nhắn tin cùng.
 
+{system_rules}
+
 QUY TẮC BẮT BUỘC:
 1. CHỈ tóm tắt thông tin về ĐỐI TÁC ĐANG TRÒ CHUYỆN dựa trên những gì họ trực tiếp nói hoặc thể hiện.
 2. TUYỆT ĐỐI KHÔNG đưa thông tin, kỹ năng, quan điểm hoặc công việc của [USER] vào bản tóm tắt này.
@@ -143,6 +145,8 @@ Hội thoại:
 Chú thích:
 - [USER] là người dùng hiện tại.
 - [PEER] là đối tác/người đang nhắn tin cùng.
+
+{system_rules}
 
 QUY TẮC BẮT BUỘC:
 1. CHỈ trích xuất thông tin về ĐỐI TÁC ([PEER]). TUYỆT ĐỐI KHÔNG trích xuất thông tin của [USER].
@@ -203,7 +207,7 @@ class MemoryAgent:
     def __init__(self, llm: LLMGateway | None = None):
         self._llm = llm or LLMGateway()
 
-    async def summarize(self, messages: list[dict[str, Any]], owner_id: str = "") -> str:
+    async def summarize(self, messages: list[dict[str, Any]], owner_id: str = "", system_rules: str = "") -> str:
         """
         Tóm tắt conversation.
 
@@ -222,7 +226,7 @@ class MemoryAgent:
 
         for i, chunk in enumerate(chunks):
             text = format_conversation_for_prompt(chunk, owner_id=owner_id)
-            prompt = MEMORY_SUMMARY_PROMPT.format(conversation=text)
+            prompt = MEMORY_SUMMARY_PROMPT.format(conversation=text, system_rules=system_rules)
             try:
                 summary = self._llm.complete(prompt)
                 cleaned = sanitize_peer_text(summary.strip())
@@ -252,7 +256,7 @@ class MemoryAgent:
             return sanitize_peer_text(combined[:200]) or combined[:200]
 
 
-    async def extract_entities(self, messages: list[dict[str, Any]], owner_id: str = "") -> dict[str, Any]:
+    async def extract_entities(self, messages: list[dict[str, Any]], owner_id: str = "", system_rules: str = "") -> dict[str, Any]:
         """
         Trích xuất entities từ conversation.
 
@@ -270,7 +274,7 @@ class MemoryAgent:
 
         for i, chunk in enumerate(chunks):
             text = format_conversation_for_prompt(chunk, owner_id=owner_id)
-            prompt = MEMORY_ENTITIES_PROMPT.format(conversation=text)
+            prompt = MEMORY_ENTITIES_PROMPT.format(conversation=text, system_rules=system_rules)
             try:
                 raw = self._llm.complete(prompt)
                 # Parse JSON response
@@ -458,15 +462,54 @@ class MemoryAgent:
         user_id: uuid.UUID,
         conversation_id: uuid.UUID,
         messages: list[dict[str, Any]],
+        db: Any = None,
     ) -> MemoryResult:
         """
         Tổng hợp — gọi tất cả methods và trả về MemoryResult.
         """
         logger.info("Building memory for conversation_id=%s, owner=%s with %d messages", conversation_id, user_id, len(messages))
 
+        system_rules = ""
+        memory_window_days = None
+        if db:
+            from src.models.tag import AISystemConfig
+            configs = db.query(AISystemConfig).all()
+            rules = []
+            for c in configs:
+                rules.append(f"- {c.key}: {c.value}")
+            if rules:
+                system_rules = "Quy tắc hệ thống (TỪ AI_SYSTEM_CONFIG):\n" + "\n".join(rules) + "\n"
+                
+            from src.models.user import Setting
+            setting = db.query(Setting).filter(Setting.user_id == user_id).first()
+            if setting and setting.ai_memory_window and str(setting.ai_memory_window).lower() != "unlimited":
+                try:
+                    import re
+                    match = re.search(r'\d+', str(setting.ai_memory_window))
+                    if match:
+                        memory_window_days = int(match.group())
+                except Exception:
+                    pass
+                    
+        # Filter messages by memory window
+        if memory_window_days:
+            from datetime import timedelta, timezone
+            now = datetime.now(timezone.utc)
+            cutoff_date = now - timedelta(days=memory_window_days)
+            filtered = []
+            for m in messages:
+                created_at = m.get("created_at")
+                if created_at:
+                    if created_at.tzinfo is None:
+                        created_at = created_at.replace(tzinfo=timezone.utc)
+                    if created_at < cutoff_date:
+                        continue
+                filtered.append(m)
+            messages = filtered
+
         owner_id_str = str(user_id)
-        summary = await self.summarize(messages, owner_id=owner_id_str)
-        entities = await self.extract_entities(messages, owner_id=owner_id_str)
+        summary = await self.summarize(messages, owner_id=owner_id_str, system_rules=system_rules)
+        entities = await self.extract_entities(messages, owner_id=owner_id_str, system_rules=system_rules)
         relationship_score = self.calculate_relationship_score(messages)
         timeline = self.build_timeline(messages)
 

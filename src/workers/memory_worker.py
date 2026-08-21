@@ -181,7 +181,7 @@ class MemoryWorker:
             ]
 
             agent = self._get_agent()
-            result = await agent.build_memory(user_id, conversation_id, messages_data)
+            result = await agent.build_memory(user_id, conversation_id, messages_data, db=session)
 
             existing = session.query(AssistantMemory).filter(
                 AssistantMemory.owner_user_id == user_id,
