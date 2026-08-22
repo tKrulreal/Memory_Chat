@@ -25,6 +25,11 @@ export function ContactTagsCard() {
     enabled: !!activeId,
   });
 
+  const { data: systemTags } = useQuery({
+    queryKey: ["systemTags"],
+    queryFn: () => import("@/lib/api/tags").then(m => m.getSystemTags()),
+  });
+
   const tags = context?.tags || [];
   const pendingTags = context?.pending_tags || [];
 
@@ -77,8 +82,9 @@ export function ContactTagsCard() {
     updateMutation.mutate(nextTags);
   };
 
-  const handleAddTag = () => {
-    const trimmed = newTagInput.trim();
+  const handleAddTag = (tag?: string) => {
+    const valToUse = tag !== undefined ? tag : newTagInput;
+    const trimmed = valToUse.trim();
     if (!trimmed) {
       setIsAdding(false);
       return;
@@ -176,43 +182,81 @@ export function ContactTagsCard() {
 
         {/* Add Tag Input or Button */}
         {isAdding ? (
-          <div className="inline-flex items-center gap-1 rounded-lg border border-accent bg-elevated px-2 py-0.5 shadow-sm">
-            <input
-              type="text"
-              autoFocus
-              value={newTagInput}
-              onChange={(e) => setNewTagInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleAddTag();
-                } else if (e.key === "Escape") {
+          <div className="relative">
+            <div className="inline-flex items-center gap-1 rounded-lg border border-accent bg-elevated px-2 py-0.5 shadow-sm">
+              <input
+                type="text"
+                autoFocus
+                value={newTagInput}
+                onChange={(e) => setNewTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const trimmed = newTagInput.trim();
+                    const formatted = trimmed
+                      .split(" ")
+                      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                      .join(" ");
+                    
+                    if (systemTags?.some(t => t.name.toLowerCase() === formatted.toLowerCase())) {
+                      setNewTagInput(formatted);
+                      handleAddTag(formatted);
+                    } else if (systemTags?.some(t => t.name.toLowerCase().includes(trimmed.toLowerCase()))) {
+                       const match = systemTags.find(t => t.name.toLowerCase().includes(trimmed.toLowerCase()));
+                       if (match) handleAddTag(match.name);
+                    }
+                  } else if (e.key === "Escape") {
+                    setIsAdding(false);
+                    setNewTagInput("");
+                  }
+                }}
+                placeholder="Nhập tên nhãn..."
+                className="w-28 bg-transparent text-xs text-primary placeholder-secondary focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                   const formatted = newTagInput.trim()
+                      .split(" ")
+                      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                      .join(" ");
+                   if (systemTags?.some(t => t.name.toLowerCase() === formatted.toLowerCase())) {
+                      handleAddTag(formatted);
+                   }
+                }}
+                className="text-accent hover:text-primary cursor-pointer"
+                title="Lưu nhãn"
+              >
+                <Check size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setIsAdding(false);
                   setNewTagInput("");
-                }
-              }}
-              placeholder="Nhập tên nhãn..."
-              className="w-24 bg-transparent text-xs text-primary placeholder-secondary focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={handleAddTag}
-              className="text-accent hover:text-primary cursor-pointer"
-              title="Lưu nhãn"
-            >
-              <Check size={13} />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsAdding(false);
-                setNewTagInput("");
-              }}
-              className="text-secondary hover:text-primary cursor-pointer"
-              title="Hủy"
-            >
-              <X size={13} />
-            </button>
+                }}
+                className="text-secondary hover:text-primary cursor-pointer"
+                title="Hủy"
+              >
+                <X size={13} />
+              </button>
+            </div>
+            {newTagInput.trim().length > 0 && systemTags && (
+              <div className="absolute top-full left-0 mt-1 w-full max-h-32 overflow-y-auto rounded-md border border-subtle bg-elevated shadow-md z-10 scrollbar-thin">
+                {systemTags
+                  .filter(t => t.name.toLowerCase().includes(newTagInput.toLowerCase()) && !tags.includes(t.name))
+                  .map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className="w-full text-left px-2 py-1.5 text-xs text-primary hover:bg-accent/10 transition-colors"
+                      onClick={() => handleAddTag(t.name)}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+              </div>
+            )}
           </div>
         ) : (
           <button
@@ -225,46 +269,6 @@ export function ContactTagsCard() {
           </button>
         )}
       </div>
-
-      {/* Pending AI Tags */}
-      {pendingTags.length > 0 && (
-        <div className="pt-2 border-t border-subtle mt-2 space-y-2">
-          <p className="text-[10px] font-medium text-accent uppercase tracking-wider">
-            AI Đề Xuất
-          </p>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {pendingTags.map((tag: string, idx: number) => (
-              <span
-                key={`pending-${idx}`}
-                className="group inline-flex items-center gap-1 rounded-lg border border-accent/40 bg-accent/5 px-2 py-0.5 text-xs font-medium text-primary/80"
-              >
-                <Sparkles size={10} className="text-accent" />
-                <span>{tag}</span>
-                <div className="flex items-center gap-0.5 ml-1 border-l border-accent/20 pl-1">
-                  <button
-                    type="button"
-                    onClick={() => approveMutation.mutate(tag)}
-                    disabled={approveMutation.isPending}
-                    className="rounded text-green-500 hover:bg-green-500/20 p-0.5 cursor-pointer"
-                    title="Duyệt"
-                  >
-                    <Check size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => rejectMutation.mutate(tag)}
-                    disabled={rejectMutation.isPending}
-                    className="rounded text-red-500 hover:bg-red-500/20 p-0.5 cursor-pointer"
-                    title="Từ chối"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
 
       <p className="text-[10px] text-secondary/70 italic">
         Nhãn được AI tự động nhận diện theo mối quan hệ, ngành nghề & kỹ năng từ cuộc hội thoại.

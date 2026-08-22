@@ -463,15 +463,15 @@ def update_assistant_tags(
     agent = TaggingAgent()
     cleaned_tags = agent._clean_tags(payload.tags)
 
-    # Ensure all cleaned tags exist in the global System Tags repository
+    # Ensure all cleaned tags exist in the global System Tags repository for the user
     for tag_name in cleaned_tags:
-        existing_tag = db.query(Tag).filter(Tag.name.ilike(tag_name)).first()
+        existing_tag = db.query(Tag).filter(Tag.user_id == current_user.id, Tag.name.ilike(tag_name)).first()
         if existing_tag:
             if not existing_tag.is_active:
                 existing_tag.is_active = True
                 db.commit()
         else:
-            new_tag = Tag(name=tag_name, category=None, is_active=True)
+            new_tag = Tag(user_id=current_user.id, name=tag_name, category=None, is_active=True)
             db.add(new_tag)
             db.commit()
 
@@ -531,14 +531,14 @@ def approve_assistant_tag(
         if payload.tag not in active_tags:
             active_tags.append(payload.tag)
             
-            # Ensure global System Tag exists
+            # Ensure global System Tag exists for the user
             from src.models.tag import Tag
-            existing_tag = db.query(Tag).filter(Tag.name.ilike(payload.tag)).first()
+            existing_tag = db.query(Tag).filter(Tag.user_id == current_user.id, Tag.name.ilike(payload.tag)).first()
             if existing_tag:
                 if not existing_tag.is_active:
                     existing_tag.is_active = True
             else:
-                new_tag = Tag(name=payload.tag, category=None, is_active=True)
+                new_tag = Tag(user_id=current_user.id, name=payload.tag, category=None, is_active=True)
                 db.add(new_tag)
         
         facts["pending_tags"] = pending_tags

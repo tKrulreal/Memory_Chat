@@ -28,6 +28,11 @@ QUY TẮC PHÂN LOẠI & GẮN TAG (BẮT BUỘC TUÂN THỦ 100%):
    - Chỉ gắn tag mô tả đối tác [PEER] dựa trên những gì [PEER] nói về bản thân họ hoặc vị thế của [PEER] đối với [USER].
    - TUYỆT ĐỐI KHÔNG gắn kỹ năng, công ty, sở thích, yêu cầu hoặc nội dung của [USER] vào tag.
 
+2. **BẮT BUỘC SỬ DỤNG NHÃN CÓ SẴN CỦA NGƯỜI DÙNG (MY AI TAGS):**
+   - Dưới đây là danh sách các Nhãn (Tags) mà [USER] đang sử dụng trong hệ thống của họ: [{existing_tags}]
+   - TUYỆT ĐỐI CHỈ ĐƯỢC PHÉP CHỌN các nhãn từ danh sách trên để gắn cho [PEER].
+   - NẾU KHÔNG CÓ nhãn nào trong danh sách trên phù hợp với [PEER], BẮT BUỘC trả về mảng rỗng `[]`, KHÔNG ĐƯỢC TỰ Ý TẠO NHÃN MỚI.
+
 2. **CÁC NHÓM TAG CẦN THIẾT ĐỂ NHẬN DIỆN ĐỐI PHƯƠNG (TỔNG CỘNG 3-6 TAGS):**
    - **Mối quan hệ với [USER] (Từ góc nhìn của [USER]):** Khách Hàng, Bạn Bè, Đối Tác, Đồng Nghiệp, Mentor, Nhà Đầu Tư, Ứng Viên, Học Viên, Nhà Cung Cấp...
    - **Lĩnh vực hoạt động của [PEER]:** Công Nghệ, Trí Tuệ Nhân Tạo (AI), Bất Động Sản, Tài Chính & Đầu Tư, E-commerce, Giáo Dục, Y Tế, Thiết Kế...

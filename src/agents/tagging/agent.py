@@ -97,6 +97,12 @@ class TaggingAgent:
         """
         Tự động phân tích hội thoại và sinh ra danh sách tag cho đối tác.
         """
+        # Check global toggle
+        current_user = db.get(User, user_id)
+        if current_user and current_user.setting:
+            if not current_user.setting.ai_enabled:
+                return []
+
         # Get limit and features toggle
         ai_config = db.query(AISystemConfig).filter(
             AISystemConfig.user_id == user_id,
@@ -155,12 +161,17 @@ class TaggingAgent:
             self._save_tags_to_memory(conversation_id, user_id, cleaned, db)
             return cleaned
 
+        from src.models.tag import Tag
+        user_tags = db.query(Tag).filter(Tag.user_id == user_id, Tag.is_active == True).all()
+        existing_tags_str = ", ".join([t.name for t in user_tags]) if user_tags else "Chưa có"
+
         prompt = TAGGING_AGENT_PROMPT.format(
             conversation=conversation_text,
             peer_name=peer_name,
             peer_profession=peer_profession,
             peer_company=peer_company,
             peer_location=peer_location,
+            existing_tags=existing_tags_str,
         )
 
         try:
@@ -182,6 +193,13 @@ class TaggingAgent:
             if other_profile.company:
                 fallback.append(other_profile.company)
             tags = self._clean_tags(fallback)
+
+        # Ensure tags only contain existing user tags
+        if user_tags:
+            valid_tag_names = {t.name.lower(): t.name for t in user_tags}
+            tags = [valid_tag_names[t.lower()] for t in tags if t.lower() in valid_tag_names]
+        else:
+            tags = []
 
         tags = tags[:limit]
         self._save_tags_to_memory(conversation_id, user_id, tags, db)
@@ -208,13 +226,17 @@ class TaggingAgent:
             memory = AssistantMemory(
                 owner_user_id=user_id,
                 conversation_id=conversation_id,
-                facts={"pending_tags": tags},
+                facts={"tags": tags},
                 summary="",
             )
             db.add(memory)
         else:
             facts = dict(memory.facts or {})
-            facts["pending_tags"] = tags
+            existing_tags = facts.get("tags", [])
+            for t in tags:
+                if t not in existing_tags:
+                    existing_tags.append(t)
+            facts["tags"] = existing_tags
             memory.facts = facts
 
         db.commit()
