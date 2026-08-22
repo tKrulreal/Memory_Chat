@@ -159,8 +159,12 @@ export function ConnectionDetailPanel({
               {/* Left Column: YOU */}
               <div className="space-y-3.5">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/20 text-xs font-bold text-blue-400 uppercase">
-                    {myInitials}
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/20 text-xs font-bold text-blue-400 uppercase overflow-hidden">
+                    {detail.current_user_avatar ? (
+                      <img src={detail.current_user_avatar} alt={detail.current_user_name} className="h-full w-full object-cover" />
+                    ) : (
+                      myInitials
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -230,8 +234,12 @@ export function ConnectionDetailPanel({
               {/* Right Column: TARGET CANDIDATE */}
               <div className="space-y-3.5 border-t md:border-t-0 md:border-l border-subtle pt-3.5 md:pt-0 md:pl-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-white text-xs font-bold uppercase shadow-sm">
-                    {targetInitials}
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-white text-xs font-bold uppercase shadow-sm overflow-hidden">
+                    {detail.target_user_avatar ? (
+                      <img src={detail.target_user_avatar} alt={targetName} className="h-full w-full object-cover" />
+                    ) : (
+                      targetInitials
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">

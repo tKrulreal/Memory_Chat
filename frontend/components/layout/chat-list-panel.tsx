@@ -42,6 +42,7 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
   });
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<typeof FILTERS[number]>("All");
 
   // Local filtering for the main list
   const items = conversations.filter(c => {
@@ -76,9 +77,10 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
             <button
               key={filter}
               type="button"
+              onClick={() => setActiveFilter(filter)}
               className={cn(
                 "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                filter === "All"
+                filter === activeFilter
                   ? "bg-accent/20 text-accent"
                   : "bg-elevated text-secondary hover:text-primary",
               )}
@@ -111,15 +113,15 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
           const isUserA = user?.id === conversation.user_a_id;
           const peerId = isUserA ? conversation.user_b_id : conversation.user_a_id;
           const peer = isUserA ? conversation.user_b : conversation.user_a;
-          
+
           let peerName = `User ${peerId.substring(0, 4)}`;
           let peerShort = peerId.substring(0, 2).toUpperCase();
-          
+
           if (peer) {
             peerName = peer.full_name || peer.email.split('@')[0];
             peerShort = peer.email.substring(0, 2).toUpperCase();
           }
-          
+
           // Format date if needed
           const dateStr = conversation.last_message_at ? new Date(conversation.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
 

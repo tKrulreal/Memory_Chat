@@ -97,6 +97,21 @@ class ConnectionRecommendationAgent:
         1. Ưu tiên 1 (Cao nhất): Dữ liệu do chính người dùng tự nhập trong bảng UserProfile (Company, Location, Profession, Skills, Interests, Looking for, Offering, Bio).
         2. Ưu tiên 2 (Tự động trích xuất): Nếu người dùng chưa nhập trường nào, trích xuất tự động từ lịch sử hội thoại (AssistantMemory & Messages).
         """
+        setting = user.setting
+        if setting and getattr(setting, "ai_read_profile", True) is False:
+            return UserProfileDict(
+                profession=None,
+                company=None,
+                location=None,
+                skills=[],
+                interests=[],
+                looking_for=[],
+                offering=[],
+                bio=None,
+                memories_summary="Hồ sơ được bảo mật theo yêu cầu người dùng.",
+                recent_messages_summary="Hồ sơ được bảo mật theo yêu cầu người dùng."
+            )
+
         collected_skills: list[str] = []
         collected_interests: list[str] = []
         collected_needs: list[str] = []
@@ -302,10 +317,14 @@ class ConnectionRecommendationAgent:
                 connected_user_ids.add(r.target_user_id)
 
         # 3. Lấy tất cả user khác chưa có trong danh sách trên
+        from src.models.user import Setting
+        
         candidates = (
             db.query(User)
+            .outerjoin(Setting, User.id == Setting.user_id)
             .filter(
                 User.id != user_id,
+                or_(Setting.ai_read_profile.is_(True), Setting.user_id.is_(None)),
                 ~User.id.in_(connected_user_ids) if connected_user_ids else True,
             )
             .all()
@@ -413,6 +432,10 @@ class ConnectionRecommendationAgent:
             current_user = db.get(User, user_id)
             if not current_user:
                 logger.error(f"User {user_id} not found in database")
+                return []
+                
+            if current_user.setting and not current_user.setting.ai_read_profile:
+                logger.info(f"User {user_id} has disabled Allow Profile Matching. Skipping recommendation generation.")
                 return []
 
             # 1. Extract current user profile from DB

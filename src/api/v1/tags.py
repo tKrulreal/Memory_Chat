@@ -18,8 +18,8 @@ def get_admin_user(current_user: User = Depends(get_current_user)):
     return current_user
 
 @router.get("/tags", response_model=list[TagResponse])
-def get_system_tags(db: Session = Depends(get_db)):
-    return db.query(Tag).filter(Tag.is_active == True).all()
+def get_system_tags(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(Tag).filter(Tag.user_id == current_user.id, Tag.is_active == True).all()
 
 @router.post("/tags", response_model=TagResponse)
 def create_system_tag(
@@ -29,8 +29,11 @@ def create_system_tag(
 ):
     normalized_name = " ".join([word.capitalize() for word in req.name.strip().split()])
     
-    # Check if exists
-    existing = db.query(Tag).filter(Tag.name.ilike(normalized_name)).first()
+    # Check if exists for current user
+    existing = db.query(Tag).filter(
+        Tag.user_id == current_user.id,
+        Tag.name.ilike(normalized_name)
+    ).first()
     if existing:
         if not existing.is_active:
             existing.is_active = True
@@ -39,7 +42,7 @@ def create_system_tag(
             return existing
         return existing
         
-    tag = Tag(name=normalized_name, category=req.category, is_active=req.is_active)
+    tag = Tag(user_id=current_user.id, name=normalized_name, category=req.category, is_active=req.is_active)
     db.add(tag)
     db.commit()
     db.refresh(tag)
@@ -51,7 +54,7 @@ def delete_system_tag(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    tag = db.query(Tag).filter(Tag.id == tag_id).first()
+    tag = db.query(Tag).filter(Tag.id == tag_id, Tag.user_id == current_user.id).first()
     if not tag:
         raise HTTPException(status_code=404, detail="Tag not found")
     

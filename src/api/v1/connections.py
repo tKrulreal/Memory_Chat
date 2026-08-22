@@ -23,6 +23,7 @@ from src.models.user import User
 from src.models.ai import Recommendation, AssistantMemory
 from src.models.chat import Conversation, ConversationUserState, Message
 from src.models.contact import Contact, ContactMemory
+from src.models.tag import AISystemConfig
 from src.schemas.enums import RecommendationType
 
 router = APIRouter(prefix="/recommendations/connections", tags=["connections"])
@@ -47,11 +48,21 @@ async def list_connections(
     """
     Lấy danh sách các gợi ý kết nối dành cho bản thân người dùng hiện tại do AI đánh giá thật.
     """
+    # Read AI config for min_score filter
+    min_score_percent = 50
+    ai_config = db.query(AISystemConfig).filter(
+        AISystemConfig.user_id == current_user.id,
+        AISystemConfig.key == "ai_settings"
+    ).first()
+    if ai_config and isinstance(ai_config.value, dict):
+        min_score_percent = int(ai_config.value.get("min_matching_score", 50))
+        
     query = (
         db.query(Recommendation)
         .filter(
             Recommendation.owner_user_id == current_user.id,
             Recommendation.type == RecommendationType.CONNECTION.value,
+            Recommendation.confidence >= (min_score_percent / 100.0)
         )
     )
 
@@ -69,17 +80,29 @@ async def list_connections(
 
     # If user has no pending recommendations yet, trigger dynamic AI evaluation in real time
     if (status_filter == "PENDING" or status_filter == "ALL") and not recommendations:
-        try:
-            await agent.generate(current_user.id, min_score=0.5, limit=5)
-            recommendations = (
-                query
-                .order_by(Recommendation.confidence.desc(), Recommendation.created_at.desc())
-                .limit(limit)
-                .all()
-            )
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Auto AI generation error for user {current_user.id}: {e}")
+        # Only auto-generate if AI and Recommendation feature are enabled
+        can_generate = True
+        
+        if not current_user.setting or not current_user.setting.ai_enabled:
+            can_generate = False
+            
+        if ai_config and isinstance(ai_config.value, dict):
+            features = ai_config.value.get("features", {})
+            if features.get("recommendation") is False:
+                can_generate = False
+            
+        if can_generate:
+            try:
+                await agent.generate(current_user.id, min_score=min_score_percent / 100.0, limit=5)
+                recommendations = (
+                    query
+                    .order_by(Recommendation.confidence.desc(), Recommendation.created_at.desc())
+                    .limit(limit)
+                    .all()
+                )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Auto AI generation error for user {current_user.id}: {e}")
 
     results = []
     for rec in recommendations:
@@ -441,9 +464,26 @@ async def generate_connections(
     Trigger phân tích AI tự động tìm người dùng thật trong hệ thống phù hợp với User hiện tại.
     """
     try:
+        # Check global toggle
+        if not current_user.setting or not current_user.setting.ai_enabled:
+            raise HTTPException(status_code=400, detail="Tính năng AI đang bị tắt.")
+            
+        # Check specific recommendation toggle
+        ai_config = db.query(AISystemConfig).filter(
+            AISystemConfig.user_id == current_user.id,
+            AISystemConfig.key == "ai_settings"
+        ).first()
+        
+        min_score_percent = 50
+        if ai_config and isinstance(ai_config.value, dict):
+            features = ai_config.value.get("features", {})
+            if features.get("recommendation") is False:
+                raise HTTPException(status_code=400, detail="Tính năng Gợi ý kết nối (AI Recommendation) đã bị tắt.")
+            min_score_percent = int(ai_config.value.get("min_matching_score", 50))
+
         recommendations = await agent.generate(
             user_id=current_user.id,
-            min_score=0.5,
+            min_score=min_score_percent / 100.0,
             limit=10,
         )
 

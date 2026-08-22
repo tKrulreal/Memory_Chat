@@ -67,9 +67,15 @@ async def lifespan(app: FastAPI):
     app.state.connection_worker.subscribe()
     logger.info("connection_recommendation_worker_started")
 
+    # Start APScheduler
+    from src.core.scheduler import setup_scheduler, scheduler
+    setup_scheduler(app)
+
     try:
         yield
     finally:
+        logger.info("stopping_scheduler")
+        scheduler.shutdown()
         logger.info("stopping_outbox_worker")
         if getattr(app.state, "outbox_worker", None):
             await app.state.outbox_worker.stop()

@@ -2,24 +2,26 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Brain, Settings, Tag as TagIcon, Plus, Save, X } from "lucide-react";
+import { Brain, Settings, Tag as TagIcon, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSystemTags, createSystemTag, getAiConfigs, updateAiConfig } from "@/lib/api/tags";
+import { getSettings, updateSettings } from "@/lib/api/settings";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { AISystemConfig } from "@/types";
 
 export default function AIHubPage() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
 
   const [newTagName, setNewTagName] = useState("");
-  const [editingConfig, setEditingConfig] = useState<string | null>(null);
-  const [editConfigValue, setEditConfigValue] = useState("");
-  const [editConfigDesc, setEditConfigDesc] = useState("");
 
   const { data: tags = [], isLoading: loadingTags } = useQuery({
     queryKey: ["system-tags"],
     queryFn: getSystemTags,
+  });
+
+  const { data: settings, isLoading: loadingSettings } = useQuery({
+    queryKey: ["my-settings"],
+    queryFn: getSettings,
   });
 
   const { data: configs = [], isLoading: loadingConfigs } = useQuery({
@@ -46,12 +48,18 @@ export default function AIHubPage() {
     },
   });
 
+  const updateSettingsMutation = useMutation({
+    mutationFn: (data: any) => updateSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-settings"] });
+    },
+  });
+
   const updateConfigMutation = useMutation({
     mutationFn: (data: { key: string, value: any, desc?: string }) => 
       updateAiConfig(data.key, data.value, data.desc),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["system-configs"] });
-      setEditingConfig(null);
     },
   });
 
@@ -62,30 +70,8 @@ export default function AIHubPage() {
     }
   };
 
-  const startEditConfig = (config: AISystemConfig) => {
-    setEditingConfig(config.key);
-    setEditConfigValue(typeof config.value === 'string' ? config.value : JSON.stringify(config.value, null, 2));
-    setEditConfigDesc(config.description || "");
-  };
-
-  const handleUpdateConfig = () => {
-    if (editingConfig) {
-      let parsedValue = editConfigValue;
-      try {
-        parsedValue = JSON.parse(editConfigValue);
-      } catch (e) {
-        // If it can't be parsed, we send it as string or notify user.
-        // For AI Rules, backend expects dict, so if it's invalid JSON, we might want to alert the user.
-        alert("Invalid JSON format");
-        return;
-      }
-      
-      updateConfigMutation.mutate({
-        key: editingConfig,
-        value: parsedValue,
-        desc: editConfigDesc,
-      });
-    }
+  const handleUpdateSetting = (key: string, value: any) => {
+    updateSettingsMutation.mutate({ [key]: value });
   };
 
   return (
@@ -97,7 +83,7 @@ export default function AIHubPage() {
             AI Hub
           </h1>
           <p className="text-sm text-secondary mt-1">
-            Manage system-wide AI rules and taxonomy.
+            Manage your personal AI rules, personality, and taxonomy.
           </p>
         </div>
 
@@ -106,7 +92,7 @@ export default function AIHubPage() {
           <section className="rounded-card border border-subtle bg-surface p-6 space-y-4">
             <h2 className="text-lg font-semibold text-primary border-b border-subtle pb-2 flex items-center gap-2">
               <TagIcon size={18} className="text-accent" />
-              System Tags
+              My AI Tags
             </h2>
             
             <form onSubmit={handleCreateTag} className="flex gap-2">
@@ -153,94 +139,221 @@ export default function AIHubPage() {
             </h2>
             
             <div className="space-y-4">
-              {loadingConfigs ? (
+              {loadingSettings || !settings || loadingConfigs ? (
                 <p className="text-sm text-secondary">Loading...</p>
-              ) : (() => {
-                const aiSettingsConfig = configs.find((c: any) => c.key === "ai_settings");
-                const defaultSettings = {
-                  features: {
-                    copilot: true,
-                    recommendation: true,
-                    memory: true,
-                    tagging: true,
-                  },
-                  tag_limit: 3,
-                  memory_timeframe: "1 month"
-                };
-                
-                const settings = aiSettingsConfig?.value ? 
-                  { ...defaultSettings, ...aiSettingsConfig.value, features: { ...defaultSettings.features, ...(aiSettingsConfig.value.features || {}) } } 
-                  : defaultSettings;
+              ) : (
+                (() => {
+                  // Setup old configs
+                  const aiSettingsConfig = configs.find((c: any) => c.key === "ai_settings");
+                  const defaultSettings = {
+                    features: {
+                      copilot: true,
+                      recommendation: true,
+                      memory: true,
+                      tagging: true,
+                    },
+                    tag_limit: 3,
+                    min_matching_score: 50,
+                  };
+                  
+                  const oldConfigs = aiSettingsConfig?.value ? 
+                    { ...defaultSettings, ...aiSettingsConfig.value, features: { ...defaultSettings.features, ...(aiSettingsConfig.value.features || {}) } } 
+                    : defaultSettings;
+  
+                  const updateConfigSetting = (key: string, value: any, isFeature: boolean = false) => {
+                    const newSettings = { ...oldConfigs };
+                    if (isFeature) {
+                      newSettings.features[key] = value;
+                    } else {
+                      newSettings[key] = value;
+                    }
+                    updateConfigMutation.mutate({
+                      key: "ai_settings",
+                      value: newSettings,
+                      desc: "Global AI Settings",
+                    });
+                  };
 
-                const updateSetting = (key: string, value: any, isFeature: boolean = false) => {
-                  const newSettings = { ...settings };
-                  if (isFeature) {
-                    newSettings.features[key] = value;
-                  } else {
-                    newSettings[key] = value;
-                  }
-                  updateConfigMutation.mutate({
-                    key: "ai_settings",
-                    value: newSettings,
-                    desc: "Global AI Settings",
-                  });
-                };
-
-                return (
-                  <div className="space-y-6">
-                    <div className="space-y-3">
-                      <h3 className="font-semibold text-sm text-primary">AI Features</h3>
-                      {Object.entries(settings.features).map(([featureKey, isEnabled]) => (
-                        <div key={featureKey} className="flex items-center justify-between">
-                          <span className="text-sm text-secondary capitalize">AI {featureKey}</span>
+                  return (
+                    <div className="space-y-6">
+                      {/* --- MASTER AI ASSISTANT TOGGLE --- */}
+                      <div className="space-y-3">
+                        <h3 className="font-semibold text-sm text-primary">AI Assistant</h3>
+                        
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-secondary">Enable AI Assistant</span>
                           <label className="relative inline-flex items-center cursor-pointer">
                             <input 
                               type="checkbox" 
                               className="sr-only peer" 
-                              checked={isEnabled as boolean}
-                              onChange={(e) => updateSetting(featureKey, e.target.checked, true)}
+                              checked={settings.ai_enabled}
+                              onChange={(e) => handleUpdateSetting("ai_enabled", e.target.checked)}
                             />
                             <div className="w-9 h-5 bg-subtle peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
                           </label>
                         </div>
-                      ))}
-                    </div>
-
-                    <div className="space-y-3 pt-2 border-t border-subtle">
-                      <h3 className="font-semibold text-sm text-primary">AI Tagging</h3>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-secondary">Maximum AI Tag Suggestions</span>
-                        <input 
-                          type="number" 
-                          min="1" 
-                          max="10"
-                          value={settings.tag_limit}
-                          onChange={(e) => updateSetting("tag_limit", parseInt(e.target.value) || 3)}
-                          className="w-16 rounded border border-subtle bg-elevated px-2 py-1 text-sm text-center focus:border-accent focus:outline-none"
-                        />
                       </div>
-                    </div>
 
-                    <div className="space-y-3 pt-2 border-t border-subtle">
-                      <h3 className="font-semibold text-sm text-primary">Memory</h3>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-secondary">Memory Context Timeframe</span>
-                        <select 
-                          value={settings.memory_timeframe}
-                          onChange={(e) => updateSetting("memory_timeframe", e.target.value)}
-                          className="rounded border border-subtle bg-elevated px-2 py-1 text-sm focus:border-accent focus:outline-none"
-                        >
-                          <option value="1 week">1 week</option>
-                          <option value="1 month">1 month</option>
-                          <option value="3 months">3 months</option>
-                          <option value="6 months">6 months</option>
-                          <option value="1 year">1 year</option>
-                        </select>
-                      </div>
+                      {settings.ai_enabled && (
+                        <>
+                          {/* --- AI MEMORY --- */}
+                          <div className="space-y-3 pt-4 border-t border-subtle">
+                            <h3 className="font-semibold text-sm text-primary">AI Memory</h3>
+                            
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-secondary">Enable AI Memory</span>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  className="sr-only peer" 
+                                  checked={oldConfigs.features.memory}
+                                  onChange={(e) => updateConfigSetting("memory", e.target.checked, true)}
+                                />
+                                <div className="w-9 h-5 bg-subtle peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
+                              </label>
+                            </div>
+
+                            {oldConfigs.features.memory && (
+                              <div className="pl-4 space-y-3 border-l-2 border-subtle mt-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-secondary">Memory Refresh Interval</span>
+                                  <select 
+                                    value={settings.ai_memory_refresh_interval}
+                                    onChange={(e) => handleUpdateSetting("ai_memory_refresh_interval", e.target.value)}
+                                    className="rounded border border-subtle bg-elevated px-2 py-1 text-sm focus:border-accent focus:outline-none"
+                                  >
+                                    <option value="realtime">Realtime</option>
+                                    <option value="5_mins">5 Minutes</option>
+                                    <option value="hourly">Hourly</option>
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                  </select>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-secondary">Memory Analysis Window</span>
+                                  <select 
+                                    value={settings.ai_memory_window}
+                                    onChange={(e) => handleUpdateSetting("ai_memory_window", e.target.value)}
+                                    className="rounded border border-subtle bg-elevated px-2 py-1 text-sm focus:border-accent focus:outline-none"
+                                  >
+                                    <option value="1d">1 day</option>
+                                    <option value="1w">1 week</option>
+                                    <option value="1m">1 month</option>
+                                    <option value="3m">3 months</option>
+                                    <option value="6m">6 months</option>
+                                    <option value="1y">1 year</option>
+                                  </select>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* --- AI COPILOT --- */}
+                          <div className="space-y-3 pt-4 border-t border-subtle">
+                            <h3 className="font-semibold text-sm text-primary">AI Copilot</h3>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-secondary">Enable AI Copilot</span>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  className="sr-only peer" 
+                                  checked={oldConfigs.features.copilot}
+                                  onChange={(e) => updateConfigSetting("copilot", e.target.checked, true)}
+                                />
+                                <div className="w-9 h-5 bg-subtle peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* --- AI TAGGING --- */}
+                          <div className="space-y-3 pt-4 border-t border-subtle">
+                            <h3 className="font-semibold text-sm text-primary">AI Tagging</h3>
+                            
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-secondary">Enable AI Tagging</span>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  className="sr-only peer" 
+                                  checked={oldConfigs.features.tagging}
+                                  onChange={(e) => updateConfigSetting("tagging", e.target.checked, true)}
+                                />
+                                <div className="w-9 h-5 bg-subtle peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
+                              </label>
+                            </div>
+
+                            {oldConfigs.features.tagging && (
+                              <div className="pl-4 mt-2 border-l-2 border-subtle">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-secondary">Maximum AI Tag Suggestions</span>
+                                  <input 
+                                    type="number" 
+                                    min="1" 
+                                    max="20"
+                                    value={oldConfigs.tag_limit || 3}
+                                    onChange={(e) => updateConfigSetting("tag_limit", parseInt(e.target.value) || 3)}
+                                    className="w-16 rounded border border-subtle bg-elevated px-2 py-1 text-sm text-center focus:border-accent focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* --- AI RECOMMENDATION --- */}
+                          <div className="space-y-3 pt-4 border-t border-subtle">
+                            <h3 className="font-semibold text-sm text-primary">AI Recommendation</h3>
+                            
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-secondary">Enable AI Recommendation</span>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  className="sr-only peer" 
+                                  checked={oldConfigs.features.recommendation}
+                                  onChange={(e) => updateConfigSetting("recommendation", e.target.checked, true)}
+                                />
+                                <div className="w-9 h-5 bg-subtle peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
+                              </label>
+                            </div>
+
+                            {oldConfigs.features.recommendation && (
+                              <div className="pl-4 space-y-3 border-l-2 border-subtle mt-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-secondary">Allow Profile Matching</span>
+                                  <label className="relative inline-flex items-center cursor-pointer">
+                                    <input 
+                                      type="checkbox" 
+                                      className="sr-only peer" 
+                                      checked={settings.ai_read_profile}
+                                      onChange={(e) => handleUpdateSetting("ai_read_profile", e.target.checked)}
+                                    />
+                                    <div className="w-9 h-5 bg-subtle peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
+                                  </label>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-secondary">Minimum Match Percentage</span>
+                                  <select 
+                                    value={oldConfigs.min_matching_score || 50}
+                                    onChange={(e) => updateConfigSetting("min_matching_score", parseInt(e.target.value))}
+                                    className="rounded border border-subtle bg-elevated px-2 py-1 text-sm focus:border-accent focus:outline-none"
+                                  >
+                                    <option value="50">50%</option>
+                                    <option value="60">60%</option>
+                                    <option value="70">70%</option>
+                                    <option value="80">80%</option>
+                                    <option value="90">90%</option>
+                                  </select>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()
+              )}
+
             </div>
           </section>
         </div>

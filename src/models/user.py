@@ -71,6 +71,8 @@ class Setting(Base):
     language: Mapped[str] = mapped_column(String(50), default="vi")
     notification: Mapped[bool] = mapped_column(Boolean, default=True)
     ai_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    ai_read_profile: Mapped[bool] = mapped_column(Boolean, default=True)
+    ai_memory_refresh_interval: Mapped[str] = mapped_column(String(50), default="realtime")
     ai_memory_window: Mapped[str] = mapped_column(String(50), default="unlimited")
 
     user = relationship("User", back_populates="setting")

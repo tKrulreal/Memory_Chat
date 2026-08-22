@@ -9,14 +9,20 @@ class Tag(Base):
     __tablename__ = "tags"
 
     id: Mapped[uuid_pk]
-    name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(100), index=True)
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     created_at: Mapped[created_at_col]
     updated_at: Mapped[updated_at_col]
     
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_user_tag_name"),
+    )
+
     # Relationships
+    owner = relationship("User", foreign_keys=[user_id])
     users = relationship("UserTag", back_populates="tag", cascade="all, delete-orphan")
 
 

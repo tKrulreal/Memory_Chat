@@ -171,8 +171,16 @@ export function ConnectionCard({
       {/* Main Candidate Card */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent font-bold text-sm uppercase">
-            {targetInitials}
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/20 text-accent font-bold text-sm uppercase overflow-hidden">
+            {recommendation.target_user_avatar ? (
+              <img 
+                src={recommendation.target_user_avatar} 
+                alt={targetName} 
+                className="h-full w-full object-cover" 
+              />
+            ) : (
+              targetInitials
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">

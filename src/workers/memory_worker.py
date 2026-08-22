@@ -53,6 +53,64 @@ class MemoryWorker:
         self._event_bus.subscribe(EventType.OPEN_AI, self._on_open_ai)
         logger.info("MemoryWorker subscribed to EventBus events")
 
+    async def _check_and_queue_refresh(self, session, user_id: uuid.UUID, conversation_id: uuid.UUID, trigger_reason: str):
+        from src.models.user import User
+        user = session.query(User).filter(User.id == user_id).first()
+        if not user:
+            return
+            
+        setting = user.setting
+        
+        # Check global toggle
+        if not setting or not setting.ai_enabled:
+            logger.info("MemoryWorker: AI is globally disabled for user_id=%s. Skipping memory refresh.", user_id)
+            return
+
+        # Check specific memory toggle
+        from src.models.tag import AISystemConfig
+        ai_config = session.query(AISystemConfig).filter(
+            AISystemConfig.user_id == user_id,
+            AISystemConfig.key == "ai_settings"
+        ).first()
+        
+        if ai_config and isinstance(ai_config.value, dict):
+            features = ai_config.value.get("features", {})
+            if features.get("memory") is False:
+                logger.info("MemoryWorker: AI Memory feature is disabled for user_id=%s. Skipping memory refresh.", user_id)
+                return
+
+        interval_str = getattr(setting, "ai_memory_refresh_interval", "realtime") if setting else "realtime"
+        
+        if interval_str == "daily":
+            threshold_minutes = 1440
+        elif interval_str == "5_mins":
+            threshold_minutes = 5
+        else:
+            threshold_minutes = 0 # realtime
+
+        memory = session.query(AssistantMemory).filter(
+            AssistantMemory.conversation_id == conversation_id,
+            AssistantMemory.owner_user_id == user_id
+        ).first()
+
+        should_trigger = False
+        if not memory:
+            should_trigger = True
+        else:
+            now = datetime.now(UTC)
+            last_time = memory.updated_at
+            if last_time.tzinfo is None:
+                last_time = last_time.replace(tzinfo=UTC)
+            idle_minutes = (now - last_time).total_seconds() / 60
+            should_trigger = idle_minutes >= threshold_minutes
+
+        if should_trigger:
+            logger.info(
+                "%s: triggering memory refresh for user_id=%s in conv=%s (idle threshold=%s mins)",
+                trigger_reason, user_id, conversation_id, threshold_minutes
+            )
+            await self._queue_refresh(user_id, conversation_id)
+
     async def _on_send_message(self, event: ChatEvent) -> None:
         conversation_id = event.conversation_id
         if not conversation_id:
@@ -67,31 +125,8 @@ class MemoryWorker:
             if not conversation:
                 return
 
-            # Check AssistantMemory to see when it was last updated for this conversation
-            # For simplicity, we check user A's memory; both usually update together
-            memory = session.query(AssistantMemory).filter(
-                AssistantMemory.conversation_id == conversation_id,
-                AssistantMemory.owner_user_id == conversation.user_a_id
-            ).first()
-
-            should_trigger = False
-            if not memory:
-                should_trigger = True
-            else:
-                now = datetime.now(UTC)
-                last_time = memory.updated_at
-                if last_time.tzinfo is None:
-                    last_time = last_time.replace(tzinfo=UTC)
-                idle_minutes = (now - last_time).total_seconds() / 60
-                should_trigger = idle_minutes >= MEMORY_IDLE_THRESHOLD_MINUTES
-
-            if should_trigger:
-                logger.info(
-                    "NEW_MESSAGE: triggering memory refresh for conversation_id=%s (idle detected)",
-                    conversation_id,
-                )
-                await self._queue_refresh(conversation.user_a_id, conversation_id)
-                await self._queue_refresh(conversation.user_b_id, conversation_id)
+            await self._check_and_queue_refresh(session, conversation.user_a_id, conversation_id, "NEW_MESSAGE")
+            await self._check_and_queue_refresh(session, conversation.user_b_id, conversation_id, "NEW_MESSAGE")
         finally:
             session.close()
 
@@ -106,12 +141,8 @@ class MemoryWorker:
                 Conversation.id == conversation_id
             ).first()
             if conversation:
-                logger.info(
-                    "CLOSE_CHAT: triggering memory refresh for conversation_id=%s",
-                    conversation_id,
-                )
-                await self._queue_refresh(conversation.user_a_id, conversation_id)
-                await self._queue_refresh(conversation.user_b_id, conversation_id)
+                await self._check_and_queue_refresh(session, conversation.user_a_id, conversation_id, "CLOSE_CHAT")
+                await self._check_and_queue_refresh(session, conversation.user_b_id, conversation_id, "CLOSE_CHAT")
         finally:
             session.close()
 

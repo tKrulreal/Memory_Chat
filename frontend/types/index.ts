@@ -90,6 +90,8 @@ export type Setting = {
   theme: string;
   notifications_enabled: boolean;
   ai_enabled: boolean;
+  ai_read_profile: boolean;
+  ai_memory_refresh_interval: string;
   ai_memory_window: string;
 };
 

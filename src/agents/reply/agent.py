@@ -57,6 +57,16 @@ class ReplySuggestionAgent:
                 "created_at": None,
             }
 
+        current_user = db.get(User, user_id)
+        if current_user and current_user.setting:
+            if not current_user.setting.ai_enabled:
+                return {
+                    "peer_name": "Đối phương",
+                    "peer_last_message": None,
+                    "suggested_reply": "Tính năng AI đang bị tắt toàn hệ thống.",
+                    "created_at": None,
+                }
+
         ai_config = db.query(AISystemConfig).filter(
             AISystemConfig.user_id == user_id,
             AISystemConfig.key == "ai_settings"

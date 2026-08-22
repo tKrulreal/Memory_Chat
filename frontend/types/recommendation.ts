@@ -44,6 +44,7 @@ export type ConnectionRecommendationDetail = {
   current_user_id: string;
   current_user_name: string;
   current_user_email?: string | null;
+  current_user_avatar?: string | null;
   current_user_profession?: string | null;
   current_user_company?: string | null;
   current_user_location?: string | null;
