@@ -194,12 +194,16 @@ class TaggingAgent:
                 fallback.append(other_profile.company)
             tags = self._clean_tags(fallback)
 
-        # Ensure tags only contain existing user tags
+        # Map generated tags to existing tags' casing if they match, and keep new tags.
         if user_tags:
             valid_tag_names = {t.name.lower(): t.name for t in user_tags}
-            tags = [valid_tag_names[t.lower()] for t in tags if t.lower() in valid_tag_names]
-        else:
-            tags = []
+            final_tags = []
+            for t in tags:
+                if t.lower() in valid_tag_names:
+                    final_tags.append(valid_tag_names[t.lower()])
+                else:
+                    final_tags.append(t)
+            tags = final_tags
 
         tags = tags[:limit]
         self._save_tags_to_memory(conversation_id, user_id, tags, db)
@@ -226,17 +230,20 @@ class TaggingAgent:
             memory = AssistantMemory(
                 owner_user_id=user_id,
                 conversation_id=conversation_id,
-                facts={"tags": tags},
+                facts={"pending_tags": tags, "tags": []},
                 summary="",
             )
             db.add(memory)
         else:
             facts = dict(memory.facts or {})
             existing_tags = facts.get("tags", [])
+            pending_tags = facts.get("pending_tags", [])
             for t in tags:
-                if t not in existing_tags:
-                    existing_tags.append(t)
-            facts["tags"] = existing_tags
+                if t not in existing_tags and t not in pending_tags:
+                    pending_tags.append(t)
+            facts["pending_tags"] = pending_tags
+            if "tags" not in facts:
+                facts["tags"] = existing_tags
             memory.facts = facts
 
         db.commit()

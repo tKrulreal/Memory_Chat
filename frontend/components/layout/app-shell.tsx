@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { getConnectionRecommendations } from "@/lib/api/recommendations";
+import { getConnectionRequests } from "@/lib/api/connection-requests";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 type AppShellProps = {
@@ -30,7 +31,31 @@ export function AppShell({ children }: AppShellProps) {
     enabled: !!user && features.recommendation, // only check if logged in and feature enabled
   });
 
+  const { data: incomingRequests } = useQuery({
+    queryKey: ["connection-requests", "incoming", "PENDING", 1],
+    queryFn: () => getConnectionRequests("incoming", "PENDING", 1, 3),
+    enabled: !!user,
+  });
+
   const router = useRouter();
+
+  useEffect(() => {
+    if (incomingRequests && incomingRequests.data && incomingRequests.data.length > 0) {
+      incomingRequests.data.forEach((req) => {
+        const name = req.sender?.full_name || req.sender?.email || "Một người mới";
+        toast.info(`Lời mời kết bạn mới`, {
+          description: `${name} đã gửi cho bạn một lời mời kết bạn.`,
+          action: {
+            label: "Xem ngay",
+            onClick: () => {
+              router.push("/connections?tab=requests");
+            }
+          },
+          duration: 8000,
+        });
+      });
+    }
+  }, [incomingRequests, router]);
 
   useEffect(() => {
     if (recommendations && recommendations.length > 0) {
@@ -42,9 +67,10 @@ export function AppShell({ children }: AppShellProps) {
             label: "Xem ngay",
             onClick: () => {
               if (rec.target_user_email) {
-                router.push(`/recommendations?search=${encodeURIComponent(rec.target_user_email)}`);
+                // Not ideal to pass search through tab URL, but keeping the intent
+                router.push(`/connections?tab=matchmaker&search=${encodeURIComponent(rec.target_user_email)}`);
               } else {
-                router.push("/recommendations");
+                router.push("/connections?tab=matchmaker");
               }
             }
           },
@@ -55,10 +81,12 @@ export function AppShell({ children }: AppShellProps) {
   }, [recommendations, router]);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-app">
+    <div className="app-shell">
       <NavSidebar />
       {isChatsPage && <ChatListPanel />}
-      {children ?? <ChatWindow />}
+      <main className="page-container flex-1 overflow-hidden">
+        {children ?? <ChatWindow />}
+      </main>
       {isChatsPage && <InfoPanel />}
       {features.copilot && <CopilotDrawer />}
     </div>

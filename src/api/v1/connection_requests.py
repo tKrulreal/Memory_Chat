@@ -9,7 +9,7 @@ from src.api.deps import get_db, get_event_bus
 from src.core.security import get_current_user
 from src.events.bus import EventBus
 from src.events.types import EventType
-from src.models.user import User
+from src.models.user import User, Notification
 from src.models.connection import ConnectionRequest
 from src.models.chat import Conversation
 from src.schemas.connection import ConnectionRequestCreate, ConnectionRequestResponse
@@ -164,6 +164,7 @@ def send_connection_request(
     request_in: ConnectionRequestCreate,
     current_user: CurrentUserDep,
     db: DatabaseDep,
+    event_bus: EventBusDep,
 ):
     # Resolve target user
     if not request_in.target_user_id and request_in.peer_email:
@@ -190,26 +191,78 @@ def send_connection_request(
             status_code=status.HTTP_409_CONFLICT,
             detail="Already connected",
         )
-    if relation == "pending_sent":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Connection request already sent",
-        )
     if relation == "pending_received":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="This user already sent you a request — accept it instead",
         )
+    # Check for existing request
+    existing_req = db.query(ConnectionRequest).filter(
+        ConnectionRequest.sender_id == current_user.id,
+        ConnectionRequest.receiver_id == target_user.id
+    ).first()
 
-    # Create new pending request
-    new_req = ConnectionRequest(
-        sender_id=current_user.id,
-        receiver_id=target_user.id,
-        status="PENDING",
+    if existing_req:
+        if existing_req.status == "PENDING":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Connection request already sent",
+            )
+        elif existing_req.status == "ACCEPTED":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Already connected",
+            )
+        else:
+            # Reuse cancelled or rejected request
+            existing_req.status = "PENDING"
+            new_req = existing_req
+            db.add(new_req)
+    else:
+        # Create new pending request
+        new_req = ConnectionRequest(
+            sender_id=current_user.id,
+            receiver_id=target_user.id,
+            status="PENDING",
+        )
+        db.add(new_req)
+
+    # Create notification for the receiver
+    notif = Notification(
+        user_id=target_user.id,
+        type="CONNECTION_REQUEST",
+        title="Lời mời kết bạn mới",
+        content=f"{current_user.full_name or current_user.email} đã gửi cho bạn một lời mời kết bạn."
     )
-    db.add(new_req)
+    db.add(notif)
+    
+    # Update any existing recommendation to ACCEPTED
+    from src.models.ai import Recommendation
+    from src.schemas.enums import RecommendationType
+    
+    recs_to_update = db.query(Recommendation).filter(
+        Recommendation.type == RecommendationType.CONNECTION.value,
+        Recommendation.status == "PENDING",
+        or_(
+            and_(Recommendation.owner_user_id == current_user.id, Recommendation.target_user_id == target_user.id),
+            and_(Recommendation.owner_user_id == target_user.id, Recommendation.target_user_id == current_user.id)
+        )
+    ).all()
+    
+    for rec in recs_to_update:
+        rec.status = "ACCEPTED"
+        
     db.commit()
     db.refresh(new_req)
+
+    # Publish real-time event
+    event_bus.publish(
+        db=db,
+        event_type=EventType.CONNECTION_REQUEST,
+        user_id=target_user.id,
+        payload={"request_id": str(new_req.id), "sender_name": current_user.full_name or current_user.email},
+    )
+
     return new_req
 
 
@@ -243,6 +296,16 @@ def accept_connection_request(
         payload={"conversation_id": str(conv.id)},
         conversation_id=conv.id,
     )
+
+    # Create notification for the sender
+    notif = Notification(
+        user_id=req.sender_id,
+        type="CONNECTION_ACCEPTED",
+        title="Yêu cầu kết bạn được chấp nhận",
+        content=f"{current_user.full_name or current_user.email} đã chấp nhận lời mời kết bạn của bạn.",
+        status="UNREAD"
+    )
+    db.add(notif)
 
     db.commit()
     db.refresh(req)

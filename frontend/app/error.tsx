@@ -16,10 +16,10 @@ export default function ErrorBoundary({
   }, [error]);
 
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center bg-app">
+    <div className="flex h-screen w-full flex-col items-center justify-center bg-background">
       <div className="flex max-w-md flex-col items-center gap-4 text-center">
         <h2 className="text-2xl font-bold">Something went wrong!</h2>
-        <p className="text-sm text-secondary">
+        <p className="text-sm text-muted-foreground">
           An unexpected error occurred. You can try reloading the page.
         </p>
         <Button onClick={() => reset()}>Try again</Button>

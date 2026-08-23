@@ -1,29 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Bell,
-  Brain,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  MessageSquare,
-  Settings,
-  Sparkles,
-  Star,
-  Users,
-} from "lucide-react";
+import Link from "next/link";
+import { MessageCircle, Users, Settings, LogOut, Sparkles, Box, Bell } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { useUIStore } from "@/lib/stores/ui-store";
-import { cn } from "@/lib/utils";
 import { useAISettings } from "@/hooks/use-ai-settings";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 const NAV_ITEMS = [
-  { href: "/chats", label: "Chats", icon: MessageSquare },
+  { href: "/chats", label: "Chats", icon: MessageCircle },
   { href: "/connections", label: "Connections", icon: Users },
-  { href: "/ai-hub", label: "AI Hub", icon: Brain },
-  { href: "/recommendations", label: "Recommendations", icon: Star },
+  { href: "/ai-hub", label: "AI Hub", icon: Box },
   { href: "/copilot", label: "Copilot", icon: Sparkles },
   { href: "/notifications", label: "Notifications", icon: Bell },
 ] as const;
@@ -31,113 +19,127 @@ const NAV_ITEMS = [
 export function NavSidebar() {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
-  const navCollapsed = useUIStore((s) => s.navCollapsed);
-  const toggleNav = useUIStore((s) => s.toggleNav);
-
-  const initials = user?.full_name
-    ?.split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
   const { features } = useAISettings();
+
+  const initials =
+    user?.full_name?.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase() ||
+    user?.email?.[0].toUpperCase();
+
   const visibleNavItems = NAV_ITEMS.filter((item) => {
     if (item.href === "/copilot" && !features.copilot) return false;
-    if (item.href === "/recommendations" && !features.recommendation) return false;
     return true;
   });
 
+  // Determine if a path is active
+  const isActive = (href: string) => {
+    if (href === "/chats") {
+      return pathname === "/" || pathname?.startsWith("/chats");
+    }
+    return pathname?.startsWith(href);
+  };
+
   return (
-    <>
+    <div className="relative h-full w-[72px] shrink-0 z-50">
       <aside
-        className={cn(
-          "flex h-full shrink-0 flex-col border-r border-subtle bg-surface transition-[width] duration-200",
-          navCollapsed ? "w-[var(--width-nav-collapsed)]" : "w-nav",
-        )}
+        className="absolute top-0 left-0 flex h-full w-[72px] hover:w-[220px] overflow-hidden flex-col group transition-all duration-300 shadow-2xl"
+        style={{ backgroundColor: "#1e293b" }}
       >
-        <div className="flex items-center justify-between gap-2 border-b border-subtle p-4">
-          {!navCollapsed && (
-            <div>
-              <p className="text-sm font-semibold text-accent">MemoryChat</p>
-              <p className="text-xs text-secondary">Your second brain</p>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={toggleNav}
-            className="rounded-button p-1.5 text-secondary hover:bg-elevated hover:text-primary"
-            aria-label={navCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {navCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-          </button>
+        {/* Logo Header */}
+      <div className="flex h-16 shrink-0 items-center border-b border-slate-700 px-4">
+        <div className="flex items-center gap-3 w-[188px]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500 shadow-sm">
+            <Sparkles size={20} className="text-white" />
+          </div>
+          <span className="truncate font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            MemoryChat
+          </span>
         </div>
+      </div>
 
-
-        <nav className="flex-1 space-y-1 px-2 py-1">
-          {visibleNavItems.map(({ href, label, icon: Icon }) => {
-            const active = pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  "flex items-center gap-3 rounded-button px-3 py-2.5 text-sm transition-colors",
-                  active
-                    ? "bg-accent/15 text-accent"
-                    : "text-secondary hover:bg-elevated hover:text-primary",
-                  navCollapsed && "justify-center px-2",
-                )}
-                title={navCollapsed ? label : undefined}
-              >
-                <Icon size={18} />
-                {!navCollapsed && <span>{label}</span>}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="mt-auto border-t border-subtle p-3 space-y-1">
-          <Link
-            href="/settings"
-            className="flex items-center gap-3 rounded-button px-3 py-2 text-sm text-secondary hover:bg-elevated hover:text-primary"
-          >
-            <Settings size={18} />
-            {!navCollapsed && <span>Settings</span>}
-          </Link>
-          <button
-            type="button"
-            onClick={async () => {
-              await fetch("/api/auth/logout", { method: "POST" });
-              useAuthStore.getState().setUser(null);
-              window.location.href = "/login";
-            }}
-            className="flex w-full items-center gap-3 rounded-button px-3 py-2 text-sm text-secondary hover:bg-elevated hover:text-primary"
-          >
-            <LogOut size={18} />
-            {!navCollapsed && <span>Logout</span>}
-          </button>
-
-          {user && (
-            <div
+      {/* Main Nav */}
+      <div className="flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-3 scrollbar-thin">
+        {visibleNavItems.map(({ href, label, icon: Icon }) => {
+          const active = isActive(href);
+          return (
+            <Link
+              key={href}
+              href={href}
               className={cn(
-                "mt-2 flex items-center gap-3 rounded-button bg-elevated p-3",
-                navCollapsed && "justify-center p-2",
+                "flex items-center gap-3 rounded-xl p-3 text-sm transition-colors w-[196px]",
+                active ? "bg-blue-600/10" : "hover:bg-slate-800/50"
               )}
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/20 text-xs font-semibold text-accent">
-                {initials ?? "U"}
+              <div className="flex shrink-0 items-center justify-center">
+                <Icon
+                  size={22}
+                  className={cn("transition-colors", active ? "text-blue-400" : "text-slate-400 group-hover:text-white")}
+                />
               </div>
-              {!navCollapsed && (
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{user.full_name}</p>
-                  <p className="truncate text-xs text-secondary">{user.email}</p>
-                </div>
-              )}
-            </div>
+              <span
+                className={cn(
+                  "truncate whitespace-nowrap transition-opacity duration-200 opacity-0 group-hover:opacity-100",
+                  active ? "text-blue-400 font-semibold" : "text-slate-300 group-hover:text-white"
+                )}
+              >
+                {label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Bottom Section: Settings & User */}
+      <div className="mt-auto border-t border-slate-700 p-3 space-y-2 shrink-0">
+        {/* Settings */}
+        <Link
+          href="/settings"
+          className={cn(
+            "flex items-center gap-3 rounded-xl p-3 text-sm transition-colors w-[196px]",
+            isActive("/settings") ? "bg-blue-600/10" : "hover:bg-slate-800/50"
           )}
-        </div>
-      </aside>
-    </>
+        >
+          <div className="flex shrink-0 items-center justify-center">
+            <Settings size={22} className={cn("transition-colors", isActive("/settings") ? "text-blue-400" : "text-slate-400 group-hover:text-white")} />
+          </div>
+          <span className={cn(
+            "truncate transition-opacity duration-200 opacity-0 group-hover:opacity-100",
+            isActive("/settings") ? "text-blue-400 font-semibold" : "text-slate-300 group-hover:text-white"
+          )}>
+            Settings
+          </span>
+        </Link>
+
+        {/* Logout */}
+        <Button variant="ghost"
+          onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" });
+            useAuthStore.getState().setUser(null);
+            window.location.href = "/login";
+          }}
+          className="flex w-[196px] items-center justify-start gap-3 rounded-xl p-3 text-sm transition-colors hover:bg-red-500/10 h-auto font-normal"
+        >
+          <div className="flex shrink-0 items-center justify-center">
+            <LogOut size={22} className="text-slate-400 transition-colors group-hover:text-red-400" />
+          </div>
+          <span className="truncate text-slate-300 transition-colors group-hover:text-red-400 transition-opacity duration-200 opacity-0 group-hover:opacity-100">
+            Logout
+          </span>
+        </Button>
+
+        {/* User Info */}
+        {user && (
+          <div className="mt-2 flex items-center gap-3 rounded-xl bg-slate-800 p-3 w-[196px]">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-sm font-bold text-blue-400">
+              {initials ?? "U"}
+            </div>
+            <div className="min-w-0 flex-1 transition-opacity duration-200 opacity-0 group-hover:opacity-100">
+              <p className="truncate text-sm font-semibold text-white">{user.full_name}</p>
+              <p className="truncate text-[11px] text-slate-400 leading-tight mt-0.5">{user.email}</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </aside>
+    </div>
   );
 }

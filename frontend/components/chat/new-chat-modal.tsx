@@ -41,7 +41,7 @@ export function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-button border border-subtle bg-surface p-6">
+      <div className="w-full max-w-md rounded-button border border-subtle bg-card p-6">
         <h2 className="mb-4 text-xl font-bold">New Chat</h2>
         <form
           onSubmit={(e) => {
@@ -50,7 +50,7 @@ export function NewChatModal({ isOpen, onClose }: NewChatModalProps) {
           }}
         >
           <div className="mb-4">
-            <label htmlFor="peer_email" className="mb-1 block text-sm text-secondary">
+            <label htmlFor="peer_email" className="mb-1 block text-sm text-muted-foreground">
               Peer Email
             </label>
             <input

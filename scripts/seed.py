@@ -32,6 +32,8 @@ DEMO_PASSWORD = "demo123"
 DEMO_NAME = "Demo User"
 
 
+from src.core.security import get_password_hash
+
 def create_demo_user(db) -> User:
     """Create or get demo user."""
     user = db.query(User).filter(User.email == DEMO_EMAIL).first()
@@ -41,7 +43,7 @@ def create_demo_user(db) -> User:
 
     user = User(
         email=DEMO_EMAIL,
-        password_hash=User.hash_password(DEMO_PASSWORD),  # type: ignore
+        password_hash=get_password_hash(DEMO_PASSWORD),
         full_name=DEMO_NAME,
     )
     db.add(user)
@@ -116,13 +118,28 @@ def create_contacts(db, user: User) -> list[Contact]:
     contacts = []
     now = datetime.now(VN_TZ)
 
-    for data in contact_data:
+    for i, data in enumerate(contact_data):
+        # Create a user for the contact since Conversation requires two Users
+        email = f"contact_{i}@example.com"
+        contact_user = db.query(User).filter(User.email == email).first()
+        if not contact_user:
+            contact_user = User(
+                email=email,
+                password_hash=get_password_hash("password"),
+                full_name=data["name"],
+            )
+            db.add(contact_user)
+            db.commit()
+            db.refresh(contact_user)
+
         # Create contact
         contact = Contact(
-            user_id=user.id,
+            owner_user_id=user.id,
             display_name=data["name"],
             phone=f"+84{random_phone()}",  # type: ignore
             avatar_url=f"https://api.dicebear.com/7.x/initials/svg?seed={data['name']}",
+            profession=data["profession"],
+            company=data["company"],
         )
         db.add(contact)
         db.commit()
@@ -133,10 +150,8 @@ def create_contacts(db, user: User) -> list[Contact]:
         memory = ContactMemory(
             contact_id=contact.id,
             summary=data["summary"],
-            profession=data["profession"],
-            company=data["company"],
             skills=data["skills"],
-            interest=data["interest"],
+            interests=data.get("interest", {}).get("interests", []),
             relationship_score=data["relationship_score"],
         )
         db.add(memory)
@@ -145,28 +160,35 @@ def create_contacts(db, user: User) -> list[Contact]:
         hours_ago = data.get("hours_ago", data.get("days_ago", 0) * 24)
         last_time = now - timedelta(hours=hours_ago)
 
+        user_a_id = min(user.id, contact_user.id)
+        user_b_id = max(user.id, contact_user.id)
+
         conversation = Conversation(
-            user_id=user.id,
-            contact_id=contact.id,
-            last_message=data["last_message"],
+            user_a_id=user_a_id,
+            user_b_id=user_b_id,
+            last_message_content=data["last_message"],
             last_message_time=last_time,
         )
         db.add(conversation)
         db.commit()
         db.refresh(conversation)
+        
+        # Link conversation to contact
+        contact.conversation_id = conversation.id
+        db.commit()
 
         # Create sample messages
-        _create_sample_messages(db, conversation, user, contact, data, last_time)
+        _create_sample_messages(db, conversation, user, contact_user, data, last_time)
 
         logger.info(f"Created contact: {data['name']} with conversation and memory")
 
     return contacts
 
 
-def _create_sample_messages(db, conversation, user, contact, data: dict, last_time: datetime):
+def _create_sample_messages(db, conversation, user, contact_user, data: dict, last_time: datetime):
     """Create sample messages for a conversation."""
     messages = [
-        (MessageRole.USER, f"Xin chào {contact.display_name}!"),
+        (MessageRole.USER, f"Xin chào {contact_user.full_name}!"),
         (MessageRole.CONTACT, f"Chào bạn! Rất vui được trò chuyện."),
         (MessageRole.USER, f"Bạn là {data['profession']} đúng không?"),
         (MessageRole.CONTACT, f"Đúng rồi! Mình làm ở {data['company']}."),
@@ -182,7 +204,7 @@ def _create_sample_messages(db, conversation, user, contact, data: dict, last_ti
 
         message = Message(
             conversation_id=conversation.id,
-            sender_type=sender,
+            sender_user_id=user.id if sender == MessageRole.USER else contact_user.id,
             content=content,
             message_type="TEXT",
         )

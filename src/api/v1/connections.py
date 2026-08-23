@@ -324,6 +324,7 @@ def accept_connection(
         else f"Xin chào! Mình vừa nhận được gợi ý kết nối với bạn qua MemoryChat và rất mong có cơ hội trò chuyện cùng bạn."
     )
 
+    target_conv_id = None
     # If target user is a real user, create a Connection Request
     if target_user:
         # Check if already connected or pending
@@ -337,7 +338,9 @@ def accept_connection(
             )
             .first()
         )
-        if not existing_conv:
+        if existing_conv:
+            target_conv_id = existing_conv.id
+        else:
             existing_req = db.query(ConnectionRequest).filter(
                 or_(
                     and_(ConnectionRequest.sender_id == current_user.id, ConnectionRequest.receiver_id == target_user.id),
@@ -357,6 +360,8 @@ def accept_connection(
                 existing_req.status = "ACCEPTED"
                 new_conv = Conversation(user_a_id=existing_req.sender_id, user_b_id=existing_req.receiver_id)
                 db.add(new_conv)
+                db.flush()
+                target_conv_id = new_conv.id
 
     db.commit()
     db.refresh(rec)
@@ -459,6 +464,7 @@ async def generate_connections(
     current_user: CurrentUserDep,
     db: DatabaseDep,
     agent: ConnectionAgentDep,
+    force_refresh: bool = Query(default=True, description="Xoá các gợi ý PENDING cũ để đánh giá lại từ đầu"),
 ):
     """
     Trigger phân tích AI tự động tìm người dùng thật trong hệ thống phù hợp với User hiện tại.
@@ -480,6 +486,16 @@ async def generate_connections(
             if features.get("recommendation") is False:
                 raise HTTPException(status_code=400, detail="Tính năng Gợi ý kết nối (AI Recommendation) đã bị tắt.")
             min_score_percent = int(ai_config.value.get("min_matching_score", 50))
+
+        if force_refresh:
+            old_pending = db.query(Recommendation).filter(
+                Recommendation.owner_user_id == current_user.id,
+                Recommendation.type == RecommendationType.CONNECTION.value,
+                Recommendation.status == "PENDING"
+            ).all()
+            for rec in old_pending:
+                db.delete(rec)
+            db.commit()
 
         recommendations = await agent.generate(
             user_id=current_user.id,

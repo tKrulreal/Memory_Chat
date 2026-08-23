@@ -1,4 +1,11 @@
 {
+  "permissions": {
+    "allow": [
+      "Read(//Users/ryu/Documents/pythonweb/AITHUCCHIEN-P/frontend/**)",
+      "Read(//Users/ryu/Documents/pythonweb/AITHUCCHIEN-P/frontend/app/**)",
+      "Read(//Users/ryu/Documents/pythonweb/AITHUCCHIEN-P/frontend/components/layout/**)"
+    ]
+  },
   "hooks": {
     "UserPromptSubmit": [
       {

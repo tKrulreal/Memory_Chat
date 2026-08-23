@@ -41,6 +41,14 @@ export function useSendMessage(conversationId: string) {
         return { ...old, pages: newPages };
       });
 
+      // Optimistically clear unread count for this conversation
+      queryClient.setQueryData(["conversations"], (old: any) => {
+        if (!old) return old;
+        return old.map((c: any) => 
+          c.id === conversationId ? { ...c, unread_count: 0 } : c
+        );
+      });
+
       return { previousMessages, clientMessageId };
     },
     onError: (err, variables, context) => {

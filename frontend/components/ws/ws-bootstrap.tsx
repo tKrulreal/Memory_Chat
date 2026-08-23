@@ -59,6 +59,22 @@ export function WSBootstrap({ children }: { children: React.ReactNode }) {
         });
 
         // 2. Invalidate conversations list so it updates the last message preview
+        // Also optimistically clear unread count if we are currently in this conversation
+        queryClient.setQueryData(["conversations"], (old: any) => {
+          if (!old) return old;
+          return old.map((c: any) => {
+            if (c.id === message.conversation_id) {
+              const { useConversationStore } = require("@/lib/stores/conversation-store");
+              const activeId = useConversationStore.getState().activeConversationId;
+              return { 
+                ...c, 
+                last_message: message.content,
+                unread_count: activeId === c.id || message.sender_user_id === user.id ? 0 : (c.unread_count || 0) + 1 
+              };
+            }
+            return c;
+          });
+        });
         queryClient.invalidateQueries({ queryKey: ["conversations"] });
         
         // 3. Invalidate AI context after a short delay to allow memory worker to process

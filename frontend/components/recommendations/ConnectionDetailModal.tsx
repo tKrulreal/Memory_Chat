@@ -6,6 +6,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X, MessageSquare, Check, Sparkles, ArrowRight, User, Briefcase, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 import {
   getConnectionDetail,
@@ -71,34 +73,19 @@ export function ConnectionDetailModal({
     .toUpperCase() || "U";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Modal Card */}
-      <div className="relative w-full max-w-xl max-h-[90vh] flex flex-col rounded-button border border-subtle bg-surface shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-subtle px-6 py-4 bg-surface shrink-0">
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border bg-card">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-button bg-elevated text-accent">
+            <div className="flex h-8 w-8 items-center justify-center rounded-button bg-primary/10 text-primary">
               <Sparkles size={16} />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-primary">Chi tiết cơ hội kết nối</h2>
-              <p className="text-xs text-secondary">Phân tích AI giữa bạn và người dùng trong hệ thống</p>
+              <DialogTitle>Chi tiết cơ hội kết nối</DialogTitle>
+              <DialogDescription>Phân tích AI giữa bạn và người dùng trong hệ thống</DialogDescription>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-button p-1.5 text-secondary hover:bg-elevated hover:text-primary transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5 scrollbar-thin">
@@ -109,7 +96,7 @@ export function ConnectionDetailModal({
               <Skeleton className="h-20 w-full rounded-button" />
             </div>
           ) : isError ? (
-            <div className="text-center py-8 text-secondary">
+            <div className="text-center py-8 text-muted-foreground">
               Không thể tải thông tin chi tiết.
             </div>
           ) : detail ? (
@@ -120,10 +107,10 @@ export function ConnectionDetailModal({
                   className={cn(
                     "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5",
                     detail.confidence >= 0.8
-                      ? "bg-accent/15 border-accent/30 text-accent"
+                      ? "bg-primary/15 border-primary/30 text-primary"
                       : detail.confidence >= 0.6
                       ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
-                      : "bg-elevated border-subtle text-secondary"
+                      : "bg-muted border-subtle text-muted-foreground"
                   )}
                 >
                   <Sparkles size={12} />
@@ -132,7 +119,7 @@ export function ConnectionDetailModal({
               </div>
 
               {/* Side by Side Profiles */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-button bg-elevated/40 border border-subtle/80 p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-button bg-muted/40 border border-subtle/80 p-4">
                 {/* You */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
@@ -141,18 +128,18 @@ export function ConnectionDetailModal({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-sm font-semibold text-primary truncate">{detail.current_user_name}</p>
-                        <span className="rounded-full bg-surface px-1.5 py-0.2 text-[10px] text-blue-400 font-medium">
+                        <p className="text-sm font-semibold text-foreground truncate">{detail.current_user_name}</p>
+                        <span className="rounded-full bg-card px-1.5 py-0.2 text-[10px] text-blue-400 font-medium">
                           Bạn
                         </span>
                         {detail.current_user_location && (
-                          <span className="rounded-full bg-surface border border-subtle px-1.5 py-0.2 text-[10px] text-secondary flex items-center gap-1">
+                          <span className="rounded-full bg-card border border-subtle px-1.5 py-0.2 text-[10px] text-muted-foreground flex items-center gap-1">
                             <MapPin size={9} className="text-blue-400" />
                             {detail.current_user_location}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-secondary truncate">
+                      <p className="text-xs text-muted-foreground truncate">
                         {detail.current_user_profession || "Chuyên môn"}
                         {detail.current_user_company && ` @ ${detail.current_user_company}`}
                       </p>
@@ -162,12 +149,12 @@ export function ConnectionDetailModal({
                   {/* Skills */}
                   {detail.current_user_skills && detail.current_user_skills.length > 0 && (
                     <div>
-                      <p className="text-[11px] uppercase tracking-wide text-secondary mb-1">Skills</p>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Skills</p>
                       <div className="flex flex-wrap gap-1">
                         {detail.current_user_skills.map((skill, i) => (
                           <span
                             key={i}
-                            className="rounded-full bg-surface border border-subtle px-2 py-0.5 text-[11px] text-blue-300"
+                            className="rounded-full bg-card border border-subtle px-2 py-0.5 text-[11px] text-blue-300"
                           >
                             {skill}
                           </span>
@@ -179,12 +166,12 @@ export function ConnectionDetailModal({
                   {/* Interests */}
                   {detail.current_user_interests && detail.current_user_interests.length > 0 && (
                     <div>
-                      <p className="text-[11px] uppercase tracking-wide text-secondary mb-1">Interests</p>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Interests</p>
                       <div className="flex flex-wrap gap-1">
                         {detail.current_user_interests.map((interest, i) => (
                           <span
                             key={i}
-                            className="rounded-full bg-elevated/70 border border-subtle/60 px-2 py-0.5 text-[10px] text-secondary"
+                            className="rounded-full bg-muted/70 border border-subtle/60 px-2 py-0.5 text-[10px] text-muted-foreground"
                           >
                             #{interest}
                           </span>
@@ -197,23 +184,23 @@ export function ConnectionDetailModal({
                 {/* Target User */}
                 <div className="space-y-3 border-t md:border-t-0 md:border-l border-subtle pt-3 md:pt-0 md:pl-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/20 text-xs font-semibold text-accent uppercase">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary uppercase">
                       {targetInitials}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-sm font-semibold text-primary truncate">{targetName}</p>
-                        <span className="rounded-full bg-surface px-1.5 py-0.2 text-[10px] text-accent font-medium">
+                        <p className="text-sm font-semibold text-foreground truncate">{targetName}</p>
+                        <span className="rounded-full bg-card px-1.5 py-0.2 text-[10px] text-primary font-medium">
                           Ứng viên
                         </span>
                         {detail.target_user_location && (
-                          <span className="rounded-full bg-surface border border-subtle px-1.5 py-0.2 text-[10px] text-secondary flex items-center gap-1">
-                            <MapPin size={9} className="text-accent" />
+                          <span className="rounded-full bg-card border border-subtle px-1.5 py-0.2 text-[10px] text-muted-foreground flex items-center gap-1">
+                            <MapPin size={9} className="text-primary" />
                             {detail.target_user_location}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-secondary truncate">
+                      <p className="text-xs text-muted-foreground truncate">
                         {detail.target_user_profession || "Chuyên môn"}
                         {detail.target_user_company && ` @ ${detail.target_user_company}`}
                       </p>
@@ -223,12 +210,12 @@ export function ConnectionDetailModal({
                   {/* Skills */}
                   {detail.target_user_skills && detail.target_user_skills.length > 0 && (
                     <div>
-                      <p className="text-[11px] uppercase tracking-wide text-secondary mb-1">Skills</p>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Skills</p>
                       <div className="flex flex-wrap gap-1">
                         {detail.target_user_skills.map((skill, i) => (
                           <span
                             key={i}
-                            className="rounded-full bg-surface border border-subtle px-2 py-0.5 text-[11px] text-accent"
+                            className="rounded-full bg-card border border-subtle px-2 py-0.5 text-[11px] text-primary"
                           >
                             {skill}
                           </span>
@@ -240,12 +227,12 @@ export function ConnectionDetailModal({
                   {/* Interests */}
                   {detail.target_user_interests && detail.target_user_interests.length > 0 && (
                     <div>
-                      <p className="text-[11px] uppercase tracking-wide text-secondary mb-1">Interests</p>
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Interests</p>
                       <div className="flex flex-wrap gap-1">
                         {detail.target_user_interests.map((interest, i) => (
                           <span
                             key={i}
-                            className="rounded-full bg-elevated/70 border border-subtle/60 px-2 py-0.5 text-[10px] text-secondary"
+                            className="rounded-full bg-muted/70 border border-subtle/60 px-2 py-0.5 text-[10px] text-muted-foreground"
                           >
                             #{interest}
                           </span>
@@ -267,7 +254,7 @@ export function ConnectionDetailModal({
                     {detail.current_user_needs && detail.current_user_needs.length > 0 ? (
                       detail.current_user_needs.map((need, i) => <li key={i}>• {need}</li>)
                     ) : (
-                      <li className="italic text-secondary">Mở rộng quan hệ hợp tác chuyên môn</li>
+                      <li className="italic text-muted-foreground">Mở rộng quan hệ hợp tác chuyên môn</li>
                     )}
                   </ul>
                 </div>
@@ -281,7 +268,7 @@ export function ConnectionDetailModal({
                     {detail.target_user_offers && detail.target_user_offers.length > 0 ? (
                       detail.target_user_offers.map((offer, i) => <li key={i}>• {offer}</li>)
                     ) : (
-                      <li className="italic text-secondary">Kinh nghiệm thực tiễn và chuyên môn</li>
+                      <li className="italic text-muted-foreground">Kinh nghiệm thực tiễn và chuyên môn</li>
                     )}
                   </ul>
                 </div>
@@ -289,29 +276,29 @@ export function ConnectionDetailModal({
 
 
               {/* AI Match Reasoning */}
-              <div className="rounded-button border border-subtle bg-elevated/30 p-4 space-y-1.5">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-secondary flex items-center gap-1.5">
-                  <Sparkles size={13} className="text-accent" />
+              <div className="rounded-button border border-border bg-muted/50 p-4 space-y-1.5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Sparkles size={13} className="text-primary" />
                   Đánh giá từ AI Matchmaker
                 </h3>
-                <p className="text-sm leading-relaxed text-primary">{detail.reason}</p>
+                <p className="text-sm leading-relaxed text-foreground">{detail.reason}</p>
               </div>
 
               {/* Custom Message to Send */}
               {!isProcessed && (
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-medium text-secondary">
+                  <label className="block text-xs font-medium text-muted-foreground">
                     Lời chào gửi tới {targetName} (Tin nhắn mở đầu cuộc trò chuyện):
                   </label>
-                  <textarea
+                  <Textarea
                     value={customMessage || detail.suggested_intro || ""}
                     onChange={(e) => setCustomMessage(e.target.value)}
                     placeholder={`Chào ${targetName}, mình muốn kết nối để trao đổi về...`}
                     rows={3}
                     maxLength={500}
-                    className="w-full rounded-button bg-input border border-subtle px-3 py-2 text-sm text-primary placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-accent resize-none scrollbar-thin"
+                    className="w-full resize-none scrollbar-thin"
                   />
-                  <div className="flex justify-between text-[11px] text-secondary">
+                  <div className="flex justify-between text-[11px] text-muted-foreground">
                     <span>Lời chào này sẽ được gửi trực tiếp khi bạn bấm Kết nối.</span>
                     <span>{(customMessage || detail.suggested_intro || "").length}/500</span>
                   </div>
@@ -322,7 +309,7 @@ export function ConnectionDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 border-t border-subtle px-6 py-4 bg-surface shrink-0">
+        <DialogFooter className="px-6 py-4 border-t border-border bg-card">
           <Button variant="ghost" size="sm" onClick={onClose}>
             {isProcessed ? "Đóng" : "Hủy"}
           </Button>
@@ -347,8 +334,8 @@ export function ConnectionDetailModal({
               </Button>
             </>
           )}
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

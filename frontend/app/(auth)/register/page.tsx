@@ -45,8 +45,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-app px-4">
-      <div className="w-full max-w-md rounded-button border border-subtle bg-surface p-8">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="w-full max-w-md rounded-button border border-subtle bg-card p-8">
         <div className="mb-8 text-center">
           <p className="text-sm font-semibold text-accent">MemoryChat</p>
           <h1 className="mt-2 text-2xl font-bold">Create account</h1>
@@ -54,7 +54,7 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="fullName" className="mb-1 block text-sm text-secondary">
+            <label htmlFor="fullName" className="mb-1 block text-sm text-muted-foreground">
               Full name
             </label>
             <input
@@ -66,7 +66,7 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <label htmlFor="email" className="mb-1 block text-sm text-secondary">
+            <label htmlFor="email" className="mb-1 block text-sm text-muted-foreground">
               Email
             </label>
             <input
@@ -79,7 +79,7 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm text-secondary">
+            <label htmlFor="password" className="mb-1 block text-sm text-muted-foreground">
               Password
             </label>
             <input
@@ -93,7 +93,7 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <label htmlFor="phone" className="mb-1 block text-sm text-secondary">
+            <label htmlFor="phone" className="mb-1 block text-sm text-muted-foreground">
               Phone (optional)
             </label>
             <input
@@ -105,7 +105,7 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <label htmlFor="gender" className="mb-1 block text-sm text-secondary">
+            <label htmlFor="gender" className="mb-1 block text-sm text-muted-foreground">
               Gender (optional)
             </label>
             <select
@@ -128,7 +128,7 @@ export default function RegisterPage() {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-secondary">
+        <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link href="/login" className="text-accent hover:underline">
             Sign in

@@ -102,7 +102,7 @@ export function AIContextBar() {
 
   if (isLoading) {
     return (
-      <section className="border-b border-subtle bg-surface/60 px-4 py-3">
+      <section className="mx-3 my-3 rounded-xl border border-subtle bg-card/60 p-3 shadow-sm">
         <div className="flex items-center gap-2 mb-2">
           <Skeleton className="h-4 w-4 rounded-full" />
           <Skeleton className="h-4 w-36 rounded" />
@@ -136,14 +136,14 @@ export function AIContextBar() {
 
 
   return (
-    <section className="border-b border-subtle bg-surface/80 backdrop-blur-sm px-4 py-2.5 transition-all">
+    <section className="mx-3 mt-3 mb-4 rounded-2xl bg-white p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
       {/* Top bar header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div className="flex h-5 w-5 items-center justify-center rounded-md bg-accent/15 text-accent">
             <Sparkles size={12} />
           </div>
-          <h2 className="text-xs font-bold uppercase tracking-wider text-secondary">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             AI Context · Trí nhớ về đối phương
           </h2>
         </div>
@@ -156,7 +156,7 @@ export function AIContextBar() {
                 size="sm"
                 onClick={handleCancel}
                 disabled={mutation.isPending}
-                className="h-7 text-xs px-2 text-secondary hover:text-primary"
+                className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground"
               >
                 <X size={13} className="mr-1" />
                 Hủy
@@ -175,13 +175,13 @@ export function AIContextBar() {
           ) : (
             <>
               {/* Refresh button with spinning animation */}
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => refreshMutation.mutate()}
                 disabled={refreshMutation.isPending}
                 className={cn(
-                  "flex items-center gap-1 rounded-lg border border-subtle px-2 py-1 text-[11px] font-medium text-secondary",
-                  "hover:border-accent/40 hover:text-accent hover:bg-elevated transition-colors cursor-pointer disabled:opacity-50"
+                  "flex items-center gap-1 rounded-lg border border-subtle px-2 py-1 text-[11px] font-medium text-muted-foreground",
+                  "hover:border-accent/40 hover:text-accent hover:bg-muted transition-colors cursor-pointer disabled:opacity-50"
                 )}
                 title="AI phân tích lại toàn bộ tin nhắn trong DB để tóm tắt mới nhất"
               >
@@ -193,17 +193,17 @@ export function AIContextBar() {
                   )}
                 />
                 <span>{refreshMutation.isPending ? "Đang tóm tắt..." : "Làm mới"}</span>
-              </button>
+              </Button>
 
-              <button
+              <Button variant="ghost"
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="flex items-center gap-1 rounded-lg border border-subtle px-2 py-1 text-[11px] font-medium text-secondary hover:border-subtle hover:text-primary hover:bg-elevated transition-colors cursor-pointer"
+                className="flex items-center gap-1 rounded-lg border border-subtle px-2 py-1 text-[11px] font-medium text-muted-foreground hover:border-subtle hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                 title="Chỉnh sửa nội dung AI Context"
               >
                 <Edit3 size={11} />
                 <span>Sửa</span>
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -213,9 +213,9 @@ export function AIContextBar() {
       {isExpanded && (
         <div className="mt-2.5 space-y-2">
           {/* Main Summary Box */}
-          <div className="rounded-xl border border-accent/20 bg-gradient-to-r from-accent/10 via-surface to-surface p-3 transition-all">
-            <div className="flex items-center gap-1.5 mb-1 text-[11px] font-bold uppercase tracking-wider text-accent">
-              <UserCheck size={13} />
+          <div className="rounded-xl bg-gray-50/50 p-3 transition-all">
+            <div className="flex items-center gap-1.5 mb-1 text-sm font-semibold uppercase tracking-wider text-accent">
+              <UserCheck size={14} />
               <span>Tóm tắt về đối phương:</span>
             </div>
             {isEditing ? (
@@ -224,12 +224,12 @@ export function AIContextBar() {
                 onChange={(e) => setEditState({ ...editState, summary: e.target.value })}
                 placeholder="Nhập tóm tắt về đối tác..."
                 rows={2}
-                className="w-full rounded-lg bg-elevated border border-subtle px-2.5 py-1.5 text-xs text-primary placeholder:text-secondary focus:outline-none focus:ring-1 focus:ring-accent resize-none scrollbar-thin"
+                className="w-full rounded-lg bg-muted border border-subtle px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent resize-none scrollbar-thin"
               />
             ) : (
-              <p className="text-xs text-primary leading-relaxed font-medium">
+              <p className="text-sm text-foreground leading-relaxed font-medium">
                 {cleanedSummary || (
-                  <span className="text-secondary italic">
+                  <span className="text-muted-foreground italic">
                     Chưa có tóm tắt. Hãy bấm &ldquo;Làm mới&rdquo; để AI phân tích cuộc hội thoại.
                   </span>
                 )}
@@ -238,11 +238,11 @@ export function AIContextBar() {
           </div>
 
           {/* 3 Detail Cards Grid */}
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {/* 1. Last Met / Context */}
-            <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-2.5 space-y-1">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-blue-300">
-                <Calendar size={12} className="text-blue-400" />
+            <div className="rounded-xl bg-slate-50 p-3 space-y-1">
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                <Calendar size={14} className="text-slate-700" />
                 <span>Lần gặp / Bối cảnh</span>
               </div>
               {isEditing ? (
@@ -250,19 +250,19 @@ export function AIContextBar() {
                   value={editState.last_met || ""}
                   onChange={(e) => setEditState({ ...editState, last_met: e.target.value })}
                   placeholder="Bối cảnh quen biết..."
-                  className="w-full rounded bg-elevated border border-subtle px-2 py-1 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                  className="w-full rounded bg-white border border-slate-200 px-2 py-1 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               ) : (
-                <p className="text-xs text-blue-100/90 truncate font-medium">
-                  {cleanedLastMet || <span className="text-secondary italic">Chưa xác định</span>}
+                <p className="text-sm text-slate-700 truncate font-medium">
+                  {cleanedLastMet || <span className="text-slate-400 italic font-normal">Chưa xác định</span>}
                 </p>
               )}
             </div>
 
             {/* 2. Interested In */}
-            <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-2.5 space-y-1">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-purple-300">
-                <Hash size={12} className="text-purple-400" />
+            <div className="rounded-xl bg-slate-50 p-3 space-y-1">
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                <Hash size={14} className="text-slate-700" />
                 <span>Chủ đề quan tâm</span>
               </div>
               {isEditing ? (
@@ -278,28 +278,28 @@ export function AIContextBar() {
                     })
                   }
                   placeholder="AI, Startup, Python..."
-                  className="w-full rounded bg-elevated border border-subtle px-2 py-1 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                  className="w-full rounded bg-white border border-slate-200 px-2 py-1 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               ) : cleanedInterests.length > 0 ? (
                 <div className="flex flex-wrap gap-1">
                   {cleanedInterests.map((item, idx) => (
                     <span
                       key={idx}
-                      className="rounded-md bg-purple-500/15 border border-purple-500/30 px-1.5 py-0.5 text-[10px] text-purple-300 font-medium"
+                      className="rounded-md bg-purple-50 border border-purple-200 px-1.5 py-0.5 text-xs text-purple-900 font-medium"
                     >
                       #{item}
                     </span>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-secondary italic">Chưa có thông tin</p>
+                <p className="text-sm text-slate-400 italic">Chưa có thông tin</p>
               )}
             </div>
 
             {/* 3. Follow-up / Next Step */}
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-2.5 space-y-1">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-300">
-                <ArrowRightCircle size={12} className="text-emerald-400" />
+            <div className="rounded-xl bg-slate-50 p-3 space-y-1">
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                <ArrowRightCircle size={14} className="text-slate-700" />
                 <span>Gợi ý việc tiếp theo</span>
               </div>
               {isEditing ? (
@@ -307,11 +307,11 @@ export function AIContextBar() {
                   value={editState.follow_up || ""}
                   onChange={(e) => setEditState({ ...editState, follow_up: e.target.value })}
                   placeholder="Hành động tiếp theo..."
-                  className="w-full rounded bg-elevated border border-subtle px-2 py-1 text-xs text-primary focus:outline-none focus:ring-1 focus:ring-accent"
+                  className="w-full rounded bg-white border border-slate-200 px-2 py-1 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               ) : (
-                <p className="text-xs text-emerald-100/90 truncate font-medium">
-                  {cleanedFollowUp || <span className="text-secondary italic">Chưa có ghi chú</span>}
+                <p className="text-sm text-slate-700 truncate font-medium">
+                  {cleanedFollowUp || <span className="text-slate-400 italic font-normal">Chưa có ghi chú</span>}
                 </p>
               )}
             </div>
@@ -321,10 +321,10 @@ export function AIContextBar() {
 
       {/* Expand / Collapse toggle */}
       <div className="mt-1.5 flex justify-center">
-        <button
+        <Button variant="ghost"
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center gap-1 text-[10px] uppercase font-semibold tracking-wider text-secondary hover:text-primary transition-colors cursor-pointer py-0.5"
+          className="flex items-center gap-1 text-xs uppercase font-medium tracking-wider text-blue-600 hover:text-blue-700 transition-colors cursor-pointer py-0.5"
         >
           {isExpanded ? (
             <>
@@ -335,7 +335,7 @@ export function AIContextBar() {
               Mở rộng ngữ cảnh <ChevronDown size={11} />
             </>
           )}
-        </button>
+        </Button>
       </div>
     </section>
   );

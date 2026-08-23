@@ -513,10 +513,22 @@ class MemoryAgent:
         relationship_score = self.calculate_relationship_score(messages)
         timeline = self.build_timeline(messages)
 
+        # Lấy giới hạn số lượng tag từ cấu hình của user
+        tag_limit = 6
+        if db:
+            ai_config = db.query(AISystemConfig).filter(
+                AISystemConfig.user_id == user_id,
+                AISystemConfig.key == "ai_settings"
+            ).first()
+            if ai_config and isinstance(ai_config.value, dict):
+                tag_limit = int(ai_config.value.get("tag_limit", 6))
+
+        interested_in = entities.get("interested_in", [])[:tag_limit]
+
         # Build facts dictionary
         facts = {
             "last_met": entities.get("last_met"),
-            "interested_in": entities.get("interested_in", []),
+            "interested_in": interested_in,
             "follow_up": entities.get("follow_up"),
             "timeline": timeline,
             "relationship_score": relationship_score,
@@ -525,7 +537,7 @@ class MemoryAgent:
         result = MemoryResult(
             summary=summary,
             last_met=entities.get("last_met"),
-            interested_in=entities.get("interested_in", []),
+            interested_in=interested_in,
             follow_up=entities.get("follow_up"),
             timeline=timeline,
             relationship_score=relationship_score,

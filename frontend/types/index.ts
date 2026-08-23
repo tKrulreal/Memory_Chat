@@ -26,6 +26,7 @@ export type Conversation = {
   unread_count?: number;
   user_a?: Participant;
   user_b?: Participant;
+  tags?: { id: string; name: string; color?: string }[] | string[];
 };
 
 export type Message = {
@@ -106,4 +107,14 @@ export type AISystemConfig = {
   key: string;
   value: any;
   description: string | null;
+};
+
+export type Notification = {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  content: string;
+  status: string;
+  created_at: string;
 };

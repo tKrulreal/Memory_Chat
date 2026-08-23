@@ -24,7 +24,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthBootstrap>
         <WSBootstrap>
           {children}
-          <Toaster theme="dark" position="top-right" />
+          <Toaster theme="light" position="top-right" />
         </WSBootstrap>
       </AuthBootstrap>
     </QueryClientProvider>

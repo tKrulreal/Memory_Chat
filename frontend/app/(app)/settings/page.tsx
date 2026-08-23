@@ -22,6 +22,10 @@ import { getMyProfile, updateMyProfile, ProfileUpdatePayload } from "@/lib/api/p
 // Settings API moved to AI Hub
 import { generateConnections } from "@/lib/api/recommendations";
 import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 
 export default function SettingsPage() {
@@ -95,8 +99,10 @@ export default function SettingsPage() {
 
   const handleAddSkill = () => {
     const val = skillInput.trim();
-    if (val && !skills.includes(val)) {
-      setSkills([...skills, val]);
+    if (val) {
+      if (!skills.includes(val)) {
+        setSkills([...skills, val]);
+      }
       setSkillInput("");
     }
   };
@@ -107,8 +113,10 @@ export default function SettingsPage() {
 
   const handleAddInterest = () => {
     const val = interestInput.trim();
-    if (val && !interests.includes(val)) {
-      setInterests([...interests, val]);
+    if (val) {
+      if (!interests.includes(val)) {
+        setInterests([...interests, val]);
+      }
       setInterestInput("");
     }
   };
@@ -119,8 +127,10 @@ export default function SettingsPage() {
 
   const handleAddNeed = () => {
     const val = needInput.trim();
-    if (val && !lookingFor.includes(val)) {
-      setLookingFor([...lookingFor, val]);
+    if (val) {
+      if (!lookingFor.includes(val)) {
+        setLookingFor([...lookingFor, val]);
+      }
       setNeedInput("");
     }
   };
@@ -131,8 +141,10 @@ export default function SettingsPage() {
 
   const handleAddOffer = () => {
     const val = offerInput.trim();
-    if (val && !offering.includes(val)) {
-      setOffering([...offering, val]);
+    if (val) {
+      if (!offering.includes(val)) {
+        setOffering([...offering, val]);
+      }
       setOfferInput("");
     }
   };
@@ -162,24 +174,24 @@ export default function SettingsPage() {
 
   if (isLoadingProfile) {
     return (
-      <main className="flex-1 overflow-y-auto bg-app p-6 md:p-10">
+      <main className="flex-1 overflow-y-auto bg-background p-6 md:p-10">
         <div className="mx-auto max-w-4xl space-y-6">
-          <Skeleton className="h-10 w-64 rounded-card" />
-          <Skeleton className="h-40 w-full rounded-card" />
-          <Skeleton className="h-96 w-full rounded-card" />
+          <Skeleton className="h-10 w-64 rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-96 w-full rounded-xl" />
         </div>
       </main>
     );
   }
 
   return (
-    <main className="flex-1 overflow-y-auto bg-app p-6 md:p-10">
+    <main className="flex-1 overflow-y-auto bg-background p-6 md:p-10">
       <div className="mx-auto max-w-4xl space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-subtle pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-border pb-4">
           <div>
-            <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-              <User className="h-7 w-7 text-accent" />
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <User className="h-7 w-7 text-primary" />
               Cài đặt & Hồ sơ
             </h1>
           </div>
@@ -191,37 +203,37 @@ export default function SettingsPage() {
             disabled={generateMutation.isPending}
             className="flex items-center gap-1.5 shrink-0"
           >
-            <Sparkles size={15} className="text-accent" />
+            <Sparkles size={15} className="text-primary" />
             {generateMutation.isPending ? "Đang quét AI..." : "Quét gợi ý kết nối mới"}
           </Button>
         </div>
 
         <>
           {/* Priority Explanation Banner */}
-        <div className="rounded-card border border-subtle bg-surface p-4.5 space-y-2">
+        <Card className="rounded-2xl border-slate-100 bg-white p-5 space-y-3 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-              <ShieldCheck className="h-5 w-5 text-accent" />
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <ShieldCheck className="h-5 w-5 text-blue-600" />
               <span>Trạng thái nguồn dữ liệu hiện tại:</span>
             </div>
             {profile?.is_custom_profile ? (
-              <span className="rounded-full bg-accent/20 border border-accent/40 px-3 py-1 text-xs font-semibold text-accent">
+              <Badge variant="outline" className="bg-blue-50 border-blue-200 px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm">
                 ✓ Đang ưu tiên: Dữ liệu bạn tự nhập
-              </span>
+              </Badge>
             ) : (
-              <span className="rounded-full bg-blue-500/20 border border-blue-500/40 px-3 py-1 text-xs font-semibold text-blue-400">
+              <Badge variant="secondary" className="bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
                 🤖 Đang tự động trích xuất từ đoạn chat
-              </span>
+              </Badge>
             )}
           </div>
-          <p className="text-xs text-secondary leading-relaxed">
-            <strong>Quy tắc ưu tiên của AI Matchmaker:</strong> Khi bạn nhập thông tin ở biểu mẫu bên dưới, hệ thống sẽ <strong>lưu vào bảng hồ sơ riêng và ưu tiên 100% dữ liệu này</strong> để so sánh. Nếu trường nào bạn để trống, hệ thống sẽ tự động sử dụng thông tin trích xuất được từ nội dung hội thoại thực tế của bạn.
+          <p className="text-sm font-medium text-slate-500 leading-relaxed">
+            <strong className="text-slate-700">Quy tắc ưu tiên của AI Matchmaker:</strong> Khi bạn nhập thông tin ở biểu mẫu bên dưới, hệ thống sẽ <strong className="text-blue-600">lưu vào bảng hồ sơ riêng và ưu tiên 100% dữ liệu này</strong> để so sánh. Nếu trường nào bạn để trống, hệ thống sẽ tự động sử dụng thông tin trích xuất được từ nội dung hội thoại thực tế của bạn.
           </p>
-        </div>
+        </Card>
 
         {/* Success Alert */}
         {saveSuccess && (
-          <div className="flex items-center gap-2.5 rounded-card border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-400">
+          <div className="flex items-center gap-2.5 rounded-xl border border-blue-500/30 bg-blue-50 p-4 text-sm text-blue-600">
             <CheckCircle2 size={18} />
             <span>Hồ sơ đã được lưu thành công vào cơ sở dữ liệu! AI Matchmaker sẽ ưu tiên dữ liệu này khi tìm kiếm người phù hợp.</span>
           </div>
@@ -229,7 +241,7 @@ export default function SettingsPage() {
 
         {/* Error Alert */}
         {updateMutation.isError && (
-          <div className="flex items-center gap-2.5 rounded-card border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+          <div className="flex items-center gap-2.5 rounded-xl border border-red-500/30 bg-red-50 p-4 text-sm text-red-600">
             <AlertCircle size={18} />
             <span>{updateMutation.error?.message || "Có lỗi xảy ra khi lưu hồ sơ."}</span>
           </div>
@@ -238,59 +250,59 @@ export default function SettingsPage() {
         {/* Main Profile Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Card: Basic Identity */}
-          <div className="rounded-card border border-subtle bg-surface p-6 space-y-4">
-            <h2 className="text-base font-semibold text-primary border-b border-subtle pb-2 flex items-center gap-2">
-              <Briefcase size={18} className="text-accent" />
+          <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
+            <h2 className="text-lg font-bold border-b border-slate-100 pb-4 flex items-center gap-2 text-slate-800">
+              <Briefcase size={20} className="text-blue-600" />
               Thông tin Công việc & Địa điểm
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-secondary mb-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
                   Họ và tên
                 </label>
-                <input
+                <Input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Ví dụ: Nguyễn Hoàng Long"
-                  className="w-full rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary placeholder:text-secondary/50 focus:border-accent focus:outline-none"
+                  className="w-full bg-background"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-secondary mb-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
                   Email (Không đổi)
                 </label>
-                <input
+                <Input
                   type="email"
                   value={profile?.email || ""}
                   disabled
-                  className="w-full rounded-button border border-subtle bg-elevated/40 px-3 py-2 text-sm text-secondary/70 cursor-not-allowed"
+                  className="w-full bg-muted text-muted-foreground cursor-not-allowed"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-secondary mb-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
                   Số điện thoại
                 </label>
-                <input
+                <Input
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="Ví dụ: 0912345678"
-                  className="w-full rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary placeholder:text-secondary/50 focus:border-accent focus:outline-none"
+                  className="w-full bg-background"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-secondary mb-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
                   Giới tính
                 </label>
                 <select
                   value={gender}
                   onChange={(e) => setGender(e.target.value)}
-                  className="w-full rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary focus:border-accent focus:outline-none"
+                  className="flex h-9 w-full rounded-xl border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="">Chọn giới tính</option>
                   <option value="male">Nam</option>
@@ -300,61 +312,61 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-secondary mb-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
                   Chức danh / Nghề nghiệp chính (Profession)
                 </label>
-                <input
+                <Input
                   type="text"
                   value={profession}
                   onChange={(e) => setProfession(e.target.value)}
                   placeholder="Ví dụ: Senior AI / LLM Engineer, Tech Product Lead..."
-                  className="w-full rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary placeholder:text-secondary/50 focus:border-accent focus:outline-none"
+                  className="w-full bg-background"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-secondary mb-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
                   Công ty / Tổ chức (Company)
                 </label>
-                <input
+                <Input
                   type="text"
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   placeholder="Ví dụ: VinAI Research, NextGen Innovation..."
-                  className="w-full rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary placeholder:text-secondary/50 focus:border-accent focus:outline-none"
+                  className="w-full bg-background"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-xs font-medium text-secondary mb-1 flex items-center gap-1">
-                  <MapPin size={12} className="text-accent" />
+                <label className="block text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
+                  <MapPin size={12} className="text-primary" />
                   Địa điểm / Khu vực sinh sống (Location)
                 </label>
-                <input
+                <Input
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="Ví dụ: Hà Nội, TP. Hồ Chí Minh, Đà Nẵng..."
-                  className="w-full rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary placeholder:text-secondary/50 focus:border-accent focus:outline-none"
+                  className="w-full bg-background"
                 />
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Card: Skills & Interests */}
-          <div className="rounded-card border border-subtle bg-surface p-6 space-y-5">
-            <h2 className="text-base font-semibold text-primary border-b border-subtle pb-2 flex items-center gap-2">
-              <Sparkles size={18} className="text-accent" />
+          <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
+            <h2 className="text-lg font-bold border-b border-slate-100 pb-4 flex items-center gap-2 text-slate-800">
+              <Sparkles size={20} className="text-blue-600" />
               Kỹ năng & Mối quan tâm chuyên môn
             </h2>
 
             {/* Skills */}
             <div className="space-y-2">
-              <label className="block text-xs font-medium text-secondary">
+              <label className="block text-xs font-medium text-muted-foreground">
                 Kỹ năng chuyên môn (Skills)
               </label>
               <div className="flex gap-2">
-                <input
+                <Input
                   type="text"
                   value={skillInput}
                   onChange={(e) => setSkillInput(e.target.value)}
@@ -365,7 +377,7 @@ export default function SettingsPage() {
                     }
                   }}
                   placeholder="Nhập kỹ năng rồi bấm Thêm (ví dụ: Python, PyTorch, RAG, Flutter...)"
-                  className="flex-1 rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary placeholder:text-secondary/50 focus:border-accent focus:outline-none"
+                  className="flex-1 bg-background"
                 />
                 <Button type="button" variant="secondary" size="sm" onClick={handleAddSkill}>
                   <Plus size={14} className="mr-1" /> Thêm
@@ -373,20 +385,20 @@ export default function SettingsPage() {
               </div>
 
               {skills.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
+               <div className="flex flex-wrap gap-1.5 pt-1">
                   {skills.map((s, idx) => (
                     <span
                       key={idx}
-                      className="flex items-center gap-1 rounded-full bg-elevated border border-subtle px-2.5 py-1 text-xs text-accent"
+                      className="flex items-center gap-1 rounded-full bg-secondary border px-2.5 py-1 text-xs text-secondary-foreground"
                     >
                       {s}
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={() => handleRemoveSkill(s)}
-                        className="hover:text-red-400 text-secondary"
+                        className="hover:text-destructive text-muted-foreground h-auto p-1 ml-1"
                       >
                         <X size={12} />
-                      </button>
+                      </Button>
                     </span>
                   ))}
                 </div>
@@ -395,11 +407,11 @@ export default function SettingsPage() {
 
             {/* Interests */}
             <div className="space-y-2">
-              <label className="block text-xs font-medium text-secondary">
+              <label className="block text-xs font-medium text-muted-foreground">
                 Lĩnh vực / Mối quan tâm (Interests)
               </label>
               <div className="flex gap-2">
-                <input
+                <Input
                   type="text"
                   value={interestInput}
                   onChange={(e) => setInterestInput(e.target.value)}
@@ -410,7 +422,7 @@ export default function SettingsPage() {
                     }
                   }}
                   placeholder="Nhập chủ đề quan tâm (ví dụ: Generative AI, EdTech, Startups...)"
-                  className="flex-1 rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary placeholder:text-secondary/50 focus:border-accent focus:outline-none"
+                  className="flex-1 bg-background"
                 />
                 <Button type="button" variant="secondary" size="sm" onClick={handleAddInterest}>
                   <Plus size={14} className="mr-1" /> Thêm
@@ -422,37 +434,37 @@ export default function SettingsPage() {
                   {interests.map((i, idx) => (
                     <span
                       key={idx}
-                      className="flex items-center gap-1 rounded-full bg-elevated/70 border border-subtle px-2.5 py-1 text-xs text-blue-300"
+                      className="flex items-center gap-1 rounded-full bg-muted border border-border px-2.5 py-1 text-xs text-muted-foreground"
                     >
                       #{i}
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={() => handleRemoveInterest(i)}
-                        className="hover:text-red-400 text-secondary"
+                        className="hover:text-destructive text-muted-foreground h-auto p-1 ml-1"
                       >
                         <X size={12} />
-                      </button>
+                      </Button>
                     </span>
                   ))}
                 </div>
               )}
             </div>
-          </div>
+          </Card>
 
           {/* Card: Looking for & Offering Matrix */}
-          <div className="rounded-card border border-subtle bg-surface p-6 space-y-5">
-            <h2 className="text-base font-semibold text-primary border-b border-subtle pb-2 flex items-center gap-2">
-              <ArrowRight size={18} className="text-accent" />
+          <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
+            <h2 className="text-lg font-bold border-b border-slate-100 pb-4 flex items-center gap-2 text-slate-800">
+              <ArrowRight size={20} className="text-blue-600" />
               Nhu cầu Tìm kiếm & Giá trị Chia sẻ
             </h2>
 
             {/* Looking For */}
             <div className="space-y-2">
-              <label className="block text-xs font-medium text-blue-400">
+              <label className="block text-xs font-medium text-blue-600">
                 Looking for — Nhu cầu bạn đang tìm kiếm (Dự án, đối tác, tuyển dụng...)
               </label>
               <div className="flex gap-2">
-                <input
+                <Input
                   type="text"
                   value={needInput}
                   onChange={(e) => setNeedInput(e.target.value)}
@@ -463,7 +475,7 @@ export default function SettingsPage() {
                     }
                   }}
                   placeholder="Ví dụ: Tìm Senior AI Engineer tư vấn hệ thống RAG..."
-                  className="flex-1 rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary placeholder:text-secondary/50 focus:border-accent focus:outline-none"
+                  className="flex-1 bg-background"
                 />
                 <Button type="button" variant="secondary" size="sm" onClick={handleAddNeed}>
                   <Plus size={14} className="mr-1" /> Thêm
@@ -475,16 +487,16 @@ export default function SettingsPage() {
                   {lookingFor.map((need, idx) => (
                     <li
                       key={idx}
-                      className="flex items-center justify-between rounded-button bg-blue-500/10 border border-blue-500/20 px-3 py-1.5 text-xs text-blue-200"
+                      className="flex items-center justify-between rounded-lg bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs text-primary"
                     >
                       <span>• {need}</span>
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={() => handleRemoveNeed(need)}
-                        className="hover:text-red-400 text-blue-300 ml-2"
+                        className="hover:text-destructive text-primary/70 ml-2 h-auto p-1"
                       >
                         <X size={13} />
-                      </button>
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -493,11 +505,11 @@ export default function SettingsPage() {
 
             {/* Offering */}
             <div className="space-y-2">
-              <label className="block text-xs font-medium text-emerald-400">
+              <label className="block text-xs font-medium text-green-600">
                 Offering — Giá trị / Kinh nghiệm bạn có thể chia sẻ, hỗ trợ đối phương
               </label>
               <div className="flex gap-2">
-                <input
+                <Input
                   type="text"
                   value={offerInput}
                   onChange={(e) => setOfferInput(e.target.value)}
@@ -508,7 +520,7 @@ export default function SettingsPage() {
                     }
                   }}
                   placeholder="Ví dụ: Tư vấn kiến trúc Agentic AI, chia sẻ kinh nghiệm Product Delivery..."
-                  className="flex-1 rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary placeholder:text-secondary/50 focus:border-accent focus:outline-none"
+                  className="flex-1 bg-background"
                 />
                 <Button type="button" variant="secondary" size="sm" onClick={handleAddOffer}>
                   <Plus size={14} className="mr-1" /> Thêm
@@ -520,16 +532,16 @@ export default function SettingsPage() {
                   {offering.map((offer, idx) => (
                     <li
                       key={idx}
-                      className="flex items-center justify-between rounded-button bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-xs text-emerald-200"
+                      className="flex items-center justify-between rounded-lg bg-green-50 border border-green-200 px-3 py-1.5 text-xs text-green-600"
                     >
                       <span>• {offer}</span>
-                      <button
+                      <Button variant="ghost"
                         type="button"
                         onClick={() => handleRemoveOffer(offer)}
-                        className="hover:text-red-400 text-emerald-300 ml-2"
+                        className="hover:text-red-500 text-green-400 ml-2"
                       >
                         <X size={13} />
-                      </button>
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -538,25 +550,25 @@ export default function SettingsPage() {
 
             {/* Bio */}
             <div className="space-y-1 pt-2">
-              <label className="block text-xs font-medium text-secondary">
+              <label className="block text-xs font-medium text-muted-foreground">
                 Giới thiệu ngắn về bản thân (Bio)
               </label>
-              <textarea
+              <Textarea
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 rows={3}
                 placeholder="Mô tả ngắn gọn về kinh nghiệm, định hướng và mục tiêu giao lưu kết nối của bạn..."
-                className="w-full rounded-button border border-subtle bg-elevated px-3 py-2 text-sm text-primary placeholder:text-secondary/50 focus:border-accent focus:outline-none resize-none"
+                className="w-full bg-background resize-none"
               />
             </div>
-          </div>
+          </Card>
 
           {/* Submit Button */}
           <div className="flex items-center justify-end gap-3 pt-2">
             <Button
               type="submit"
               variant="primary"
-              size="md"
+              size="default"
               disabled={updateMutation.isPending}
               className="flex items-center gap-2"
             >

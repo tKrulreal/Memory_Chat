@@ -224,7 +224,7 @@ def update_assistant_context(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Context not found")
         
     # Update facts and summary
-    old_facts = memory.facts or {}
+    old_facts = dict(memory.facts or {})
     new_data = context_in.model_dump()
     new_summary = new_data.pop("summary", None)
     

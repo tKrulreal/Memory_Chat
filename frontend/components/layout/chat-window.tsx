@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils";
 import type { Conversation } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAISettings } from "@/hooks/use-ai-settings";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export function ChatWindow() {
   const infoPanelOpen = useUIStore((s) => s.infoPanelOpen);
@@ -118,13 +120,13 @@ export function ChatWindow() {
 
   if (!activeId) {
     return (
-      <section className="flex min-w-0 flex-1 flex-col items-center justify-center bg-app">
+      <section className="flex min-w-0 flex-1 flex-col items-center justify-center bg-background">
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-elevated text-secondary">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <User size={32} />
           </div>
           <h2 className="text-xl font-bold">Your Conversations</h2>
-          <p className="mt-2 text-sm text-secondary">Select a chat or start a new one.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Select a chat or start a new one.</p>
         </div>
       </section>
     );
@@ -133,51 +135,53 @@ export function ChatWindow() {
   const messages = messagesResponse?.pages.flatMap((page) => page.data) ?? [];
 
   return (
-    <section className="flex min-w-0 flex-1 flex-col bg-app">
-      <header className="flex items-center justify-between border-b border-subtle px-4 py-3">
-        <div 
+    <section className="flex min-w-0 flex-1 flex-col bg-background min-h-0">
+      <header className="flex shrink-0 items-center justify-between border-b border-slate-100/50 px-6 py-4 bg-white/80 backdrop-blur-sm z-10">
+        <div
           className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity"
           onClick={toggleInfoPanel}
           title="Xem thông tin đối phương"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/20 text-sm font-semibold text-blue-300 uppercase">
-            {peerShort}
-          </div>
+          <Avatar className="h-10 w-10 border border-slate-200 shadow-sm">
+            <AvatarFallback className="bg-blue-50 text-blue-700 font-bold text-sm">
+              {peerShort}
+            </AvatarFallback>
+          </Avatar>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-semibold">{peerName}</h1>
-              <span className="rounded-full bg-elevated px-2 py-0.5 text-xs text-secondary">
+            <div className="flex items-center gap-2 mb-0.5">
+              <h1 className="text-base font-semibold text-slate-900">{peerName}</h1>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold text-slate-500">
                 Peer
               </span>
             </div>
-            <p className="text-xs text-secondary">Direct message</p>
+            <p className="text-xs font-medium text-slate-500">Direct message</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
           {features.copilot && (
-            <button
+            <Button variant="ghost"
               type="button"
               onClick={toggleCopilot}
-              className="rounded-button p-2 text-secondary hover:bg-elevated hover:text-accent"
+              className="rounded-button p-2 text-muted-foreground hover:bg-muted hover:text-accent"
               aria-label="Open copilot"
               title="Mở AI Copilot"
             >
               <Sparkles size={18} />
-            </button>
+            </Button>
           )}
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={toggleInfoPanel}
-            className="rounded-button p-2 text-secondary hover:bg-elevated hover:text-primary"
+            className="rounded-button p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="View profile"
             title="Thông tin đối phương"
           >
             <User size={18} />
-          </button>
-          <button
+          </Button>
+          <Button variant="ghost"
             type="button"
             onClick={toggleInfoPanel}
-            className="rounded-button p-2 text-secondary hover:bg-elevated hover:text-primary"
+            className="rounded-button p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label={infoPanelOpen ? "Hide info panel" : "Show info panel"}
             title={infoPanelOpen ? "Đóng thanh thông tin" : "Mở thanh thông tin"}
           >
@@ -186,79 +190,77 @@ export function ChatWindow() {
             ) : (
               <PanelRightOpen size={18} />
             )}
-          </button>
-          <button
+          </Button>
+          <Button variant="ghost"
             type="button"
             onClick={toggleInfoPanel}
-            className="rounded-button p-2 text-secondary hover:bg-elevated hover:text-primary"
+            className="rounded-button p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="Contact info"
             title="Tùy chọn & Thông tin đối phương"
           >
             <MoreVertical size={18} />
-          </button>
+          </Button>
         </div>
       </header>
 
 
       {features.memory && <AIContextBar />}
 
-      <div className="flex items-center gap-2 border-b border-subtle px-4 py-2">
-        <span 
-          className={cn(
-            "h-2 w-2 rounded-full",
-            connectionState === "connected" ? "bg-online" : connectionState === "reconnecting" ? "bg-yellow-500" : "bg-red-500"
-          )} 
-        />
-        <span className="text-xs text-secondary">
-          {connectionState === "connected" ? "Real-time connected" : connectionState === "reconnecting" ? "Reconnecting..." : "Offline"}
-        </span>
+
+
+      <div className="scrollbar-thin flex-1 min-h-0 overflow-y-auto px-6 lg:px-8 py-6 flex flex-col-reverse items-center">
+        <div className="w-full max-w-5xl flex flex-col-reverse space-y-4 space-y-reverse">
+          {isLoading && (
+            <div className="flex flex-col-reverse gap-4 w-full">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"}`}>
+                  <Skeleton className={`h-12 w-2/3 ${i % 2 === 0 ? "rounded-l-2xl rounded-tr-2xl bg-accent/20" : "rounded-r-2xl rounded-tl-2xl bg-muted"}`} />
+                </div>
+              ))}
+            </div>
+          )}
+          {!isLoading && messages.length === 0 && <p className="text-center text-sm text-muted-foreground w-full">No messages yet. Say hi!</p>}
+
+          {hasNextPage && (
+            <div ref={ref} className="flex justify-center w-full py-2">
+              <span className="text-sm text-muted-foreground opacity-50">
+                {isFetchingNextPage ? "Loading older messages..." : "Scroll for more"}
+              </span>
+            </div>
+          )}
+
+          {/* Messages are returned DESC from API (newest first). flex-col-reverse puts the first item at the bottom. */}
+        {messages.map((message, index) => {
+          const isConsecutive = index > 0 && messages[index - 1]?.sender_user_id === message.sender_user_id;
+          return (
+            <MessageBubble
+              key={message.id}
+              isConsecutive={isConsecutive}
+              content={message.content}
+              outgoing={message.sender_user_id === user?.id || message.sender_user_id === "optimistic"}
+              time={new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              status={message.local_status === "failed" ? "error" : message.local_status === "sending" || message.sender_user_id === "optimistic" ? "pending" : "sent"}
+              deleted_at={message.deleted_at}
+              onRecall={() => recallMutation.mutate(message.id)}
+              isRecalling={recallMutation.isPending && recallMutation.variables === message.id}
+              onRetry={() => {
+                if (message.client_message_id) {
+                  sendMessageMutation.mutate({
+                    content: message.content,
+                    clientMessageId: message.client_message_id,
+                  });
+                }
+              }}
+            />
+          );
+        })}
+        </div>
       </div>
 
-      <div className="scrollbar-thin flex-1 space-y-4 overflow-y-auto px-4 py-6 flex flex-col-reverse">
-        {isLoading && (
-          <div className="flex flex-col-reverse gap-4 w-full">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"}`}>
-                <Skeleton className={`h-12 w-2/3 ${i % 2 === 0 ? "rounded-l-2xl rounded-tr-2xl bg-accent/20" : "rounded-r-2xl rounded-tl-2xl bg-elevated"}`} />
-              </div>
-            ))}
-          </div>
-        )}
-        {!isLoading && messages.length === 0 && <p className="text-center text-xs text-secondary w-full">No messages yet. Say hi!</p>}
-        
-        {hasNextPage && (
-          <div ref={ref} className="flex justify-center w-full py-2">
-            <span className="text-xs text-secondary opacity-50">
-              {isFetchingNextPage ? "Loading older messages..." : "Scroll for more"}
-            </span>
-          </div>
-        )}
-        
-        {/* Messages are returned DESC from API (newest first). flex-col-reverse puts the first item at the bottom. */}
-        {messages.map((message) => (
-          <MessageBubble
-            key={message.id}
-            content={message.content}
-            outgoing={message.sender_user_id === user?.id || message.sender_user_id === "optimistic"}
-            time={new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            status={message.local_status === "failed" ? "error" : message.local_status === "sending" || message.sender_user_id === "optimistic" ? "pending" : "sent"}
-            deleted_at={message.deleted_at}
-            onRecall={() => recallMutation.mutate(message.id)}
-            isRecalling={recallMutation.isPending && recallMutation.variables === message.id}
-            onRetry={() => {
-              if (message.client_message_id) {
-                sendMessageMutation.mutate({
-                  content: message.content,
-                  clientMessageId: message.client_message_id,
-                });
-              }
-            }}
-          />
-        ))}
-      </div>
-
-      <footer className="border-t border-subtle p-4">
-        <Composer conversationId={activeId} />
+      <footer className="shrink-0 border-t border-subtle p-4 bg-card flex justify-center">
+        <div className="w-full max-w-5xl">
+          <Composer conversationId={activeId} />
+        </div>
       </footer>
     </section>
   );

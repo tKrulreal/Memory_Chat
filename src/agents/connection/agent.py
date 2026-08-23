@@ -302,6 +302,23 @@ class ConnectionRecommendationAgent:
             connected_user_ids.add(c.user_a_id)
             connected_user_ids.add(c.user_b_id)
 
+        # 1.5 Tìm các user đã có ConnectionRequest (chiều gửi đi hoặc nhận lại)
+        from src.models.connection import ConnectionRequest
+        existing_reqs = (
+            db.query(ConnectionRequest)
+            .filter(
+                or_(
+                    ConnectionRequest.sender_id == user_id,
+                    ConnectionRequest.receiver_id == user_id,
+                )
+            )
+            .all()
+        )
+        for req in existing_reqs:
+            if req.status in ["PENDING", "ACCEPTED"]:
+                connected_user_ids.add(req.sender_id)
+                connected_user_ids.add(req.receiver_id)
+
         # 2. Tìm các user đã có Recommendation PENDING
         existing_recs = (
             db.query(Recommendation)

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { v4 as uuidv4 } from "uuid";
 
 import { renderCopilotMessageWithCards } from "@/components/ai/copilot-card";
+import { Input } from "@/components/ui/input";
 
 const COPILOT_ACTIONS = [
   "Summarize",
@@ -100,7 +101,7 @@ export function CopilotDrawer() {
   return (
     <>
       {open && (
-        <button
+        <Button variant="ghost"
           type="button"
           className="fixed inset-0 z-40 bg-black/50"
           onClick={toggleCopilot}
@@ -110,23 +111,23 @@ export function CopilotDrawer() {
       <aside
         aria-labelledby="copilot-title"
         className={cn(
-          "fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-subtle bg-surface shadow-2xl transition-transform duration-200",
+          "fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-subtle bg-card shadow-2xl transition-transform duration-200",
           open ? "translate-x-0" : "translate-x-full",
         )}
       >
         <header className="flex items-center justify-between border-b border-subtle px-4 py-4">
           <div>
             <h2 id="copilot-title" className="text-lg font-semibold">AI Copilot</h2>
-            <p className="text-sm text-secondary">What can I help with?</p>
+            <p className="text-sm text-muted-foreground">What can I help with?</p>
           </div>
-          <button
+          <Button variant="ghost"
             type="button"
             onClick={toggleCopilot}
-            className="rounded-button p-2 text-secondary hover:bg-elevated hover:text-primary"
+            className="rounded-button p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="Close copilot drawer"
           >
             <X size={18} />
-          </button>
+          </Button>
         </header>
 
         <div className="flex flex-wrap gap-2 border-b border-subtle p-4">
@@ -145,7 +146,7 @@ export function CopilotDrawer() {
 
         <div ref={scrollRef} className="scrollbar-thin flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 ? (
-            <div className="rounded-button bg-elevated p-4 text-sm text-secondary">
+            <div className="rounded-button bg-muted p-4 text-sm text-muted-foreground">
               Ask a question about this conversation. Copilot will use scoped
               context from your private assistant memory.
             </div>
@@ -163,7 +164,7 @@ export function CopilotDrawer() {
                     "rounded-2xl px-4 py-2.5 text-sm",
                     msg.role === "user" 
                       ? "bg-accent text-accent-foreground rounded-tr-sm"
-                      : "bg-elevated text-primary rounded-tl-sm w-full"
+                      : "bg-muted text-foreground rounded-tl-sm w-full"
                   )}
                 >
                   {renderCopilotMessageWithCards(msg.content)}
@@ -171,20 +172,20 @@ export function CopilotDrawer() {
 
                 
                 {msg.role === "assistant" && (msg.intent === "REPLY_SUGGEST" || msg.intent === "MEMORY") && (
-                  <button
+                  <Button variant="ghost"
                     onClick={() => handleCopy(msg.content)}
-                    className="flex items-center gap-1 text-xs text-secondary hover:text-accent mt-1"
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-accent mt-1"
                   >
                     <Copy size={12} />
                     <span>Copy to composer</span>
-                  </button>
+                  </Button>
                 )}
               </div>
             ))
           )}
           
           {isLoading && (
-            <div className="flex items-center gap-2 text-sm text-secondary mr-auto">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mr-auto">
               <Loader2 size={14} className="animate-spin" />
               Thinking...
             </div>
@@ -193,7 +194,7 @@ export function CopilotDrawer() {
 
         <footer className="border-t border-subtle p-4">
           <div className="flex gap-2">
-            <input
+            <Input
               type="text"
               placeholder="Ask Copilot..."
               value={input}
@@ -202,7 +203,7 @@ export function CopilotDrawer() {
               disabled={isLoading}
               className="h-10 flex-1 rounded-composer bg-input px-4 text-sm outline-none ring-accent focus:ring-1 disabled:opacity-50"
             />
-            <Button size="md" onClick={() => handleAsk(input)} disabled={!input.trim() || isLoading} aria-label="Send to copilot">
+            <Button size="default" onClick={() => handleAsk(input)} disabled={!input.trim() || isLoading} aria-label="Send to copilot">
               <Send size={16} />
             </Button>
           </div>
