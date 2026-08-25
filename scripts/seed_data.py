@@ -93,7 +93,7 @@ def seed_data(reset=False):
         for tag_name in skills_pool + interests_pool:
             tag = session.query(Tag).filter(Tag.name == tag_name).first()
             if not tag:
-                tag = Tag(id=uuid.uuid4(), name=tag_name, category="skill" if tag_name in skills_pool else "interest")
+                tag = Tag(id=uuid.uuid4(), user_id=users[0].id, name=tag_name, category="skill" if tag_name in skills_pool else "interest")
                 session.add(tag)
             tags_dict[tag_name] = tag
         session.commit()
