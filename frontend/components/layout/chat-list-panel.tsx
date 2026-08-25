@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatChatListTime } from "@/lib/utils";
 import { useConversationStore } from "@/lib/stores/conversation-store";
 
 import { useState, useEffect } from "react";
@@ -130,8 +130,8 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
             peerShort = peer.email.substring(0, 2).toUpperCase();
           }
 
-          // Format date if needed
-          const dateStr = conversation.last_message_at ? new Date(conversation.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
+          // Format date with synchronized helper
+          const dateStr = formatChatListTime(conversation.last_message_at);
 
           return (
             <li key={conversation.id} className="mb-1">

@@ -19,7 +19,7 @@ import { getMessages, deleteMessage } from "@/lib/api/messages";
 import { getConversations } from "@/lib/api/conversations";
 import { Composer } from "@/components/chat/composer";
 import { MessageBubble } from "@/components/chat/message-bubble";
-import { cn } from "@/lib/utils";
+import { cn, formatMessageTime, parseServerDate, getDateDividerLabel } from "@/lib/utils";
 import type { Conversation } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAISettings } from "@/hooks/use-ai-settings";
@@ -232,26 +232,38 @@ export function ChatWindow() {
           {/* Messages are returned DESC from API (newest first). flex-col-reverse puts the first item at the bottom. */}
         {messages.map((message, index) => {
           const isConsecutive = index > 0 && messages[index - 1]?.sender_user_id === message.sender_user_id;
+          const msgDate = parseServerDate(message.created_at);
+          const olderMsgDate = index < messages.length - 1 ? parseServerDate(messages[index + 1]?.created_at) : null;
+          const isFirstOfNewDay = !olderMsgDate || (msgDate && olderMsgDate && msgDate.toDateString() !== olderMsgDate.toDateString());
+
           return (
-            <MessageBubble
-              key={message.id}
-              isConsecutive={isConsecutive}
-              content={message.content}
-              outgoing={message.sender_user_id === user?.id || message.sender_user_id === "optimistic"}
-              time={new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              status={message.local_status === "failed" ? "error" : message.local_status === "sending" || message.sender_user_id === "optimistic" ? "pending" : "sent"}
-              deleted_at={message.deleted_at}
-              onRecall={() => recallMutation.mutate(message.id)}
-              isRecalling={recallMutation.isPending && recallMutation.variables === message.id}
-              onRetry={() => {
-                if (message.client_message_id) {
-                  sendMessageMutation.mutate({
-                    content: message.content,
-                    clientMessageId: message.client_message_id,
-                  });
-                }
-              }}
-            />
+            <div key={message.id} className="w-full flex flex-col items-center">
+              {isFirstOfNewDay && msgDate && (
+                <div className="my-3 flex items-center justify-center">
+                  <span className="rounded-full bg-slate-100 border border-slate-200/60 px-3.5 py-0.5 text-[11px] font-semibold text-slate-500 shadow-2xs">
+                    {getDateDividerLabel(msgDate)}
+                  </span>
+                </div>
+              )}
+              <MessageBubble
+                isConsecutive={isConsecutive && !isFirstOfNewDay}
+                content={message.content}
+                outgoing={message.sender_user_id === user?.id || message.sender_user_id === "optimistic"}
+                time={formatMessageTime(message.created_at)}
+                status={message.local_status === "failed" ? "error" : message.local_status === "sending" || message.sender_user_id === "optimistic" ? "pending" : "sent"}
+                deleted_at={message.deleted_at}
+                onRecall={() => recallMutation.mutate(message.id)}
+                isRecalling={recallMutation.isPending && recallMutation.variables === message.id}
+                onRetry={() => {
+                  if (message.client_message_id) {
+                    sendMessageMutation.mutate({
+                      content: message.content,
+                      clientMessageId: message.client_message_id,
+                    });
+                  }
+                }}
+              />
+            </div>
           );
         })}
         </div>

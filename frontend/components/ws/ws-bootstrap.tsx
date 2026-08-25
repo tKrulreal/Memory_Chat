@@ -99,12 +99,44 @@ export function WSBootstrap({ children }: { children: React.ReactNode }) {
             }))
           };
         });
+      } else if (data.type === "NEW_NOTIFICATION") {
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+        queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
+        queryClient.invalidateQueries({ queryKey: ["connections"] });
+        queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+
+        const notif = data.notification;
+        if (notif) {
+          if (notif.type === "CONNECTION_REQUEST") {
+            toast.info(notif.content || "Bạn có một lời mời kết bạn mới", {
+              duration: 4000,
+            });
+          } else if (notif.type === "MATCH_SUGGESTION" || notif.type === "CONNECTION_RECOMMENDATION") {
+            toast(notif.content || "Profile của người này hợp với bạn, hãy thử kết nối", {
+              duration: 4000,
+            });
+          } else if (notif.type === "CONNECTION_ACCEPTED") {
+            toast.success(notif.content || "Lời mời kết bạn đã được chấp nhận", {
+              duration: 4000,
+            });
+          } else {
+            toast(notif.content || notif.title || "Thông báo mới", {
+              duration: 4000,
+            });
+          }
+        }
+      } else if (data.type === "CONNECTION_REQUEST") {
+        queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
       } else if (data.type === "NEW_RECOMMENDATION") {
         queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+        queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
         if (featuresRef.current.recommendation !== false) {
-          toast("✨ New AI Connection Found!", {
-            description: data.message || "AI Matchmaker has analyzed your recent context.",
-            duration: 6000,
+          toast("Profile của người này hợp với bạn, hãy thử kết nối", {
+            duration: 4000,
           });
         }
       }
