@@ -86,14 +86,15 @@ export type SearchResult = {
 };
 
 export type Setting = {
-  id: string;
   user_id: string;
-  theme: string;
-  notifications_enabled: boolean;
-  ai_enabled: boolean;
-  ai_read_profile: boolean;
-  ai_memory_refresh_interval: string;
-  ai_memory_window: string;
+  theme?: string;
+  notifications_enabled?: boolean;
+  ai_enabled?: boolean;
+  ai_read_profile?: boolean;
+  ai_memory_refresh_interval?: string;
+  ai_memory_window?: string;
+  ai_recommendation_interval?: string;
+  ai_copilot_context_turns?: number;
 };
 
 export type Tag = {
@@ -116,5 +117,72 @@ export type Notification = {
   title: string;
   content: string;
   status: string;
+  data?: Record<string, any> | null;
   created_at: string;
+};
+
+export type ExperienceItem = {
+  title: string;
+  company: string;
+  period?: string;
+  description?: string;
+};
+
+export type EducationItem = {
+  school: string;
+  degree?: string;
+  field?: string;
+  year?: string;
+};
+
+export type UserProfile = {
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  avatar: string | null;
+  gender: string | null;
+  phone: string | null;
+  profession: string | null;
+  company: string | null;
+  location: string | null;
+  skills: string[];
+  interests: string[];
+  looking_for: string[];
+  offering: string[];
+  bio: string | null;
+  is_public: boolean;
+  github?: string | null;
+  linkedin?: string | null;
+  website?: string | null;
+  experience?: ExperienceItem[];
+  education?: EducationItem[];
+  is_custom_profile?: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type PublicUserProfile = {
+  user_id: string;
+  email?: string | null;
+  full_name: string | null;
+  avatar: string | null;
+  gender?: string | null;
+  phone?: string | null;
+  profession?: string | null;
+  company?: string | null;
+  location?: string | null;
+  skills: string[];
+  interests: string[];
+  looking_for: string[];
+  offering: string[];
+  bio: string | null;
+  is_public: boolean;
+  github?: string | null;
+  linkedin?: string | null;
+  website?: string | null;
+  experience?: ExperienceItem[];
+  education?: EducationItem[];
+  connection_status: "CONNECTED" | "PENDING_SENT" | "PENDING_RECEIVED" | "NONE";
+  conversation_id?: string | null;
+  created_at?: string | null;
 };
