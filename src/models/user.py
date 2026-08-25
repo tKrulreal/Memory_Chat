@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, ForeignKey, String, DateTime
+from sqlalchemy import JSON, Boolean, ForeignKey, String, DateTime, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.database import Base, created_at_col, updated_at_col, uuid_pk
@@ -52,6 +52,12 @@ class UserProfile(Base):
     looking_for: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     offering: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     bio: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    is_public: Mapped[bool] = mapped_column(Boolean, default=True)
+    github: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    linkedin: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    website: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    experience: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+    education: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[created_at_col]
     updated_at: Mapped[updated_at_col]
@@ -74,6 +80,8 @@ class Setting(Base):
     ai_read_profile: Mapped[bool] = mapped_column(Boolean, default=True)
     ai_memory_refresh_interval: Mapped[str] = mapped_column(String(50), default="realtime")
     ai_memory_window: Mapped[str] = mapped_column(String(50), default="unlimited")
+    ai_recommendation_interval: Mapped[str] = mapped_column(String(50), default="24h")
+    ai_copilot_context_turns: Mapped[int] = mapped_column(Integer, default=10)
 
     user = relationship("User", back_populates="setting")
 
@@ -97,10 +105,11 @@ class Notification(Base):
 
     id: Mapped[uuid_pk]
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    type: Mapped[str] = mapped_column(String(50)) # RECOMMENDATION, FOLLOWUP, MEMORY_UPDATED
+    type: Mapped[str] = mapped_column(String(50)) # RECOMMENDATION, MATCH_SUGGESTION, CONNECTION_REQUEST, CONNECTION_ACCEPTED
     title: Mapped[str] = mapped_column(String(255))
     content: Mapped[str] = mapped_column(String(2048))
     status: Mapped[str] = mapped_column(String(50), default="UNREAD") # UNREAD, READ
+    data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[created_at_col]
 
