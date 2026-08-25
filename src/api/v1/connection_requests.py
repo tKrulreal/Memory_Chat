@@ -228,13 +228,14 @@ def send_connection_request(
         db.add(new_req)
 
     # Create notification for the receiver
-    notif = Notification(
-        user_id=target_user.id,
-        type="CONNECTION_REQUEST",
-        title="Lời mời kết bạn mới",
-        content=f"{current_user.full_name or current_user.email} đã gửi cho bạn một lời mời kết bạn."
+    from src.services.notifications import NotificationService
+    notif_service = NotificationService.get_instance()
+    notif_service.send_connection_request_notification(
+        db=db,
+        receiver_id=target_user.id,
+        sender_user=current_user,
+        request_id=new_req.id,
     )
-    db.add(notif)
     
     # Update any existing recommendation to ACCEPTED
     from src.models.ai import Recommendation
@@ -298,14 +299,13 @@ def accept_connection_request(
     )
 
     # Create notification for the sender
-    notif = Notification(
-        user_id=req.sender_id,
-        type="CONNECTION_ACCEPTED",
-        title="Yêu cầu kết bạn được chấp nhận",
-        content=f"{current_user.full_name or current_user.email} đã chấp nhận lời mời kết bạn của bạn.",
-        status="UNREAD"
+    from src.services.notifications import NotificationService
+    notif_service = NotificationService.get_instance()
+    notif_service.send_connection_accepted_notification(
+        db=db,
+        sender_id=req.sender_id,
+        receiver_user=current_user,
     )
-    db.add(notif)
 
     db.commit()
     db.refresh(req)

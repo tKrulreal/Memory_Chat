@@ -47,22 +47,13 @@ async def list_connections(
 ):
     """
     Lấy danh sách các gợi ý kết nối dành cho bản thân người dùng hiện tại do AI đánh giá thật.
+    Hiển thị đầy đủ danh sách cho AI Matchmaker (ngưỡng min_matching_score chỉ dùng để kích hoạt thông báo).
     """
-    # Read AI config for min_score filter
-    min_score_percent = 50
-    ai_config = db.query(AISystemConfig).filter(
-        AISystemConfig.user_id == current_user.id,
-        AISystemConfig.key == "ai_settings"
-    ).first()
-    if ai_config and isinstance(ai_config.value, dict):
-        min_score_percent = int(ai_config.value.get("min_matching_score", 50))
-        
     query = (
         db.query(Recommendation)
         .filter(
             Recommendation.owner_user_id == current_user.id,
             Recommendation.type == RecommendationType.CONNECTION.value,
-            Recommendation.confidence >= (min_score_percent / 100.0)
         )
     )
 
@@ -86,6 +77,11 @@ async def list_connections(
         if not current_user.setting or not current_user.setting.ai_enabled:
             can_generate = False
             
+        ai_config = db.query(AISystemConfig).filter(
+            AISystemConfig.user_id == current_user.id,
+            AISystemConfig.key == "ai_settings"
+        ).first()
+
         if ai_config and isinstance(ai_config.value, dict):
             features = ai_config.value.get("features", {})
             if features.get("recommendation") is False:
@@ -93,7 +89,7 @@ async def list_connections(
             
         if can_generate:
             try:
-                await agent.generate(current_user.id, min_score=min_score_percent / 100.0, limit=5)
+                await agent.generate(current_user.id, min_score=0.4, limit=10)
                 recommendations = (
                     query
                     .order_by(Recommendation.confidence.desc(), Recommendation.created_at.desc())

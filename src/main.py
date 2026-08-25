@@ -67,15 +67,24 @@ async def lifespan(app: FastAPI):
     app.state.connection_worker.subscribe()
     logger.info("connection_recommendation_worker_started")
 
-    # Start APScheduler
-    from src.core.scheduler import setup_scheduler, scheduler
-    setup_scheduler(app)
+    # Start APScheduler (optional)
+    scheduler_instance = None
+    try:
+        from src.core.scheduler import setup_scheduler, scheduler
+        setup_scheduler(app)
+        scheduler_instance = scheduler
+    except Exception as e:
+        logger.warning(f"Could not initialize scheduler: {e}")
 
     try:
         yield
     finally:
-        logger.info("stopping_scheduler")
-        scheduler.shutdown()
+        if scheduler_instance:
+            try:
+                logger.info("stopping_scheduler")
+                scheduler_instance.shutdown()
+            except Exception as e:
+                logger.warning(f"Error shutting down scheduler: {e}")
         logger.info("stopping_outbox_worker")
         if getattr(app.state, "outbox_worker", None):
             await app.state.outbox_worker.stop()

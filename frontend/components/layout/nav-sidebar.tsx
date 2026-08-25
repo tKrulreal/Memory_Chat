@@ -8,6 +8,9 @@ import { useAISettings } from "@/hooks/use-ai-settings";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
+import { useQuery } from "@tanstack/react-query";
+import { getUnreadNotificationsCount } from "@/lib/api/notifications";
+
 const NAV_ITEMS = [
   { href: "/chats", label: "Chats", icon: MessageCircle },
   { href: "/connections", label: "Connections", icon: Users },
@@ -20,6 +23,14 @@ export function NavSidebar() {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const { features } = useAISettings();
+
+  const { data: unreadData } = useQuery({
+    queryKey: ["notifications-unread-count"],
+    queryFn: getUnreadNotificationsCount,
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
+  const unreadCount = unreadData?.unread_count || 0;
 
   const initials =
     user?.full_name?.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase() ||
@@ -60,28 +71,37 @@ export function NavSidebar() {
       <div className="flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-3 scrollbar-thin">
         {visibleNavItems.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
+          const isNotif = href === "/notifications";
           return (
             <Link
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-3 rounded-xl p-3 text-sm transition-colors w-[196px]",
+                "flex items-center gap-3 rounded-xl p-3 text-sm transition-colors w-[196px] relative",
                 active ? "bg-blue-600/10" : "hover:bg-slate-800/50"
               )}
             >
-              <div className="flex shrink-0 items-center justify-center">
+              <div className="flex shrink-0 items-center justify-center relative">
                 <Icon
                   size={22}
                   className={cn("transition-colors", active ? "text-blue-400" : "text-slate-400 group-hover:text-white")}
                 />
+                {isNotif && unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-slate-800" />
+                )}
               </div>
               <span
                 className={cn(
-                  "truncate whitespace-nowrap transition-opacity duration-200 opacity-0 group-hover:opacity-100",
+                  "truncate whitespace-nowrap transition-opacity duration-200 opacity-0 group-hover:opacity-100 flex items-center justify-between flex-1",
                   active ? "text-blue-400 font-semibold" : "text-slate-300 group-hover:text-white"
                 )}
               >
-                {label}
+                <span>{label}</span>
+                {isNotif && unreadCount > 0 && (
+                  <span className="ml-auto rounded-full bg-red-500 px-1.5 py-0.2 text-[10px] font-bold text-white">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </span>
             </Link>
           );

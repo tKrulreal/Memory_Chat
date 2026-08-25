@@ -1,5 +1,5 @@
 import asyncio
-from src.database.session import SessionLocal
+from src.models.database import SessionLocal
 from src.models.user import User
 from src.api.v1.connection_requests import send_connection_request
 from src.schemas.connection import ConnectionRequestCreate

@@ -1,34 +1,58 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getNotifications, markNotificationRead } from "@/lib/api/notifications";
-import { Bell, Check, MessageSquare, Sparkles, UserPlus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  deleteNotification,
+} from "@/lib/api/notifications";
+import { acceptConnectionRequest, rejectConnectionRequest } from "@/lib/api/connection-requests";
+import {
+  Bell,
+  Check,
+  CheckCheck,
+  CheckCircle2,
+  Filter,
+  MessageSquare,
+  Sparkles,
+  Trash2,
+  UserCheck,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 function getRelativeTime(dateString: string) {
+  if (!dateString) return "";
   const date = new Date(dateString);
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
-  if (diffInSeconds < 60) return "Just now";
-  
+
+  if (diffInSeconds < 60) return "Vừa xong";
   const diffInMinutes = Math.floor(diffInSeconds / 60);
-  if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-  
+  if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
   const diffInHours = Math.floor(diffInMinutes / 60);
-  if (diffInHours < 24) return `${diffInHours}h ago`;
-  
+  if (diffInHours < 24) return `${diffInHours} giờ trước`;
   const diffInDays = Math.floor(diffInHours / 24);
-  if (diffInDays < 7) return `${diffInDays}d ago`;
-  
-  return date.toLocaleDateString();
+  if (diffInDays < 7) return `${diffInDays} ngày trước`;
+
+  return date.toLocaleDateString("vi-VN");
 }
 
-import { useRouter } from "next/navigation";
+type TabType = "all" | "unread" | "requests" | "matching";
 
 export default function NotificationsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<TabType>("all");
+
   const { data, isLoading } = useQuery({
     queryKey: ["notifications"],
     queryFn: () => getNotifications(1, 50),
@@ -38,122 +62,436 @@ export default function NotificationsPage() {
     mutationFn: (id: string) => markNotificationRead(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
     },
   });
 
-  const handleNotificationClick = (notif: any) => {
+  const markAllReadMutation = useMutation({
+    mutationFn: () => markAllNotificationsRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      toast.success("Đã đánh dấu tất cả thông báo là đã đọc");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteNotification(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      toast.success("Đã xóa thông báo");
+    },
+  });
+
+  const acceptRequestMutation = useMutation({
+    mutationFn: async ({ requestId, notifId }: { requestId: string; notifId: string }) => {
+      await acceptConnectionRequest(requestId);
+      await markNotificationRead(notifId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["connections"] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      toast.success("Đã chấp nhận lời mời kết bạn!");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Không thể chấp nhận lời mời kết bạn");
+    },
+  });
+
+  const rejectRequestMutation = useMutation({
+    mutationFn: async ({ requestId, notifId }: { requestId: string; notifId: string }) => {
+      await rejectConnectionRequest(requestId);
+      await markNotificationRead(notifId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
+      toast.info("Đã từ chối lời mời kết bạn");
+    },
+  });
+
+  const allNotifications = data?.data || [];
+  const unreadCount = allNotifications.filter((n) => n.status === "UNREAD").length;
+
+  const filteredNotifications = allNotifications.filter((notif) => {
+    if (activeTab === "unread") return notif.status === "UNREAD";
+    if (activeTab === "requests") return notif.type === "CONNECTION_REQUEST";
+    if (activeTab === "matching") {
+      return (
+        notif.type === "MATCH_SUGGESTION" ||
+        notif.type === "CONNECTION_RECOMMENDATION" ||
+        notif.type === "RECOMMENDATION"
+      );
+    }
+    return true;
+  });
+
+  const handleCardClick = (notif: any) => {
     if (notif.status === "UNREAD") {
       markAsReadMutation.mutate(notif.id);
     }
-    
-    switch (notif.type) {
-      case "CONNECTION_REQUEST":
-        router.push("/connections");
-        break;
-      case "MATCH_RECOMMENDATION":
-      case "CONNECTION_RECOMMENDATION":
-      case "RECOMMENDATION":
-      case "MATCH_SUGGESTION":
-        router.push("/connections?tab=matchmaker");
-        break;
-      case "NEW_MESSAGE":
-        router.push("/chats");
-        break;
-      default:
-        break;
+    if (notif.type === "CONNECTION_REQUEST") {
+      router.push("/connections");
+    } else if (
+      notif.type === "MATCH_SUGGESTION" ||
+      notif.type === "CONNECTION_RECOMMENDATION" ||
+      notif.type === "RECOMMENDATION"
+    ) {
+      router.push("/connections?tab=matchmaker");
+    } else if (notif.type === "CONNECTION_ACCEPTED" || notif.type === "NEW_MESSAGE") {
+      router.push("/chats");
     }
   };
-
-  const getIcon = (type: string) => {
-    switch (type) {
-      case "CONNECTION_REQUEST":
-        return <UserPlus className="h-5 w-5 text-blue-500" />;
-      case "MATCH_RECOMMENDATION":
-      case "CONNECTION_RECOMMENDATION":
-      case "RECOMMENDATION":
-      case "MATCH_SUGGESTION":
-        return <Sparkles className="h-5 w-5 text-blue-600" />;
-      case "NEW_MESSAGE":
-        return <MessageSquare className="h-5 w-5 text-blue-500" />;
-      default:
-        return <Bell className="h-5 w-5 text-slate-400" />;
-    }
-  };
-
-  const notifications = data?.data || [];
 
   return (
     <main className="flex flex-1 flex-col overflow-hidden bg-slate-50">
-      <header className="border-b border-gray-200 bg-white px-8 py-6">
-        <h1 className="text-2xl font-bold text-slate-800">Notifications</h1>
-        <p className="text-sm text-slate-500 mt-1">Stay updated with your latest activities</p>
+      {/* Header */}
+      <header className="border-b border-slate-200/80 bg-white px-6 py-5 md:px-10">
+        <div className="mx-auto max-w-4xl flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <Bell size={20} />
+              </div>
+              <h1 className="text-xl font-bold text-slate-800">Thông báo</h1>
+              {unreadCount > 0 && (
+                <Badge className="bg-red-500 text-white hover:bg-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                  {unreadCount} mới
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Cập nhật các hoạt động mới, lời mời kết bạn và gợi ý matching từ AI
+            </p>
+          </div>
+
+          {allNotifications.length > 0 && unreadCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => markAllReadMutation.mutate()}
+              disabled={markAllReadMutation.isPending}
+              className="rounded-xl border-slate-200 text-xs font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50/50 shadow-xs"
+            >
+              <CheckCheck size={14} className="mr-1.5 text-blue-500" />
+              Đánh dấu tất cả đã đọc
+            </Button>
+          )}
+        </div>
+
+        {/* Tab Filters */}
+        <div className="mx-auto max-w-4xl mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+          <button
+            type="button"
+            onClick={() => setActiveTab("all")}
+            className={cn(
+              "rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer",
+              activeTab === "all"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
+            )}
+          >
+            Tất cả ({allNotifications.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("unread")}
+            className={cn(
+              "rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer",
+              activeTab === "unread"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
+            )}
+          >
+            Chưa đọc ({unreadCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("requests")}
+            className={cn(
+              "rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+              activeTab === "requests"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
+            )}
+          >
+            <UserPlus size={13} />
+            Lời mời kết bạn
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("matching")}
+            className={cn(
+              "rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+              activeTab === "matching"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
+            )}
+          >
+            <Sparkles size={13} />
+            Gợi ý AI Matching
+          </button>
+        </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="mx-auto max-w-3xl space-y-4">
+      {/* Main Content List */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="mx-auto max-w-4xl space-y-3.5">
           {isLoading ? (
-            <div className="flex flex-col gap-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-24 rounded-xl bg-white animate-pulse shadow-sm" />
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-24 rounded-2xl bg-white border border-slate-100 animate-pulse shadow-xs" />
               ))}
             </div>
-          ) : notifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <Bell className="mb-4 h-12 w-12 text-slate-300" />
-              <h3 className="text-lg font-medium text-slate-800">No notifications yet</h3>
-              <p className="text-sm text-slate-500">When you get notifications, they&apos;ll show up here.</p>
+          ) : filteredNotifications.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center rounded-3xl bg-white border border-dashed border-slate-200 p-8 shadow-xs">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-300 mb-3.5">
+                <Bell size={28} />
+              </div>
+              <h3 className="text-base font-bold text-slate-800">Không có thông báo nào</h3>
+              <p className="text-xs text-slate-500 max-w-sm mt-1">
+                {activeTab === "unread"
+                  ? "Bạn đã đọc hết các thông báo."
+                  : activeTab === "requests"
+                  ? "Hiện tại không có lời mời kết bạn nào đang chờ."
+                  : activeTab === "matching"
+                  ? "Chưa có gợi ý matching mới từ AI. Hãy thử trò chuyện thêm để AI nhận diện mối quan tâm của bạn."
+                  : "Các thông báo và tương tác mới sẽ xuất hiện tại đây."}
+              </p>
             </div>
           ) : (
-            notifications.map((notif) => (
-              <div
-                key={notif.id}
-                onClick={() => handleNotificationClick(notif)}
-                className={cn(
-                  "group flex items-start gap-4 rounded-xl border p-4 transition-all cursor-pointer",
-                  notif.status === "UNREAD"
-                    ? "border-blue-200 bg-blue-50"
-                    : "border-gray-200 bg-white hover:border-blue-200 shadow-sm"
-                )}
-              >
-                <div className="mt-1 shrink-0 rounded-full bg-gray-100 p-2">
-                  {getIcon(notif.type)}
-                </div>
+            filteredNotifications.map((notif) => {
+              const isUnread = notif.status === "UNREAD";
+              const isRequest = notif.type === "CONNECTION_REQUEST";
+              const isMatching =
+                notif.type === "MATCH_SUGGESTION" ||
+                notif.type === "CONNECTION_RECOMMENDATION" ||
+                notif.type === "RECOMMENDATION";
+              const isAccepted = notif.type === "CONNECTION_ACCEPTED";
+              const data = notif.data || {};
 
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className={cn(
-                      "font-semibold",
-                      notif.status === "UNREAD" ? "text-slate-800" : "text-slate-600"
-                    )}>
-                      {notif.title}
-                    </h4>
-                    <span className="shrink-0 text-xs text-slate-400">
-                      {notif.created_at ? getRelativeTime(notif.created_at) : ""}
-                    </span>
+              return (
+                <div
+                  key={notif.id}
+                  onClick={() => handleCardClick(notif)}
+                  className={cn(
+                    "group relative rounded-2xl border p-4 md:p-5 transition-all duration-200 cursor-pointer shadow-xs",
+                    isUnread
+                      ? "border-blue-200 bg-blue-50/40 hover:bg-blue-50/70"
+                      : "border-slate-200/80 bg-white hover:border-blue-200 hover:shadow-sm"
+                  )}
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Left Icon / Avatar */}
+                    {isRequest ? (
+                      <div className="relative shrink-0">
+                        {data.sender_avatar ? (
+                          <img
+                            src={data.sender_avatar}
+                            alt={data.sender_name || "Sender"}
+                            className="h-11 w-11 rounded-full object-cover border border-blue-200"
+                          />
+                        ) : (
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold text-sm">
+                            {(data.sender_name || "U")[0].toUpperCase()}
+                          </div>
+                        )}
+                        <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white shadow-xs">
+                          <UserPlus size={11} />
+                        </span>
+                      </div>
+                    ) : isMatching ? (
+                      <div className="relative shrink-0">
+                        {data.target_avatar ? (
+                          <img
+                            src={data.target_avatar}
+                            alt={data.target_name || "Match"}
+                            className="h-11 w-11 rounded-full object-cover border border-purple-200"
+                          />
+                        ) : (
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-purple-100 text-purple-600 font-bold text-sm">
+                            <Sparkles size={18} />
+                          </div>
+                        )}
+                        <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-purple-600 text-white shadow-xs">
+                          <Sparkles size={11} />
+                        </span>
+                      </div>
+                    ) : isAccepted ? (
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-600 font-bold">
+                        <CheckCircle2 size={22} />
+                      </div>
+                    ) : (
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                        <Bell size={20} />
+                      </div>
+                    )}
+
+                    {/* Content Section */}
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4
+                            className={cn(
+                              "text-sm font-bold truncate",
+                              isUnread ? "text-slate-900" : "text-slate-700"
+                            )}
+                          >
+                            {notif.title}
+                          </h4>
+
+                          {isMatching && data.match_score && (
+                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-[10px] font-bold px-2 py-0.2 shadow-none">
+                              {data.match_score}% Tương thích
+                            </Badge>
+                          )}
+
+                          {isUnread && (
+                            <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
+                          )}
+                        </div>
+
+                        <span className="shrink-0 text-[11px] text-slate-400 font-medium">
+                          {getRelativeTime(notif.created_at)}
+                        </span>
+                      </div>
+
+                      {/* Notification Body */}
+                      <p className="text-xs leading-relaxed text-slate-600">
+                        {notif.content}
+                      </p>
+
+                      {/* Extra Sub-info for Request or Match */}
+                      {isRequest && (data.sender_profession || data.sender_company) && (
+                        <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-0.5">
+                          {data.sender_profession && (
+                            <span className="font-medium text-slate-700">{data.sender_profession}</span>
+                          )}
+                          {data.sender_profession && data.sender_company && <span>•</span>}
+                          {data.sender_company && <span>{data.sender_company}</span>}
+                        </div>
+                      )}
+
+                      {isMatching && (data.target_name || data.target_profession) && (
+                        <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-0.5">
+                          {data.target_name && (
+                            <span className="font-semibold text-slate-800">{data.target_name}</span>
+                          )}
+                          {data.target_name && data.target_profession && <span>•</span>}
+                          {data.target_profession && <span>{data.target_profession}</span>}
+                          {data.target_location && (
+                            <>
+                              <span>•</span>
+                              <span>{data.target_location}</span>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Action Buttons Bar */}
+                      <div className="pt-2 flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                        {isRequest && data.request_id && (
+                          <>
+                            <Button
+                              size="xs"
+                              variant="default"
+                              onClick={() =>
+                                acceptRequestMutation.mutate({
+                                  requestId: data.request_id,
+                                  notifId: notif.id,
+                                })
+                              }
+                              disabled={acceptRequestMutation.isPending}
+                              className="rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-semibold px-3 py-1.5 shadow-xs"
+                            >
+                              <UserCheck size={13} className="mr-1.5" />
+                              Chấp nhận
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              onClick={() =>
+                                rejectRequestMutation.mutate({
+                                  requestId: data.request_id,
+                                  notifId: notif.id,
+                                })
+                              }
+                              disabled={rejectRequestMutation.isPending}
+                              className="rounded-lg border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 text-xs font-semibold px-3 py-1.5"
+                            >
+                              <X size={13} className="mr-1.5" />
+                              Từ chối
+                            </Button>
+                          </>
+                        )}
+
+                        {isMatching && (
+                          <Button
+                            size="xs"
+                            variant="secondary"
+                            onClick={() => {
+                              if (isUnread) markAsReadMutation.mutate(notif.id);
+                              router.push("/connections?tab=matchmaker");
+                            }}
+                            className="rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold px-3 py-1.5 shadow-xs"
+                          >
+                            <Sparkles size={13} className="mr-1.5 text-purple-600" />
+                            Xem gợi ý & Kết nối
+                          </Button>
+                        )}
+
+                        {isAccepted && (
+                          <Button
+                            size="xs"
+                            variant="secondary"
+                            onClick={() => {
+                              if (isUnread) markAsReadMutation.mutate(notif.id);
+                              router.push("/chats");
+                            }}
+                            className="rounded-lg bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 text-xs font-semibold px-3 py-1.5 shadow-xs"
+                          >
+                            <MessageSquare size={13} className="mr-1.5 text-green-600" />
+                            Nhắn tin ngay
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Quick Right Side Icons: Mark Read & Delete */}
+                    <div
+                      className="flex items-center gap-1 shrink-0 ml-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {isUnread && (
+                        <button
+                          type="button"
+                          onClick={() => markAsReadMutation.mutate(notif.id)}
+                          disabled={markAsReadMutation.isPending}
+                          className="rounded-lg p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-100/50 transition-colors"
+                          title="Đánh dấu đã đọc"
+                        >
+                          <Check size={15} />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => deleteMutation.mutate(notif.id)}
+                        disabled={deleteMutation.isPending}
+                        className="rounded-lg p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Xóa thông báo"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </div>
-                  <p className={cn(
-                    "text-sm leading-relaxed",
-                    notif.status === "UNREAD" ? "text-slate-700" : "text-slate-500"
-                  )}>
-                    {notif.content}
-                  </p>
                 </div>
-
-                {notif.status === "UNREAD" && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      markAsReadMutation.mutate(notif.id);
-                    }}
-                    disabled={markAsReadMutation.isPending}
-                    className="shrink-0 rounded-full p-2 text-blue-600 opacity-0 hover:bg-blue-100 focus:opacity-100 group-hover:opacity-100 transition-all disabled:opacity-50"
-                    title="Mark as read"
-                  >
-                    <Check className="h-5 w-5" />
-                  </button>
-                )}
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

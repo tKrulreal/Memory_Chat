@@ -12,6 +12,7 @@ from src.agents.connection.agent import (
 )
 from src.agents.connection.schemas import UserProfileDict
 from src.models.user import User
+from src.models.chat import Conversation
 from src.models.ai import AssistantMemory, Recommendation
 
 
@@ -117,12 +118,21 @@ class TestConnectionRecommendationAgent:
         cand1 = User(id=uuid.uuid4(), email="cand1@test.com", full_name="Candidate 1")
         cand2 = User(id=uuid.uuid4(), email="cand2@test.com", full_name="Candidate 2")
 
-        # mock conversations query
-        mock_db.query.return_value.filter.return_value.all.side_effect = [
-            [], # existing convs
-            [], # existing recs
-            [cand1, cand2], # candidate users query
-        ]
+        from src.models.connection import ConnectionRequest
+        def query_mock(model):
+            m = MagicMock()
+            if model == Conversation:
+                m.filter.return_value.all.return_value = []
+            elif model == ConnectionRequest:
+                m.filter.return_value.all.return_value = []
+            elif model == Recommendation:
+                m.filter.return_value.all.return_value = []
+            elif model == User:
+                m.outerjoin.return_value.filter.return_value.all.return_value = [cand1, cand2]
+                m.filter.return_value.all.return_value = [cand1, cand2]
+            return m
+
+        mock_db.query.side_effect = query_mock
 
         candidates = agent.get_candidate_users(user_id, mock_db)
         assert len(candidates) == 2

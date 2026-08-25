@@ -6,6 +6,7 @@ Triggers connection recommendation generation based on events.
 
 import asyncio
 import logging
+from typing import Any
 import uuid
 from datetime import datetime, timedelta
 
@@ -95,7 +96,7 @@ class ConnectionRecommendationWorker:
 
                 # Create notification if there are new recommendations
                 if recommendations:
-                    await self._create_notifications(user_id, len(recommendations))
+                    await self._create_notifications(user_id, recommendations)
 
         except Exception as e:
             logger.error(f"Error in ConnectionRecommendationWorker background task: {e}")
@@ -104,22 +105,86 @@ class ConnectionRecommendationWorker:
             async with self._lock:
                 self._pending_tasks.discard(task_key)
 
-    async def _create_notifications(self, user_id: uuid.UUID, count: int):
-        """Tạo notification cho user về recommendations mới."""
+    async def _create_notifications(self, user_id: uuid.UUID, recommendations: list[Any]):
+        """Tạo notification cho user về recommendations mới thỏa mãn cấu hình AI Hub."""
+        from src.models.tag import AISystemConfig
+        from src.models.user import User
+        from src.services.notifications import NotificationService
+
         db = SessionLocal()
         try:
-            notification = Notification(
-                user_id=user_id,
-                type="CONNECTION_RECOMMENDATION",
-                title="Có gợi ý kết nối mới",
-                content=f"Hệ thống đã tìm thấy {count} cơ hội kết nối tiềm năng cho bạn. Nhấn để xem chi tiết.",
-            )
-            db.add(notification)
-            db.commit()
-            logger.info(f"Created notification for user {user_id}")
+            user = db.get(User, user_id)
+            if not user or not user.setting or not user.setting.ai_enabled:
+                return
+
+            ai_config = db.query(AISystemConfig).filter(
+                AISystemConfig.user_id == user_id,
+                AISystemConfig.key == "ai_settings"
+            ).first()
+
+            features = ai_config.value.get("features", {}) if (ai_config and isinstance(ai_config.value, dict)) else {}
+            if features.get("recommendation") is False:
+                return
+
+            min_score_percent = 50
+            notif_interval = "24h"
+            if ai_config and isinstance(ai_config.value, dict):
+                min_score_percent = int(ai_config.value.get("min_matching_score", 50))
+                notif_interval = ai_config.value.get("notification_interval", getattr(user.setting, "ai_recommendation_interval", "24h"))
+
+            if notif_interval == "off":
+                return
+
+            min_score = min_score_percent / 100.0
+
+            # Filter recommendations matching threshold
+            qualified_recs = [r for r in recommendations if getattr(r, "confidence", 0.0) >= min_score]
+            if not qualified_recs:
+                logger.info("No recommendations met the notification threshold %d%% for user %s", min_score_percent, user_id)
+                return
+
+            # Check interval limit if not realtime
+            if notif_interval != "realtime":
+                interval_hours_map = {"1h": 1, "6h": 6, "12h": 12, "24h": 24, "weekly": 168}
+                hours = interval_hours_map.get(notif_interval, 24)
+                
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                cutoff = now - timedelta(hours=hours)
+
+                last_notif = db.query(Notification).filter(
+                    Notification.user_id == user_id,
+                    Notification.type == "MATCH_SUGGESTION"
+                ).order_by(Notification.created_at.desc()).first()
+
+                if last_notif and last_notif.created_at:
+                    # Normalize tz
+                    last_created = last_notif.created_at
+                    if last_created.tzinfo is None:
+                        last_created = last_created.replace(tzinfo=timezone.utc)
+                    if last_created >= cutoff:
+                        logger.info("Skipping matching notification for user %s: interval %s has not elapsed yet.", user_id, notif_interval)
+                        return
+
+            notif_service = NotificationService.get_instance()
+            # Send notification for top qualified recommendations (up to 3)
+            for rec in qualified_recs[:3]:
+                target_user = db.get(User, rec.target_user_id)
+                if not target_user:
+                    continue
+                match_score = int(getattr(rec, "confidence", 0.5) * 100)
+                notif_service.send_matching_notification(
+                    db=db,
+                    user_id=user_id,
+                    target_user=target_user,
+                    match_score=match_score,
+                    recommendation_id=rec.id,
+                )
+                logger.info("Sent matching notification to user %s for target %s (score: %d%%)", user_id, target_user.id, match_score)
+
         except Exception as e:
             db.rollback()
-            logger.error(f"Failed to create notification: {e}")
+            logger.error(f"Failed to create matching notification: {e}")
         finally:
             db.close()
 
@@ -129,10 +194,10 @@ class ConnectionRecommendationWorker:
             logger.info(f"Manual trigger for user {user_id}")
             recommendations = await self._agent.generate(
                 user_id=user_id,
-                min_score=0.4,  # Lower threshold for manual trigger
+                min_score=0.4,  # Base threshold
                 limit=10,
             )
-            await self._create_notifications(user_id, len(recommendations))
+            await self._create_notifications(user_id, recommendations)
             return len(recommendations)
         except Exception as e:
             logger.error(f"Error in manual trigger: {e}")

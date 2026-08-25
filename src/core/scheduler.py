@@ -73,37 +73,73 @@ async def scheduled_daily_match_notification(app_state):
     session = session_factory()
     try:
         from src.models.ai import Recommendation
-        from src.models.user import User
+        from src.models.tag import AISystemConfig
+        from src.models.user import User, Notification
         from src.services.notifications import NotificationService
         
-        # Find pending recommendations from the last 24h
         now = datetime.now(timezone.utc)
-        yesterday = now - timedelta(days=1)
-        
-        recommendations = session.query(Recommendation).filter(
-            Recommendation.status == "pending",
-            Recommendation.created_at >= yesterday
-        ).all()
-        
-        # Group by owner_user_id
-        user_matches = {}
-        for rec in recommendations:
-            if rec.owner_user_id not in user_matches:
-                user_matches[rec.owner_user_id] = 0
-            user_matches[rec.owner_user_id] += 1
-            
         notification_service = NotificationService.get_instance()
-        
-        for user_id, count in user_matches.items():
-            logger.info("Sending daily match notification to user_id=%s (count=%d)", user_id, count)
-            notification_service.create_notification(
-                db=session,
-                user_id=user_id,
-                title="Gợi ý kết nối mới",
-                content=f"Bạn có {count} gợi ý kết nối mới trong hôm nay. Hãy kiểm tra ngay!",
-                type="MATCH_SUGGESTION",
-                metadata={"count": count}
-            )
+
+        users = session.query(User).all()
+        for user in users:
+            if not user.setting or not user.setting.ai_enabled:
+                continue
+
+            ai_config = session.query(AISystemConfig).filter(
+                AISystemConfig.user_id == user.id,
+                AISystemConfig.key == "ai_settings"
+            ).first()
+
+            features = ai_config.value.get("features", {}) if (ai_config and isinstance(ai_config.value, dict)) else {}
+            if features.get("recommendation") is False:
+                continue
+
+            min_score_percent = 50
+            notif_interval = "24h"
+            if ai_config and isinstance(ai_config.value, dict):
+                min_score_percent = int(ai_config.value.get("min_matching_score", 50))
+                notif_interval = ai_config.value.get("notification_interval", getattr(user.setting, "ai_recommendation_interval", "24h"))
+
+            if notif_interval == "off":
+                continue
+
+            min_score = min_score_percent / 100.0
+
+            # Check interval cutoff
+            interval_hours_map = {"1h": 1, "6h": 6, "12h": 12, "24h": 24, "weekly": 168}
+            hours = interval_hours_map.get(notif_interval, 24)
+            cutoff = now - timedelta(hours=hours)
+
+            last_notif = session.query(Notification).filter(
+                Notification.user_id == user.id,
+                Notification.type == "MATCH_SUGGESTION"
+            ).order_by(Notification.created_at.desc()).first()
+
+            if last_notif and last_notif.created_at:
+                last_created = last_notif.created_at
+                if last_created.tzinfo is None:
+                    last_created = last_created.replace(tzinfo=timezone.utc)
+                if last_created >= cutoff:
+                    continue
+
+            # Find qualified pending recommendations
+            pending_recs = session.query(Recommendation).filter(
+                Recommendation.owner_user_id == user.id,
+                Recommendation.status == "PENDING",
+                Recommendation.confidence >= min_score
+            ).order_by(Recommendation.confidence.desc()).limit(3).all()
+
+            for rec in pending_recs:
+                target = session.get(User, rec.target_user_id)
+                if target:
+                    match_score = int(getattr(rec, "confidence", 0.5) * 100)
+                    notification_service.send_matching_notification(
+                        db=session,
+                        user_id=user.id,
+                        target_user=target,
+                        match_score=match_score,
+                        recommendation_id=rec.id,
+                    )
             
     except Exception as e:
         logger.error("Error in scheduled_daily_match_notification: %s", e)
