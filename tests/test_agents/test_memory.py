@@ -2,9 +2,11 @@
 Unit tests for MemoryAgent and Peer Isolation / Sanitization.
 """
 
+import json
+import uuid
 import pytest
 from unittest.mock import MagicMock, patch
-from src.agents.memory.agent import MemoryAgent, sanitize_peer_text
+from src.agents.memory.agent import MemoryAgent, sanitize_peer_text, clean_interest_keyword
 
 
 class TestMemoryAgent:
@@ -40,8 +42,65 @@ class TestMemoryAgent:
 
     def test_clean_interest_keyword(self):
         """Test formatting and shortening interest keywords."""
-        from src.agents.memory.agent import clean_interest_keyword
-        assert clean_interest_keyword("#AI") == "Ai" or clean_interest_keyword("#AI") == "AI" or clean_interest_keyword("#AI") is not None
+        assert clean_interest_keyword("#AI") in ["AI", "Ai"]
         assert clean_interest_keyword("đá bóng") == "Đá Bóng"
         assert clean_interest_keyword("tìm hiểu về mô hình ngôn ngữ lớn để làm dự án") == "Tìm Hiểu Về"
 
+    @pytest.mark.asyncio
+    async def test_extract_entities_free_form_and_latest_follow_up(self):
+        """Test entity extraction extracts free-form topics and latest follow-up."""
+        agent = MemoryAgent()
+        messages = [
+            {"content": "Mình là lập trình viên.", "sender_user_id": "other_id", "created_at": None},
+            {"content": "Gửi cho mình tài liệu RAG nhé!", "sender_user_id": "other_id", "created_at": None}
+        ]
+
+        mock_json_response = json.dumps({
+            "last_met": "Trao đổi qua tin nhắn tuần này",
+            "interested_in": ["Trí Tuệ Nhân Tạo", "RAG Pipeline", "Đầu Tư Khởi Nghiệp"],
+            "follow_up": "Gửi tài liệu kỹ thuật RAG cho đối tác."
+        })
+
+        with patch.object(agent._llm, "complete", return_value=mock_json_response):
+            entities = await agent.extract_entities(messages, owner_id="my_id")
+            assert len(entities["interested_in"]) == 3
+            assert "RAG Pipeline" in entities["interested_in"] or "Rag Pipeline" in entities["interested_in"]
+            assert entities["follow_up"] == "Gửi tài liệu kỹ thuật RAG cho đối tác."
+            assert entities["last_met"] == "Trao đổi qua tin nhắn tuần này"
+
+    @pytest.mark.asyncio
+    async def test_build_memory_independent_of_ai_hub_tag_limit(self):
+        """Test build_memory does not cap interested_in by AI Hub tag_limit setting."""
+        agent = MemoryAgent()
+        messages = [
+            {"content": "Chào bạn, mình làm về Deep Learning và Robotics.", "sender_user_id": "other_id", "created_at": None}
+        ]
+
+        mock_summary = "Đối tác là kỹ sư nghiên cứu Deep Learning và Robotics."
+        mock_entities = {
+            "last_met": "Hôm nay",
+            "interested_in": ["Deep Learning", "Robotics", "Computer Vision", "AI Agents", "Python"],
+            "follow_up": "Thảo luận thêm về ứng dụng AI Agents."
+        }
+
+        with patch.object(agent, "summarize", return_value=mock_summary), \
+             patch.object(agent, "extract_entities", return_value=mock_entities):
+            
+            # Simulated db mock with AI Hub config having tag_limit=2 (which is ONLY for tagging)
+            mock_db = MagicMock()
+            mock_setting = MagicMock()
+            mock_setting.ai_memory_window = "unlimited"
+            mock_db.query.return_value.filter.return_value.first.return_value = mock_setting
+
+            res = await agent.build_memory(
+                user_id=uuid.uuid4(),
+                conversation_id=uuid.uuid4(),
+                messages=messages,
+                db=mock_db,
+            )
+
+            # All 5 interests should be preserved in interested_in (not truncated by tag_limit=2)
+            assert len(res.interested_in) == 5
+            assert "Robotics" in res.interested_in
+            assert res.summary == mock_summary
+            assert res.follow_up == "Thảo luận thêm về ứng dụng AI Agents."

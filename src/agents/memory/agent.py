@@ -2,10 +2,10 @@
 Memory Agent — biến hội thoại thành tri thức.
 
 Responsibilities:
-- Tóm tắt conversation (summarize)
-- Trích xuất entities (company, profession, skills, interests)
+- Tóm tắt conversation (summarize súc tích, các ý chính về đối phương)
+- Trích xuất entities (last_met, interested_in tự do, follow_up bám sát tin nhắn gần nhất)
 - Tính relationship_score (rule-based)
-- Tổng hợp thành ContactMemory
+- Tổng hợp thành ContactMemory & AssistantMemory
 """
 
 import json
@@ -95,8 +95,6 @@ class MemoryResult:
     follow_up: str | None = None
     timeline: list[dict[str, Any]] = field(default_factory=list)
     relationship_score: int = 50  # 0-100
-    timeline: list[dict[str, Any]] = field(default_factory=list)
-    relationship_score: int = 50  # 0-100
 
     def to_contact_memory_dict(self, contact_id: uuid.UUID) -> dict[str, Any]:
         """Convert sang dict để lưu vào ContactMemory."""
@@ -112,7 +110,7 @@ class MemoryResult:
 
 
 # --- Prompt templates ---
-MEMORY_SUMMARY_PROMPT = """Bạn là một AI assistant chuyên phân tích hội thoại để tạo tóm tắt trí nhớ súc tích, trực quan về NGƯỜI ĐỐI THOẠI.
+MEMORY_SUMMARY_PROMPT = """Bạn là trợ lý AI chuyên phân tích hội thoại để trích xuất TÓM TẮT TRÍ NHỚ VỀ NGƯỜI ĐỐI THOẠI.
 
 Hội thoại:
 {conversation}
@@ -121,23 +119,18 @@ Chú thích:
 - [USER] là người dùng hiện tại (chủ sở hữu trí nhớ này).
 - [PEER] là đối tác/người đang nhắn tin cùng.
 
-{system_rules}
-
 QUY TẮC BẮT BUỘC:
-1. CHỈ tóm tắt thông tin về ĐỐI TÁC ĐANG TRÒ CHUYỆN dựa trên những gì họ trực tiếp nói hoặc thể hiện.
-2. TUYỆT ĐỐI KHÔNG đưa thông tin, kỹ năng, quan điểm hoặc công việc của [USER] vào bản tóm tắt này.
-3. TUYỆT ĐỐI KHÔNG xuất hiện các từ kỹ thuật như `[PEER]`, `[USER]`, `PEER:`, `USER:` trong văn bản tóm tắt. Hãy sử dụng danh xưng tự nhiên như "Đối tác", "Anh/Chị", "Bạn này" hoặc đại từ phù hợp.
-4. Tóm tắt trực quan, ngắn gọn, súc tích (1 đến 2 câu ngắn, tối đa 3 câu). Không lan man dài dòng.
-5. Không bịa đặt thông tin nếu đối phương không nhắc đến. Bỏ qua các câu chào hỏi xã giao vụn vặt.
+1. CHỈ tóm tắt thông tin về ĐỐI TÁC ([PEER]) dựa trên những gì họ trực tiếp chia sẻ hoặc thể hiện. TUYỆT ĐỐI KHÔNG tóm tắt thông tin của [USER].
+2. TUYỆT ĐỐI KHÔNG xuất hiện các từ kỹ thuật như `[PEER]`, `[USER]`, `PEER:`, `USER:` trong văn bản tóm tắt. Hãy sử dụng danh xưng tự nhiên như "Đối tác", "Anh/Chị", "Bạn này".
+3. Tóm tắt NGẮN GỌN, SÚC TÍCH (1 đến 2 câu ngắn). Chỉ tập trung vào các Ý CHÍNH:
+   - Nghề nghiệp / Công ty / Chuyên môn chính của đối tác (nếu có).
+   - Mục đích trao đổi, kỹ năng hoặc nhu cầu hợp tác nổi bật của đối tác.
+4. Bỏ qua các câu chào hỏi xã giao vụn vặt. Không lan man dài dòng, không bịa đặt thông tin.
 
-Nội dung trọng tâm:
-- Nghề nghiệp / Công ty / Nơi làm việc của đối phương (nếu có nhắc đến).
-- Chủ đề chuyên môn, kỹ năng chính hoặc nhu cầu trao đổi nổi bật của đối phương.
-
-Trả lời CHỈ bằng 1 đoạn tóm tắt tiếng Việt ngắn gọn, không giải thích thêm.
+Trả lời CHỈ bằng 1 đoạn tóm tắt tiếng Việt ngắn gọn (1-2 câu), không giải thích thêm.
 """
 
-MEMORY_ENTITIES_PROMPT = """Bạn là một AI assistant chuyên trích xuất thông tin cá nhân và chuyên môn từ hội thoại.
+MEMORY_ENTITIES_PROMPT = """Bạn là trợ lý AI chuyên phân tích hội thoại để trích xuất ngữ cảnh và tri thức về ĐỐI TÁC ([PEER]).
 
 Hội thoại:
 {conversation}
@@ -146,27 +139,31 @@ Chú thích:
 - [USER] là người dùng hiện tại.
 - [PEER] là đối tác/người đang nhắn tin cùng.
 
-{system_rules}
+LƯU Ý QUAN TRỌNG: Các tin nhắn gần đây nhất nằm ở cuối đoạn hội thoại trên.
 
 QUY TẮC BẮT BUỘC:
 1. CHỈ trích xuất thông tin về ĐỐI TÁC ([PEER]). TUYỆT ĐỐI KHÔNG trích xuất thông tin của [USER].
-2. TUYỆT ĐỐI KHÔNG để xuất hiện các từ `[PEER]`, `[USER]` trong các giá trị trích xuất.
-3. QUY TẮC CHO "interested_in" (ĐẶC BIỆT QUAN TRỌNG):
-   - CHỈ trích xuất từ 2 đến 5 từ khóa / chủ đề CHÍNH, ngắn gọn, súc tích (1 - 3 từ mỗi mục).
-   - Ví dụ đúng: "AI", "LLM", "Robot", "Đá bóng", "Startup", "Tài chính", "Du lịch", "Thiết kế".
-   - TUYỆT ĐỐI KHÔNG viết câu dài, mệnh đề giải thích lê thê (CẤM: "tìm hiểu về mô hình ngôn ngữ lớn để áp dụng vào doanh nghiệp").
-4. "last_met": Bối cảnh quen biết, thời điểm hoặc sự kiện gặp gỡ gần nhất (ngắn gọn, hoặc null nếu không có).
-5. "follow_up": 1 câu ngắn gọn gợi ý hành động/chủ đề tiếp theo nên trao đổi (hoặc null nếu không có).
-6. Không bịa đặt (hallucinate). Nếu không có thông tin thì để null hoặc [].
+2. TUYỆT ĐỐI KHÔNG để xuất hiện các từ `[PEER]`, `[USER]` trong nội dung trả về.
+3. QUY TẮC CHO "interested_in" (Chủ đề quan tâm):
+   - Trích xuất danh sách 2-6 chủ đề, lĩnh vực, công nghệ hoặc sở thích mà ĐỐI TÁC quan tâm hoặc nhắc đến trong hội thoại.
+   - Mỗi mục là từ khóa hoặc cụm từ NGẮN GỌN (1 - 3 từ). Ví dụ: ["Trí tuệ nhân tạo", "RAG Pipeline", "Đầu tư khởi nghiệp", "Bóng đá"].
+   - Đây là chủ đề tự do được trích xuất từ cuộc trò chuyện, KHÔNG bị giới hạn bởi danh sách nhãn cài đặt trong AI Hub.
+4. QUY TẮC CHO "follow_up" (Gợi ý việc tiếp theo):
+   - 1 câu NGẮN GỌN (dưới 15 từ) gợi ý hành động hoặc việc cần làm tiếp theo với đối tác.
+   - BẮT BUỘC PHẢI TÓM TẮT ĐÚNG VÀ BÁM SÁT CÁC TIN NHẮN GẦN ĐÂY NHẤT (ở cuối hội thoại).
+   - Ví dụ nếu đối tác vừa bảo gửi tài liệu -> "Gửi tài liệu kỹ thuật cho đối tác."
+   - Ví dụ nếu đối tác đang hỏi giá -> "Báo giá và thảo luận chi tiết gói dịch vụ."
+   - Nếu không có việc gì cụ thể đang chờ -> Gợi ý câu hỏi thăm hoặc thảo luận tiếp về chủ đề gần nhất.
+5. QUY TẮC CHO "last_met":
+   - Bối cảnh trao đổi hoặc thời điểm gần nhất (ngắn gọn 1 cụm từ, hoặc null nếu không rõ).
+6. Không bịa đặt thông tin. Nếu không có thông tin thì để null hoặc [].
 
-Hãy trích xuất thông tin của đối tác (chỉ trả về JSON):
+Trả về CHỈ một JSON object hợp lệ:
 {{
-    "last_met": "Bối cảnh quen biết hoặc lần gặp gần nhất (hoặc null)",
-    "interested_in": ["AI", "LLM", "Robot", "Đá bóng"],
-    "follow_up": "Chủ đề tiếp theo nên trao đổi (hoặc null)"
+    "last_met": "Bối cảnh quen biết hoặc thời điểm gần nhất (hoặc null)",
+    "interested_in": ["Chủ đề 1", "Chủ đề 2", "Chủ đề 3"],
+    "follow_up": "Hành động ngắn gọn tiếp theo bám sát tin nhắn gần nhất"
 }}
-
-Trả lời CHỈ bằng JSON, không giải thích thêm.
 """
 
 
@@ -190,9 +187,14 @@ def clean_interest_keyword(item: str | None) -> str | None:
     words = cleaned.split()
     if len(words) > 4:
         cleaned = " ".join(words[:3])
-    # Capitalize first letter of each word
-    return " ".join(w.capitalize() for w in cleaned.split())
-
+    
+    formatted_words = []
+    for w in cleaned.split():
+        if w.isupper() and len(w) <= 5:
+            formatted_words.append(w)
+        else:
+            formatted_words.append(w.capitalize())
+    return " ".join(formatted_words)
 
 
 class MemoryAgent:
@@ -209,13 +211,7 @@ class MemoryAgent:
 
     async def summarize(self, messages: list[dict[str, Any]], owner_id: str = "", system_rules: str = "") -> str:
         """
-        Tóm tắt conversation.
-
-        Args:
-            messages: List of {content, sender_type, created_at}
-
-        Returns:
-            Summary string
+        Tóm tắt conversation súc tích về đối tác (1-2 câu).
         """
         if not messages:
             return "Chưa có đủ trao đổi để tóm tắt."
@@ -226,7 +222,7 @@ class MemoryAgent:
 
         for i, chunk in enumerate(chunks):
             text = format_conversation_for_prompt(chunk, owner_id=owner_id)
-            prompt = MEMORY_SUMMARY_PROMPT.format(conversation=text, system_rules=system_rules)
+            prompt = MEMORY_SUMMARY_PROMPT.format(conversation=text)
             try:
                 summary = self._llm.complete(prompt)
                 cleaned = sanitize_peer_text(summary.strip())
@@ -239,7 +235,7 @@ class MemoryAgent:
         if len(summaries) == 1:
             return summaries[0]
 
-        # Nếu có nhiều chunks, tóm tắt lại
+        # Nếu có nhiều chunks, tóm tắt lại súc tích
         combined = " ".join(s for s in summaries if s)
         if not combined:
             return "Chưa có đủ thông tin để tóm tắt."
@@ -255,13 +251,9 @@ class MemoryAgent:
             logger.warning("LLM final summarize failed: %s", e)
             return sanitize_peer_text(combined[:200]) or combined[:200]
 
-
     async def extract_entities(self, messages: list[dict[str, Any]], owner_id: str = "", system_rules: str = "") -> dict[str, Any]:
         """
         Trích xuất entities từ conversation.
-
-        Args:
-            messages: List of {content, sender_type, created_at}
 
         Returns:
             Dict với keys: last_met, interested_in, follow_up
@@ -274,10 +266,9 @@ class MemoryAgent:
 
         for i, chunk in enumerate(chunks):
             text = format_conversation_for_prompt(chunk, owner_id=owner_id)
-            prompt = MEMORY_ENTITIES_PROMPT.format(conversation=text, system_rules=system_rules)
+            prompt = MEMORY_ENTITIES_PROMPT.format(conversation=text)
             try:
                 raw = self._llm.complete(prompt)
-                # Parse JSON response
                 parsed = self._parse_json_response(raw)
                 if parsed:
                     all_results.append(parsed)
@@ -289,6 +280,9 @@ class MemoryAgent:
 
     def _parse_json_response(self, raw: str) -> dict[str, Any] | None:
         """Parse JSON từ LLM response."""
+        if not raw:
+            return None
+
         # Try direct JSON
         try:
             return json.loads(raw)
@@ -327,8 +321,9 @@ class MemoryAgent:
                 "follow_up": sanitize_peer_text(r.get("follow_up")),
             }
 
-        # Collect from all
+        # Collect from all chunks
         last_mets = [sanitize_peer_text(r["last_met"]) for r in results if r.get("last_met")]
+        # Note: follow_up must take from the LAST chunk because the last chunk has the most recent messages!
         follow_ups = [sanitize_peer_text(r["follow_up"]) for r in results if r.get("follow_up")]
         all_interests: list[str] = []
         seen_interests: set[str] = set()
@@ -343,21 +338,14 @@ class MemoryAgent:
                     all_interests.append(cleaned)
 
         return {
-            "last_met": last_mets[0] if last_mets else None,
+            "last_met": last_mets[-1] if last_mets else None,
             "interested_in": all_interests[:6],
-            "follow_up": follow_ups[0] if follow_ups else None,
+            "follow_up": follow_ups[-1] if follow_ups else None,
         }
-
 
     def calculate_relationship_score(self, messages: list[dict[str, Any]]) -> int:
         """
         Tính relationship score (0-100) dựa trên rule-based heuristics.
-
-        Args:
-            messages: List of {content, sender_type, created_at}
-
-        Returns:
-            Score 0-100
         """
         if not messages:
             return 0
@@ -416,12 +404,6 @@ class MemoryAgent:
     ) -> list[dict[str, Any]]:
         """
         Tạo timeline từ messages.
-
-        Args:
-            messages: List of {content, sender_type, created_at}
-
-        Returns:
-            List of {date, summary, sender_type}
         """
         if not messages:
             return []
@@ -469,22 +451,12 @@ class MemoryAgent:
         """
         logger.info("Building memory for conversation_id=%s, owner=%s with %d messages", conversation_id, user_id, len(messages))
 
-        system_rules = ""
         memory_window_days = None
         if db:
-            from src.models.tag import AISystemConfig
-            configs = db.query(AISystemConfig).all()
-            rules = []
-            for c in configs:
-                rules.append(f"- {c.key}: {c.value}")
-            if rules:
-                system_rules = "Quy tắc hệ thống (TỪ AI_SYSTEM_CONFIG):\n" + "\n".join(rules) + "\n"
-                
             from src.models.user import Setting
             setting = db.query(Setting).filter(Setting.user_id == user_id).first()
             if setting and setting.ai_memory_window and str(setting.ai_memory_window).lower() != "unlimited":
                 try:
-                    import re
                     match = re.search(r'\d+', str(setting.ai_memory_window))
                     if match:
                         memory_window_days = int(match.group())
@@ -508,22 +480,13 @@ class MemoryAgent:
             messages = filtered
 
         owner_id_str = str(user_id)
-        summary = await self.summarize(messages, owner_id=owner_id_str, system_rules=system_rules)
-        entities = await self.extract_entities(messages, owner_id=owner_id_str, system_rules=system_rules)
+        summary = await self.summarize(messages, owner_id=owner_id_str)
+        entities = await self.extract_entities(messages, owner_id=owner_id_str)
         relationship_score = self.calculate_relationship_score(messages)
         timeline = self.build_timeline(messages)
 
-        # Lấy giới hạn số lượng tag từ cấu hình của user
-        tag_limit = 6
-        if db:
-            ai_config = db.query(AISystemConfig).filter(
-                AISystemConfig.user_id == user_id,
-                AISystemConfig.key == "ai_settings"
-            ).first()
-            if ai_config and isinstance(ai_config.value, dict):
-                tag_limit = int(ai_config.value.get("tag_limit", 6))
-
-        interested_in = entities.get("interested_in", [])[:tag_limit]
+        # interested_in is free-form discussion topics from the conversation (not capped by AI Hub tag settings)
+        interested_in = entities.get("interested_in", [])[:6]
 
         # Build facts dictionary
         facts = {
@@ -546,10 +509,11 @@ class MemoryAgent:
         result.facts = facts
 
         logger.info(
-            "Memory built for user_id=%s: score=%d, interests=%d",
+            "Memory built for user_id=%s: score=%d, interests=%d, follow_up=%s",
             user_id,
             result.relationship_score,
             len(result.interested_in),
+            result.follow_up,
         )
 
         return result

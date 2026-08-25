@@ -2,20 +2,34 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronDown, Lightbulb, Phone, X, Sparkles, GripVertical } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronDown,
+  Lightbulb,
+  Phone,
+  X,
+  Sparkles,
+  RefreshCw,
+  ArrowRight,
+  Clock,
+  CheckCircle2,
+  Tag,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { AIRecommendationCard } from "@/components/ai/ai-recommendation-card";
 import { ContactTagsCard } from "@/components/chat/contact-tags-card";
 
 import { useUIStore } from "@/lib/stores/ui-store";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useConversationStore } from "@/lib/stores/conversation-store";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getConversations } from "@/lib/api/conversations";
-import { getConversationContext } from "@/lib/api/context";
+import { getConversationContext, refreshConversationContext } from "@/lib/api/context";
 import { useAISettings } from "@/hooks/use-ai-settings";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 640;
@@ -131,7 +145,8 @@ export function InfoPanel() {
       {/* Tablet/mobile drawer overlay */}
       {infoPanelOpen && (
         <div className="fixed inset-0 z-40 xl:hidden">
-          <Button variant="ghost"
+          <Button
+            variant="ghost"
             type="button"
             className="absolute inset-0 bg-black/60"
             onClick={() => setInfoPanelOpen(false)}
@@ -149,19 +164,33 @@ export function InfoPanel() {
 function PanelContent({ onClose }: { onClose: () => void }) {
   const user = useAuthStore((s) => s.user);
   const activeId = useConversationStore((s) => s.activeConversationId);
+  const queryClient = useQueryClient();
+
   const { data: conversations = [] } = useQuery({
     queryKey: ["conversations"],
     queryFn: getConversations,
     enabled: !!user,
   });
 
-  const { data: context } = useQuery({
+  const { data: context, isLoading: isLoadingContext } = useQuery({
     queryKey: ["context", activeId],
     queryFn: () => getConversationContext(activeId!),
     enabled: !!activeId,
   });
 
   const { features } = useAISettings();
+
+  const refreshMemoryMutation = useMutation({
+    mutationFn: () => refreshConversationContext(activeId!),
+    onSuccess: (data) => {
+      queryClient.setQueryData(["context", activeId], data);
+      queryClient.invalidateQueries({ queryKey: ["context", activeId] });
+      toast.success("Đã cập nhật lại trí nhớ và ngữ cảnh đối phương!");
+    },
+    onError: () => {
+      toast.error("Không thể làm mới ngữ cảnh đối phương.");
+    },
+  });
 
   const activeConversation = conversations.find((c) => c.id === activeId);
   const isUserA = user?.id === activeConversation?.user_a_id;
@@ -187,12 +216,15 @@ function PanelContent({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const interestsList = Array.isArray(context?.interested_in) ? context.interested_in : [];
+
   return (
     <div className="flex h-full flex-col min-w-0">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-subtle px-4 py-3 shrink-0">
         <h2 className="text-sm font-semibold truncate">Thông tin đối phương</h2>
-        <Button variant="ghost"
+        <Button
+          variant="ghost"
           type="button"
           onClick={onClose}
           className="rounded-button p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
@@ -231,21 +263,94 @@ function PanelContent({ onClose }: { onClose: () => void }) {
           </Button>
         </div>
 
-        {/* Peer AI Summary Box */}
-        {features.memory && context?.summary && (
-          <div className="rounded-2xl border border-subtle bg-muted/40 p-3.5 space-y-1 text-left">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-              <Sparkles size={12} className="text-accent" />
-              Tóm tắt về đối phương
-            </p>
-            <p className="text-xs text-foreground leading-relaxed">{context.summary}</p>
+        {/* AI Context Card (Trí nhớ Ngữ cảnh AI về đối phương) */}
+        {features.memory && (
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-4 space-y-3.5 shadow-sm">
+            {/* Header with refresh button */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Sparkles size={14} className="text-blue-600" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                  Trí nhớ Ngữ cảnh AI
+                </h4>
+              </div>
+
+              <Button
+                variant="ghost"
+                type="button"
+                size="sm"
+                onClick={() => refreshMemoryMutation.mutate()}
+                disabled={refreshMemoryMutation.isPending || isLoadingContext}
+                className="flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 h-auto rounded-lg cursor-pointer disabled:opacity-50"
+                title="Quét lại tin nhắn để cập nhật tóm tắt và ngữ cảnh mới nhất"
+              >
+                <RefreshCw
+                  size={12}
+                  className={cn("text-blue-600", refreshMemoryMutation.isPending && "animate-spin")}
+                />
+                <span>{refreshMemoryMutation.isPending ? "Đang quét..." : "Quét lại"}</span>
+              </Button>
+            </div>
+
+            {/* 1. AI Summary: Ngắn gọn, các ý chính */}
+            <div className="space-y-1">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                Tóm tắt về đối phương
+              </span>
+              <p className="text-xs text-slate-700 leading-relaxed font-normal bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                {context?.summary || "Chưa có đủ dữ liệu hội thoại để tóm tắt. AI sẽ tự động phân tích khi bạn trao đổi thêm."}
+              </p>
+            </div>
+
+            {/* 2. Interested in / Topics: Chủ đề quan tâm tự do từ hội thoại */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                <Tag size={11} className="text-blue-500" />
+                Chủ đề quan tâm
+              </span>
+              {interestsList.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {interestsList.map((interest, idx) => (
+                    <span
+                      key={idx}
+                      className="rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700 shadow-2xs"
+                    >
+                      #{interest}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 italic">Chưa xác định chủ đề quan tâm.</p>
+              )}
+            </div>
+
+            {/* 3. Follow-up / Gợi ý việc tiếp theo: Bám sát tin nhắn gần nhất */}
+            {context?.follow_up && (
+              <div className="rounded-xl bg-amber-50/70 border border-amber-200/80 p-2.5 space-y-1">
+                <p className="text-[11px] font-bold text-amber-900 flex items-center gap-1.5 uppercase tracking-wider">
+                  <ArrowRight size={12} className="text-amber-600" />
+                  Gợi ý việc tiếp theo:
+                </p>
+                <p className="text-xs text-amber-950 font-medium leading-relaxed">
+                  {context.follow_up}
+                </p>
+              </div>
+            )}
+
+            {/* 4. Last met / Bối cảnh quen biết nếu có */}
+            {context?.last_met && (
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 pt-1 border-t border-slate-100">
+                <Clock size={11} className="text-slate-400" />
+                <span>Bối cảnh: {context.last_met}</span>
+              </div>
+            )}
           </div>
         )}
 
         {/* AI Recommendation Follow-up Card */}
         {features.recommendation && <AIRecommendationCard />}
 
-        {/* Contact Category Tags Card */}
+        {/* Contact Category Tags Card (AI Hub Tagging) */}
         {features.tagging && <ContactTagsCard />}
 
         {/* Extra details accordions */}
