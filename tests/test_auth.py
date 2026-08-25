@@ -32,3 +32,49 @@ def test_auth_login_fail(db_session: Session):
         AuthService.login(db_session, login_data)
 
     assert excinfo.value.status_code == 401
+
+
+def test_auth_legacy_sha256_login_and_auto_upgrade(db_session: Session):
+    import hashlib
+    from src.models.user import User
+
+    raw_password = "password123"
+    sha256_hash = hashlib.sha256(raw_password.encode("utf-8")).hexdigest()
+
+    user = User(
+        email="legacy@example.com",
+        password_hash=sha256_hash,
+        full_name="Legacy User",
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    # Login should succeed with sha256 fallback
+    login_data = UserLogin(email="legacy@example.com", password=raw_password)
+    res = AuthService.login(db_session, login_data)
+    assert "access_token" in res
+
+    # Password hash in DB should now be automatically upgraded to bcrypt
+    db_session.refresh(user)
+    assert user.password_hash.startswith("$2b$")
+    assert verify_password(raw_password, user.password_hash) is True
+
+
+def test_auth_malformed_hash_returns_401_not_500(db_session: Session):
+    from src.models.user import User
+
+    # Create user with broken/malformed bcrypt salt
+    user = User(
+        email="broken@example.com",
+        password_hash="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4bCgIKqWEufKH/Hy",
+        full_name="Broken Hash User",
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    login_data = UserLogin(email="broken@example.com", password="password123")
+    with pytest.raises(HTTPException) as excinfo:
+        AuthService.login(db_session, login_data)
+
+    assert excinfo.value.status_code == 401

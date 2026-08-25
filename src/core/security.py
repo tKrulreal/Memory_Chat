@@ -19,8 +19,18 @@ ACCESS_TOKEN_EXPIRE_MINUTES = get_settings().jwt_expire_minutes
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
+import hashlib
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except (ValueError, TypeError):
+        # Fallback check for legacy SHA-256 hashes
+        if hashlib.sha256(plain_password.encode('utf-8')).hexdigest() == hashed_password:
+            return True
+        return False
+    except Exception:
+        return False
 
 def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')

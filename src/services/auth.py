@@ -50,5 +50,10 @@ class AuthService:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        # Seamlessly upgrade legacy non-bcrypt password hashes
+        if user.password_hash and not user.password_hash.startswith(("$2b$", "$2a$")):
+            user.password_hash = get_password_hash(data.password)
+            db.commit()
+
         access_token = create_access_token(data={"sub": str(user.id)})
         return {"access_token": access_token, "token_type": "bearer"}
