@@ -159,14 +159,18 @@ class SearchAgent:
                     "recent_chat_snippets": relevant_chat_msgs[:3],
                 })
 
-            # 2. Thu thập người dùng khác trong hệ thống CHƯA TỪNG CHAT (Tìm theo profile)
+            # 2. Thu thập người dùng khác trong hệ thống CHƯA TỪNG CHAT (Chỉ tìm theo profile CÔNG KHAI is_public=True)
             non_chatted_users = db.query(User).filter(
                 User.id != user_uuid,
                 ~User.id.in_(chatted_user_ids) if chatted_user_ids else True,
-            ).limit(25).all()
+            ).limit(40).all()
 
             for user in non_chatted_users:
                 prof = db.query(UserProfile).filter(UserProfile.user_id == user.id).first()
+                # Kiểm tra cơ chế công khai profile: nếu người dùng tắt công khai (is_public = False) thì bỏ qua
+                if prof and prof.is_public is False:
+                    continue
+
                 name = str(getattr(user, "full_name", "") or getattr(user, "email", "") or "Người dùng")
                 profession = str(getattr(prof, "profession", "") or "")
                 company = str(getattr(prof, "company", "") or "")
@@ -178,6 +182,10 @@ class SearchAgent:
                 bio = str(getattr(prof, "bio", "") or "")
                 looking_for = str(getattr(prof, "looking_for", "") or "")
                 offering = str(getattr(prof, "offering", "") or "")
+                raw_exp = getattr(prof, "experience", []) or []
+                exp_titles = [f"{e.get('title', '')} tại {e.get('company', '')}" for e in raw_exp if isinstance(e, dict)]
+                raw_edu = getattr(prof, "education", []) or []
+                edu_titles = [f"{e.get('school', '')} - {e.get('degree', '')}" for e in raw_edu if isinstance(e, dict)]
 
                 candidate_pool.append({
                     "conversation_id": "",
@@ -194,6 +202,8 @@ class SearchAgent:
                     "bio": bio,
                     "looking_for": looking_for,
                     "offering": offering,
+                    "experience": exp_titles,
+                    "education": edu_titles,
                 })
 
 

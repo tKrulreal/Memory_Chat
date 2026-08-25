@@ -252,6 +252,21 @@ async def run_copilot(
     llm_gateway = LLMGateway()
     chat_model = llm_gateway.llm
 
+    from src.api.deps import SessionLocal
+    from src.models.user import Setting
+
+    context_turns = 10
+    db_settings = SessionLocal()
+    try:
+        user_uuid_val = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+        user_setting = db_settings.query(Setting).filter(Setting.user_id == user_uuid_val).first()
+        if user_setting and user_setting.ai_copilot_context_turns:
+            context_turns = user_setting.ai_copilot_context_turns
+    except Exception as e:
+        logger.warning(f"Failed to fetch user copilot context turns: {e}")
+    finally:
+        db_settings.close()
+
     @tool
     def semantic_search(search_query: str, scope: str = "all_chats", limit: int = 5) -> str:
         """
@@ -299,15 +314,18 @@ async def run_copilot(
             return "Đã xảy ra lỗi khi tìm kiếm."
 
     @tool
-    def get_recent_messages(limit: int = 10) -> str:
-        """Retrieve the most recent messages in the current conversation."""
+    def get_recent_messages(limit: int | None = None) -> str:
+        """Retrieve the most recent messages in the current conversation within the configured context turns."""
         if not conversation_id:
             return "Bạn không ở trong một cuộc hội thoại nào."
+        eff_limit = limit if (limit is not None and limit > 0) else context_turns
+        if eff_limit <= 0:
+            eff_limit = 100  # Unlimited setting
         from src.agents.tools.memory_tools import get_recent_messages as get_recent_msgs_tool
         return get_recent_msgs_tool.invoke({
             "user_id": user_id,
             "conversation_id": conversation_id,
-            "limit": limit,
+            "limit": eff_limit,
         })
 
     @tool

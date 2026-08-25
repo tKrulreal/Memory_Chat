@@ -269,6 +269,28 @@ export default function AIHubPage() {
                                 <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
                               </label>
                             </div>
+
+                            {oldConfigs.features.copilot && (
+                              <div className="pl-4 space-y-3 border-l-2 border-gray-200 mt-2">
+                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                  <div>
+                                    <span className="text-sm text-slate-700 font-medium">Số lượt chat ngữ cảnh (Context Turns)</span>
+                                    <p className="text-[11px] text-slate-400">Số lượng tin nhắn gần nhất Copilot sẽ đọc để hiểu ngữ cảnh</p>
+                                  </div>
+                                  <select 
+                                    value={settings.ai_copilot_context_turns ?? 10}
+                                    onChange={(e) => handleUpdateSetting("ai_copilot_context_turns", parseInt(e.target.value))}
+                                    className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none"
+                                  >
+                                    <option value="5">5 tin nhắn gần nhất</option>
+                                    <option value="10">10 tin nhắn (Mặc định)</option>
+                                    <option value="20">20 tin nhắn</option>
+                                    <option value="50">50 tin nhắn</option>
+                                    <option value="0">Toàn bộ (Không giới hạn)</option>
+                                  </select>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           {/* --- AI TAGGING --- */}
@@ -323,7 +345,7 @@ export default function AIHubPage() {
                             </div>
 
                             {oldConfigs.features.recommendation && (
-                              <div className="pl-4 space-y-3 border-l-2 border-gray-200 mt-2">
+                              <div className="pl-4 space-y-3.5 border-l-2 border-gray-200 mt-2">
                                 <div className="flex items-center justify-between">
                                   <span className="text-sm text-slate-500">Allow Profile Matching</span>
                                   <label className="relative inline-flex items-center cursor-pointer">
@@ -336,14 +358,41 @@ export default function AIHubPage() {
                                     <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
                                   </label>
                                 </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-slate-500">Minimum Match Percentage</span>
+
+                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                  <div>
+                                    <span className="text-sm text-slate-700 font-medium">Tần suất thông báo gợi ý</span>
+                                    <p className="text-[11px] text-slate-400">Khoảng thời gian cách nhau giữa các lần thông báo matching</p>
+                                  </div>
+                                  <select 
+                                    value={oldConfigs.notification_interval || "24h"}
+                                    onChange={(e) => {
+                                      updateConfigSetting("notification_interval", e.target.value);
+                                      handleUpdateSetting("ai_recommendation_interval", e.target.value);
+                                    }}
+                                    className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none"
+                                  >
+                                    <option value="realtime">Ngay khi phát hiện (Realtime)</option>
+                                    <option value="1h">Mỗi 1 giờ</option>
+                                    <option value="6h">Mỗi 6 giờ</option>
+                                    <option value="12h">Mỗi 12 giờ</option>
+                                    <option value="24h">Hàng ngày (24 giờ)</option>
+                                    <option value="weekly">Hàng tuần</option>
+                                    <option value="off">Tắt thông báo</option>
+                                  </select>
+                                </div>
+
+                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                  <div>
+                                    <span className="text-sm text-slate-700 font-medium">Ngưỡng % gửi thông báo</span>
+                                    <p className="text-[11px] text-slate-400">Chỉ gửi thông báo khi độ tương thích đạt từ mức này</p>
+                                  </div>
                                   <select 
                                     value={oldConfigs.min_matching_score || 50}
                                     onChange={(e) => updateConfigSetting("min_matching_score", parseInt(e.target.value))}
-                                    className="rounded border border-gray-200 bg-gray-100 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none"
+                                    className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none"
                                   >
-                                    <option value="50">50%</option>
+                                    <option value="50">50% (Đề xuất)</option>
                                     <option value="60">60%</option>
                                     <option value="70">70%</option>
                                     <option value="80">80%</option>

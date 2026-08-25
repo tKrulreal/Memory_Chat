@@ -117,3 +117,30 @@ class TestSearchAgent:
             assert results[0].name == "Lê Văn C"
             assert results[1].has_chatted is False
             assert results[1].name == "Phạm Thị D"
+
+    def test_search_respects_is_public_flag(self):
+        """Test SearchAgent skips non-chatted users who set is_public=False."""
+        agent = SearchAgent()
+        with patch.object(agent.llm, "chat", return_value="[]"), \
+             patch.object(agent.vector_store, "query", return_value={"documents": [], "metadatas": []}), \
+             patch("src.agents.search.agent.SessionLocal") as mock_db_cls:
+
+            mock_db = MagicMock()
+            mock_db_cls.return_value = mock_db
+
+            # User 1: private profile (is_public=False)
+            private_user = MagicMock()
+            private_user.id = uuid.uuid4()
+            private_user.full_name = "Private User"
+
+            private_prof = MagicMock()
+            private_prof.is_public = False
+
+            # Return empty conversations and 1 private non-chatted user
+            mock_db.query.return_value.filter.return_value.all.return_value = []
+            mock_db.query.return_value.filter.return_value.limit.return_value.all.return_value = [private_user]
+            mock_db.query.return_value.filter.return_value.first.return_value = private_prof
+
+            results = agent.search("tìm người làm AI", str(uuid.uuid4()), limit=5)
+            # Since candidate_pool is empty (private user skipped), results should be empty
+            assert results == []
