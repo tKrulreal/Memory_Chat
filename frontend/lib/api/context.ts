@@ -61,7 +61,7 @@ export async function refreshConversationContext(conversationId: string): Promis
   return res.json();
 }
 
-export async function refreshConversationTags(conversationId: string): Promise<{ tags: string[] }> {
+export async function refreshConversationTags(conversationId: string): Promise<{ pending_tags: string[]; tags?: string[] }> {
   const res = await fetch(`/api/proxy/api/v1/direct-conversations/${conversationId}/assistant/tags/refresh`, {
     method: "POST",
   });
@@ -73,7 +73,7 @@ export async function refreshConversationTags(conversationId: string): Promise<{
   return res.json();
 }
 
-export async function updateConversationTags(conversationId: string, tags: string[]): Promise<{ tags: string[] }> {
+export async function updateConversationTags(conversationId: string, tags: string[]): Promise<{ tags: string[]; pending_tags?: string[] }> {
   const res = await fetch(`/api/proxy/api/v1/direct-conversations/${conversationId}/assistant/tags`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },

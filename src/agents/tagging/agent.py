@@ -96,14 +96,48 @@ class TaggingAgent:
     ) -> list[str]:
         """
         Tự động phân tích hội thoại và sinh ra danh sách tag cho đối tác.
+        QUY TẮC: CHỈ được chọn từ các tag mà người dùng đã định nghĩa trước trong AI Hub.
+        Nếu người dùng chưa định nghĩa tag nào trong AI Hub, trả về [] (không tự ý bịa tag).
         """
-        # Check global toggle
+        # 1. Check global toggle
         current_user = db.get(User, user_id)
         if current_user and current_user.setting:
             if not current_user.setting.ai_enabled:
                 return []
 
-        # Get limit and features toggle
+        # 2. Query active tags configured by user in AI Hub
+        from src.models.tag import Tag, AISystemConfig
+        user_tags = db.query(Tag).filter(Tag.user_id == user_id, Tag.is_active == True).all()
+        if not user_tags:
+            logger.info("User %s has not configured any tags in AI Hub. Skipping tagging.", user_id)
+            self._save_tags_to_memory(conversation_id, user_id, [], db)
+            return []
+
+        # Find existing attached tags for this contact
+        memory = (
+            db.query(AssistantMemory)
+            .filter(
+                AssistantMemory.owner_user_id == user_id,
+                AssistantMemory.conversation_id == conversation_id,
+            )
+            .first()
+        )
+        existing_facts = dict(memory.facts or {}) if memory else {}
+        already_attached = list(existing_facts.get("tags", []))
+
+        # Filter available tags from AI Hub that are not yet attached
+        available_user_tags = [t for t in user_tags if t.name not in already_attached]
+        if not available_user_tags:
+            logger.info("All user AI Hub tags are already attached for peer %s.", conversation_id)
+            self._save_tags_to_memory(conversation_id, user_id, [], db)
+            return []
+
+        # Map for fast and case-insensitive lookup
+        valid_tag_map = {t.name.lower().strip(): t.name for t in available_user_tags}
+        available_tags_str = ", ".join([t.name for t in available_user_tags])
+        already_attached_str = ", ".join(already_attached) if already_attached else "Chưa có"
+
+        # 3. Get limit and features toggle
         ai_config = db.query(AISystemConfig).filter(
             AISystemConfig.user_id == user_id,
             AISystemConfig.key == "ai_settings"
@@ -112,7 +146,6 @@ class TaggingAgent:
         limit = 3
         if ai_config and isinstance(ai_config.value, dict):
             features = ai_config.value.get("features", {})
-            # If tagging is explicitly disabled
             if features.get("tagging") is False:
                 return []
             limit = int(ai_config.value.get("tag_limit", 3))
@@ -147,67 +180,41 @@ class TaggingAgent:
 
         conversation_text = "\n".join(formatted_lines) if formatted_lines else "Chưa có tin nhắn nào được trao đổi."
 
-        # Nếu không có tin nhắn nhưng có profile đối tác, tạo tag ban đầu từ profile
-        if not formatted_lines and other_profile:
-            initial_tags = []
-            if other_profile.profession:
-                initial_tags.append(other_profile.profession)
-            if other_profile.company:
-                initial_tags.append(other_profile.company)
-            if other_profile.skills:
-                initial_tags.extend(other_profile.skills[:2])
-            
-            cleaned = self._clean_tags(initial_tags)[:limit]
-            self._save_tags_to_memory(conversation_id, user_id, cleaned, db)
-            return cleaned
-
-        from src.models.tag import Tag
-        user_tags = db.query(Tag).filter(Tag.user_id == user_id, Tag.is_active == True).all()
-        existing_tags_str = ", ".join([t.name for t in user_tags]) if user_tags else "Chưa có"
-
         prompt = TAGGING_AGENT_PROMPT.format(
             conversation=conversation_text,
             peer_name=peer_name,
             peer_profession=peer_profession,
             peer_company=peer_company,
             peer_location=peer_location,
-            existing_tags=existing_tags_str,
+            already_attached_tags=already_attached_str,
+            available_tags=available_tags_str,
         )
 
         try:
             response = self._llm.complete(prompt)
             parsed = self._parse_json_response(response)
             if parsed and isinstance(parsed.get("tags"), list):
-                tags = self._clean_tags(parsed["tags"])
+                raw_tags = parsed["tags"]
             else:
-                tags = []
+                raw_tags = []
         except Exception as e:
             logger.error(f"Error running TaggingAgent: {e}")
-            tags = []
+            raw_tags = []
 
-        # Nếu LLM không trả về tag nào mà peer có profile, fallback lấy từ profile
-        if not tags and other_profile:
-            fallback = []
-            if other_profile.profession:
-                fallback.append(other_profile.profession)
-            if other_profile.company:
-                fallback.append(other_profile.company)
-            tags = self._clean_tags(fallback)
+        # STRICT FILTERING: Only accept tags that match available user's AI Hub tags
+        final_tags = []
+        for t in raw_tags:
+            if not isinstance(t, str):
+                continue
+            t_norm = t.strip().strip("#").lower()
+            if t_norm in valid_tag_map:
+                canonical_name = valid_tag_map[t_norm]
+                if canonical_name not in final_tags and canonical_name not in already_attached:
+                    final_tags.append(canonical_name)
 
-        # Map generated tags to existing tags' casing if they match, and keep new tags.
-        if user_tags:
-            valid_tag_names = {t.name.lower(): t.name for t in user_tags}
-            final_tags = []
-            for t in tags:
-                if t.lower() in valid_tag_names:
-                    final_tags.append(valid_tag_names[t.lower()])
-                else:
-                    final_tags.append(t)
-            tags = final_tags
-
-        tags = tags[:limit]
-        self._save_tags_to_memory(conversation_id, user_id, tags, db)
-        return tags
+        final_tags = final_tags[:limit]
+        self._save_tags_to_memory(conversation_id, user_id, final_tags, db)
+        return final_tags
 
     def _save_tags_to_memory(
         self,
@@ -216,7 +223,7 @@ class TaggingAgent:
         tags: list[str],
         db: Session,
     ) -> None:
-        """Lưu tags vào AssistantMemory của user cho conversation này."""
+        """Lưu pending_tags vào AssistantMemory của user cho conversation này."""
         memory = (
             db.query(AssistantMemory)
             .filter(
@@ -225,6 +232,8 @@ class TaggingAgent:
             )
             .first()
         )
+
+        from sqlalchemy.orm.attributes import flag_modified
 
         if not memory:
             memory = AssistantMemory(
@@ -236,15 +245,13 @@ class TaggingAgent:
             db.add(memory)
         else:
             facts = dict(memory.facts or {})
-            existing_tags = facts.get("tags", [])
-            pending_tags = facts.get("pending_tags", [])
-            for t in tags:
-                if t not in existing_tags and t not in pending_tags:
-                    pending_tags.append(t)
-            facts["pending_tags"] = pending_tags
-            if "tags" not in facts:
-                facts["tags"] = existing_tags
+            existing_tags = list(facts.get("tags", []))
+            # Pending tags are the new suggestions that are not already attached
+            new_pending = [t for t in tags if t not in existing_tags]
+            facts["pending_tags"] = new_pending
+            facts["tags"] = existing_tags
             memory.facts = facts
+            flag_modified(memory, "facts")
 
         db.commit()
         db.refresh(memory)

@@ -186,19 +186,10 @@ def get_assistant_context(
         db.commit()
         db.refresh(memory)
 
-    context_data = memory.facts or {}
+    context_data = dict(memory.facts or {})
     context_data["summary"] = memory.summary
-
-    # If tags not yet populated, auto-generate high-signal tags with TaggingAgent
-    if "tags" not in context_data or not context_data["tags"]:
-        try:
-            from src.agents.tagging import TaggingAgent
-            agent = TaggingAgent()
-            generated_tags = agent.generate_tags(conversation_id, current_user.id, db)
-            context_data["tags"] = generated_tags
-        except Exception as e:
-            logging.getLogger(__name__).warning("Auto tagging failed: %s", e)
-            context_data["tags"] = []
+    context_data.setdefault("tags", [])
+    context_data.setdefault("pending_tags", [])
 
     return AIContext.model_validate(context_data)
 
@@ -441,7 +432,20 @@ def refresh_assistant_tags(
     from src.agents.tagging import TaggingAgent
     agent = TaggingAgent()
     tags = agent.generate_tags(conversation_id, current_user.id, db)
-    return {"pending_tags": tags}
+    
+    memory = (
+        db.query(AssistantMemory)
+        .filter(
+            AssistantMemory.owner_user_id == current_user.id,
+            AssistantMemory.conversation_id == conversation_id,
+        )
+        .first()
+    )
+    facts = memory.facts or {} if memory else {}
+    return {
+        "pending_tags": facts.get("pending_tags", tags),
+        "tags": facts.get("tags", []),
+    }
 
 
 @router.put("/{conversation_id}/assistant/tags")
@@ -484,22 +488,27 @@ def update_assistant_tags(
         .first()
     )
 
+    from sqlalchemy.orm.attributes import flag_modified
+
     if not memory:
         memory = AssistantMemory(
             owner_user_id=current_user.id,
             conversation_id=conversation_id,
-            facts={"tags": cleaned_tags},
+            facts={"tags": cleaned_tags, "pending_tags": []},
             summary="",
         )
         db.add(memory)
     else:
         facts = dict(memory.facts or {})
+        pending = [t for t in facts.get("pending_tags", []) if t not in cleaned_tags]
         facts["tags"] = cleaned_tags
+        facts["pending_tags"] = pending
         memory.facts = facts
+        flag_modified(memory, "facts")
 
     db.commit()
     db.refresh(memory)
-    return {"tags": cleaned_tags}
+    return {"tags": cleaned_tags, "pending_tags": memory.facts.get("pending_tags", [])}
 
 class TagApproveRejectRequest(BaseModel):
     tag: str
@@ -514,38 +523,47 @@ def approve_assistant_tag(
 ) -> dict[str, Any]:
     _get_owned_conversation(service, db, current_user.id, conversation_id)
     
+    from sqlalchemy.orm.attributes import flag_modified
+    
     memory = db.query(AssistantMemory).filter(
         AssistantMemory.owner_user_id == current_user.id,
         AssistantMemory.conversation_id == conversation_id
     ).first()
     
     if not memory:
-        raise HTTPException(status_code=404, detail="Context not found")
-        
-    facts = dict(memory.facts or {})
-    pending_tags = facts.get("pending_tags", [])
-    active_tags = facts.get("tags", [])
-    
-    if payload.tag in pending_tags:
-        pending_tags.remove(payload.tag)
+        memory = AssistantMemory(
+            owner_user_id=current_user.id,
+            conversation_id=conversation_id,
+            facts={"tags": [payload.tag], "pending_tags": []},
+            summary="",
+        )
+        db.add(memory)
+        active_tags = [payload.tag]
+        pending_tags = []
+    else:
+        facts = dict(memory.facts or {})
+        pending_tags = [t for t in facts.get("pending_tags", []) if t != payload.tag]
+        active_tags = list(facts.get("tags", []))
         if payload.tag not in active_tags:
             active_tags.append(payload.tag)
             
-            # Ensure global System Tag exists for the user
-            from src.models.tag import Tag
-            existing_tag = db.query(Tag).filter(Tag.user_id == current_user.id, Tag.name.ilike(payload.tag)).first()
-            if existing_tag:
-                if not existing_tag.is_active:
-                    existing_tag.is_active = True
-            else:
-                new_tag = Tag(user_id=current_user.id, name=payload.tag, category=None, is_active=True)
-                db.add(new_tag)
-        
         facts["pending_tags"] = pending_tags
         facts["tags"] = active_tags
         memory.facts = facts
-        db.commit()
-        db.refresh(memory)
+        flag_modified(memory, "facts")
+        
+    # Ensure global System Tag exists for the user
+    from src.models.tag import Tag
+    existing_tag = db.query(Tag).filter(Tag.user_id == current_user.id, Tag.name.ilike(payload.tag)).first()
+    if existing_tag:
+        if not existing_tag.is_active:
+            existing_tag.is_active = True
+    else:
+        new_tag = Tag(user_id=current_user.id, name=payload.tag, category=None, is_active=True)
+        db.add(new_tag)
+        
+    db.commit()
+    db.refresh(memory)
         
     return {"tags": active_tags, "pending_tags": pending_tags}
 
@@ -559,23 +577,25 @@ def reject_assistant_tag(
 ) -> dict[str, Any]:
     _get_owned_conversation(service, db, current_user.id, conversation_id)
     
+    from sqlalchemy.orm.attributes import flag_modified
+    
     memory = db.query(AssistantMemory).filter(
         AssistantMemory.owner_user_id == current_user.id,
         AssistantMemory.conversation_id == conversation_id
     ).first()
     
     if not memory:
-        raise HTTPException(status_code=404, detail="Context not found")
+        return {"tags": [], "pending_tags": []}
         
     facts = dict(memory.facts or {})
-    pending_tags = facts.get("pending_tags", [])
+    pending_tags = [t for t in facts.get("pending_tags", []) if t != payload.tag]
+    active_tags = list(facts.get("tags", []))
     
-    if payload.tag in pending_tags:
-        pending_tags.remove(payload.tag)
-        facts["pending_tags"] = pending_tags
-        memory.facts = facts
-        db.commit()
-        db.refresh(memory)
+    facts["pending_tags"] = pending_tags
+    memory.facts = facts
+    flag_modified(memory, "facts")
+    db.commit()
+    db.refresh(memory)
         
-    return {"tags": facts.get("tags", []), "pending_tags": pending_tags}
+    return {"tags": active_tags, "pending_tags": pending_tags}
 

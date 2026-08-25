@@ -65,8 +65,35 @@ class TestTaggingAgent:
         assert "Hôm Nay" not in cleaned
         assert len(cleaned) <= 6
 
-    def test_generate_tags_from_messages(self, agent, mock_db):
-        """Test generating tags from conversation messages using LLM."""
+    def test_generate_tags_no_user_tags_returns_empty(self, agent, mock_db):
+        """When user has no tags configured in AI Hub, generate_tags must return []."""
+        user_id = uuid.uuid4()
+        other_user_id = uuid.uuid4()
+        conv_id = uuid.uuid4()
+
+        conv = Conversation(id=conv_id, user_a_id=user_id, user_b_id=other_user_id)
+        other_user = User(id=other_user_id, full_name="Trần Văn Đối Tác", email="doitac@gmail.com")
+
+        mock_db.get.side_effect = lambda model, ident: conv if model == Conversation else (other_user if model == User else None)
+
+        from src.models.tag import Tag
+        def query_side_effect(model):
+            mock_q = MagicMock()
+            if model == Tag:
+                mock_q.filter.return_value.all.return_value = [] # No tags configured
+            elif model == AssistantMemory:
+                mock_q.filter.return_value.first.return_value = None
+            return mock_q
+
+        mock_db.query.side_effect = query_side_effect
+
+        with patch.object(agent._llm, "complete") as mock_complete:
+            tags = agent.generate_tags(conv_id, user_id, mock_db)
+            assert tags == []
+            assert not mock_complete.called
+
+    def test_generate_tags_strict_whitelist_from_ai_hub(self, agent, mock_db):
+        """Test that generated tags are strictly filtered to only match user's AI Hub tags."""
         user_id = uuid.uuid4()
         other_user_id = uuid.uuid4()
         conv_id = uuid.uuid4()
@@ -76,7 +103,12 @@ class TestTaggingAgent:
         other_profile = UserProfile(user_id=other_user_id, profession="CEO", company="TechCorp", location="Hà Nội")
 
         msg1 = Message(id=uuid.uuid4(), conversation_id=conv_id, sender_user_id=user_id, content="Chào anh, bên em muốn hợp tác dự án AI.")
-        msg2 = Message(id=uuid.uuid4(), conversation_id=conv_id, sender_user_id=other_user_id, content="Chào em, anh là CEO TechCorp, bên anh đang cần tìm đối tác triển khai RAG.")
+        msg2 = Message(id=uuid.uuid4(), conversation_id=conv_id, sender_user_id=other_user_id, content="Chào em, anh là CEO TechCorp.")
+
+        from src.models.tag import Tag
+        tag1 = Tag(user_id=user_id, name="Đối Tác", is_active=True)
+        tag2 = Tag(user_id=user_id, name="CEO", is_active=True)
+        tag3 = Tag(user_id=user_id, name="Khách Hàng", is_active=True)
 
         def get_side_effect(model, ident):
             if model == Conversation:
@@ -89,7 +121,9 @@ class TestTaggingAgent:
 
         def query_side_effect(model):
             mock_q = MagicMock()
-            if model == UserProfile:
+            if model == Tag:
+                mock_q.filter.return_value.all.return_value = [tag1, tag2, tag3]
+            elif model == UserProfile:
                 mock_q.filter.return_value.first.return_value = other_profile
             elif model == Message:
                 mock_q.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [msg1, msg2]
@@ -99,56 +133,18 @@ class TestTaggingAgent:
 
         mock_db.query.side_effect = query_side_effect
 
+        # LLM returns some matched and some non-whitelisted tags ("RandomTag", "Hà Nội")
         mock_llm_response = '''
         {
-            "tags": ["Đối Tác", "CEO", "TechCorp", "AI", "RAG"]
+            "tags": ["Đối Tác", "CEO", "RandomTag", "Hà Nội"]
         }
         '''
 
         with patch.object(agent._llm, "complete", return_value=mock_llm_response) as mock_complete:
             tags = agent.generate_tags(conv_id, user_id, mock_db)
             assert mock_complete.called
+            # Only whitelisted tags in AI Hub are kept
             assert "Đối Tác" in tags
-            assert "Ceo" in tags or "CEO" in [t.upper() for t in tags]
-            assert "Techcorp" in tags or "TechCorp" in [t.upper() for t in tags]
-
-    def test_generate_tags_fallback_to_profile(self, agent, mock_db):
-        """Test fallback to UserProfile if no messages exist yet."""
-        user_id = uuid.uuid4()
-        other_user_id = uuid.uuid4()
-        conv_id = uuid.uuid4()
-
-        conv = Conversation(id=conv_id, user_a_id=user_id, user_b_id=other_user_id)
-        other_user = User(id=other_user_id, full_name="Lê Kỹ Sư", email="kysu@gmail.com")
-        other_profile = UserProfile(
-            user_id=other_user_id,
-            profession="Mobile Lead",
-            company="FPT Software",
-            skills=["Flutter", "Dart"],
-        )
-
-        def get_side_effect(model, ident):
-            if model == Conversation:
-                return conv
-            if model == User:
-                return other_user
-            return None
-
-        mock_db.get.side_effect = get_side_effect
-
-        def query_side_effect(model):
-            mock_q = MagicMock()
-            if model == UserProfile:
-                mock_q.filter.return_value.first.return_value = other_profile
-            elif model == Message:
-                mock_q.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
-            elif model == AssistantMemory:
-                mock_q.filter.return_value.first.return_value = None
-            return mock_q
-
-        mock_db.query.side_effect = query_side_effect
-
-        tags = agent.generate_tags(conv_id, user_id, mock_db)
-        assert len(tags) > 0
-        assert "Mobile Lead" in tags
-        assert "Fpt Software" in tags
+            assert "CEO" in tags
+            assert "RandomTag" not in tags
+            assert "Hà Nội" not in tags
