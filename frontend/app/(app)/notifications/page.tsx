@@ -51,6 +51,13 @@ function getRelativeTime(dateString: string) {
   return date.toLocaleDateString("vi-VN");
 }
 
+function isValidUuid(id?: string | null): boolean {
+  if (!id || typeof id !== "string") return false;
+  const clean = id.trim();
+  if (clean === "None" || clean === "undefined" || clean === "null" || clean === "") return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clean);
+}
+
 type TabType = "all" | "unread" | "read" | "requests" | "matching";
 
 export default function NotificationsPage() {
@@ -94,22 +101,26 @@ export default function NotificationsPage() {
     mutationFn: async ({
       requestId,
       senderId,
+      senderName,
       notifId,
     }: {
       requestId?: string;
       senderId?: string;
+      senderName?: string;
       notifId: string;
     }) => {
-      let targetReqId = requestId;
+      let targetReqId = isValidUuid(requestId) ? requestId! : undefined;
 
-      // Fallback: If requestId is missing, lookup pending incoming request by senderId
-      if (!targetReqId && senderId) {
+      // Fallback: If requestId is missing or invalid, lookup pending incoming request by senderId / senderName
+      if (!targetReqId) {
         try {
           const incoming = await getConnectionRequests("incoming", "PENDING", 1, 100);
           const matched = incoming.data.find(
-            (r) => r.sender_id === senderId || r.sender?.id === senderId
+            (r) =>
+              (senderId && isValidUuid(senderId) && (r.sender_id === senderId || r.sender?.id === senderId)) ||
+              (senderName && (r.sender?.full_name === senderName || r.sender?.email === senderName))
           );
-          if (matched) {
+          if (matched && isValidUuid(matched.id)) {
             targetReqId = matched.id;
           }
         } catch (e) {
@@ -134,7 +145,8 @@ export default function NotificationsPage() {
           msg.includes("not pending") ||
           msg.includes("không ở trạng thái") ||
           msg.includes("Already") ||
-          msg.includes("bạn bè")
+          msg.includes("bạn bè") ||
+          msg.includes("409")
         ) {
           await markNotificationRead(notifId);
           setHandledActions((prev) => ({ ...prev, [notifId]: "ACCEPTED" }));
@@ -161,20 +173,24 @@ export default function NotificationsPage() {
     mutationFn: async ({
       requestId,
       senderId,
+      senderName,
       notifId,
     }: {
       requestId?: string;
       senderId?: string;
+      senderName?: string;
       notifId: string;
     }) => {
-      let targetReqId = requestId;
-      if (!targetReqId && senderId) {
+      let targetReqId = isValidUuid(requestId) ? requestId! : undefined;
+      if (!targetReqId) {
         try {
           const incoming = await getConnectionRequests("incoming", "PENDING", 1, 100);
           const matched = incoming.data.find(
-            (r) => r.sender_id === senderId || r.sender?.id === senderId
+            (r) =>
+              (senderId && isValidUuid(senderId) && (r.sender_id === senderId || r.sender?.id === senderId)) ||
+              (senderName && (r.sender?.full_name === senderName || r.sender?.email === senderName))
           );
-          if (matched) targetReqId = matched.id;
+          if (matched && isValidUuid(matched.id)) targetReqId = matched.id;
         } catch (e) {}
       }
 
@@ -544,6 +560,7 @@ export default function NotificationsPage() {
                                     acceptRequestMutation.mutate({
                                       requestId: notifData.request_id,
                                       senderId: notifData.sender_id,
+                                      senderName: notifData.sender_name,
                                       notifId: notif.id,
                                     })
                                   }
@@ -560,6 +577,7 @@ export default function NotificationsPage() {
                                     rejectRequestMutation.mutate({
                                       requestId: notifData.request_id,
                                       senderId: notifData.sender_id,
+                                      senderName: notifData.sender_name,
                                       notifId: notif.id,
                                     })
                                   }

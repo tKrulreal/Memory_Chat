@@ -231,14 +231,17 @@ def send_connection_request(
             existing_req.status = "PENDING"
             new_req = existing_req
             db.add(new_req)
+            db.flush()
     else:
         # Create new pending request
         new_req = ConnectionRequest(
+            id=uuid.uuid4(),
             sender_id=current_user.id,
             receiver_id=target_user.id,
             status="PENDING",
         )
         db.add(new_req)
+        db.flush()
 
     # Create notification for the receiver
     from src.services.notifications import NotificationService

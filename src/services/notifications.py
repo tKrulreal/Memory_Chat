@@ -116,13 +116,24 @@ class NotificationService:
         """Tạo thông báo lời mời kết bạn mới."""
         sender_profile = db.query(UserProfile).filter(UserProfile.user_id == sender_user.id).first()
         sender_name = sender_user.full_name or sender_user.email
+        if request_id is None or str(request_id) == "None":
+            from src.models.connection import ConnectionRequest
+            req = db.query(ConnectionRequest).filter(
+                ConnectionRequest.sender_id == sender_user.id,
+                ConnectionRequest.receiver_id == receiver_id,
+                ConnectionRequest.status == "PENDING",
+            ).first()
+            req_id_str = str(req.id) if req else None
+        else:
+            req_id_str = str(request_id)
+
         notif_data = {
             "sender_id": str(sender_user.id),
             "sender_name": sender_name,
             "sender_avatar": sender_user.avatar,
             "sender_profession": sender_profile.profession if sender_profile else None,
             "sender_company": sender_profile.company if sender_profile else None,
-            "request_id": str(request_id),
+            "request_id": req_id_str,
         }
         return self.create_notification(
             db=db,
