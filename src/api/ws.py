@@ -1,4 +1,5 @@
 import asyncio
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect, status
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 from src.api.deps import get_db, get_websocket_event_bus
 from src.core.security import get_user_from_ws_ticket
 from src.events.bus import EventBus
+from src.models.user import Setting
 from src.ws.manager import ConnectionManager
 
 router = APIRouter()
@@ -28,9 +30,12 @@ async def chat_websocket(
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    await manager.connect(websocket, user.id)
+    # Check user preference for online presence
+    setting = db.query(Setting).filter(Setting.user_id == user.id).first()
+    is_visible = setting.online_status if setting is not None else True
+
+    await manager.connect(websocket, user.id, is_visible=is_visible)
     
-    import time
     last_activity = time.time()
     
     async def receive_loop():
@@ -38,11 +43,8 @@ async def chat_websocket(
         while True:
             payload = await websocket.receive_json()
             last_activity = time.time()
-            # WS is now one-way for chat messages.
-            # Client must use POST /messages to send.
             if payload.get("type") == "pong":
                 continue
-            # We can support typing indicators here later.
 
     async def ping_loop():
         while True:
@@ -71,3 +73,4 @@ async def chat_websocket(
         pass
     finally:
         manager.disconnect(websocket, user.id)
+        await manager.broadcast_user_offline(user.id)

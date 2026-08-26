@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Toaster } from "sonner";
 import { AuthBootstrap } from "./auth/auth-bootstrap";
 import { WSBootstrap } from "./ws/ws-bootstrap";
+import { ThemeBootstrap } from "./theme-bootstrap";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -22,10 +23,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthBootstrap>
-        <WSBootstrap>
-          {children}
-          <Toaster theme="light" position="top-right" />
-        </WSBootstrap>
+        <ThemeBootstrap>
+          <WSBootstrap>
+            {children}
+            <Toaster position="top-right" />
+          </WSBootstrap>
+        </ThemeBootstrap>
       </AuthBootstrap>
     </QueryClientProvider>
   );
