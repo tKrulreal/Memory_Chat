@@ -1,12 +1,14 @@
+"use client";
+
 import { cn } from "@/lib/utils";
-import { Undo2, RefreshCw } from "lucide-react";
+import { Undo2, RefreshCw, Check, CheckCheck, Clock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type MessageBubbleProps = {
   content: string;
   outgoing: boolean;
   time: string;
-  status?: "pending" | "sent" | "error";
+  status?: "pending" | "sent" | "read" | "error";
   deleted_at?: string | null;
   onRecall?: () => void;
   isRecalling?: boolean;
@@ -67,17 +69,39 @@ export function MessageBubble({
       >
         <div className="flex flex-wrap items-end gap-x-2 gap-y-1">
           <span className={cn("text-[14px] whitespace-pre-wrap break-words leading-relaxed", outgoing ? "text-white" : "text-slate-800")}>{content}</span>
-          <span className={cn("text-[10px] font-medium opacity-70 pt-1 whitespace-nowrap ml-1", outgoing ? "text-blue-100" : "text-slate-400")}>
+          <span className={cn("text-[10px] font-medium opacity-80 pt-1 whitespace-nowrap ml-1 inline-flex items-center gap-1", outgoing ? "text-blue-100" : "text-slate-400")}>
             {time}
-            {status === "pending" && <span className="ml-1">(đang gửi)</span>}
-            {status === "error" && <span className="ml-1">(lỗi)</span>}
+            {outgoing && status === "pending" && (
+              <span className="inline-flex items-center gap-0.5 ml-1">
+                <Clock size={10} />
+                <span>đang gửi</span>
+              </span>
+            )}
+            {outgoing && status === "sent" && (
+              <span className="inline-flex items-center gap-0.5 ml-1" title="Đã gửi">
+                <Check size={11} />
+                <span>Đã gửi</span>
+              </span>
+            )}
+            {outgoing && status === "read" && (
+              <span className="inline-flex items-center gap-0.5 ml-1 text-cyan-200 font-semibold" title="Đã xem">
+                <CheckCheck size={12} className="text-cyan-200" />
+                <span>Đã xem</span>
+              </span>
+            )}
+            {outgoing && status === "error" && (
+              <span className="inline-flex items-center gap-0.5 ml-1 text-red-200">
+                <AlertCircle size={10} />
+                <span>lỗi</span>
+              </span>
+            )}
             {isRecalling && <span className="ml-1">(đang thu hồi)</span>}
           </span>
         </div>
         
         {/* Absolute positioned action buttons to prevent layout shift */}
         <div className={cn("absolute hidden group-hover:flex items-center gap-1 top-1/2 -translate-y-1/2", outgoing ? "right-full mr-2" : "left-full ml-2")}>
-          {outgoing && status === "sent" && onRecall && (
+          {outgoing && (status === "sent" || status === "read") && onRecall && (
             <Button variant="ghost"
               type="button"
               onClick={handleRecall}

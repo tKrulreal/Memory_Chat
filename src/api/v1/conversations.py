@@ -144,7 +144,7 @@ def _get_owned_conversation(
 
 
 @router.post("/{conversation_id}/read", status_code=status.HTTP_200_OK)
-def mark_conversation_as_read(
+async def mark_conversation_as_read(
     conversation_id: uuid.UUID,
     current_user: CurrentUserDep,
     db: DatabaseDep,
@@ -152,6 +152,37 @@ def mark_conversation_as_read(
 ) -> dict[str, str]:
     try:
         service.mark_as_read(db, current_user.id, conversation_id)
+
+        # Broadcast MESSAGE_READ if current user allows read receipts
+        from src.models.user import Setting
+        from src.models.chat import ConversationUserState, Message
+        from src.api.ws import manager
+
+        setting = db.query(Setting).filter(Setting.user_id == current_user.id).first()
+        allows_read_receipts = setting.read_receipts if setting is not None else True
+
+        if allows_read_receipts:
+            conv = service.conversation_repository.get(db, id=conversation_id)
+            if conv:
+                peer_id = conv.user_b_id if conv.user_a_id == current_user.id else conv.user_a_id
+                state = db.query(ConversationUserState).filter(
+                    ConversationUserState.user_id == current_user.id,
+                    ConversationUserState.conversation_id == conversation_id
+                ).first()
+                if state and state.last_read_message_id:
+                    try:
+                        read_msg = db.get(Message, uuid.UUID(state.last_read_message_id))
+                        read_at = read_msg.created_at.isoformat() if read_msg and read_msg.created_at else None
+                    except Exception:
+                        read_at = None
+                    await manager.broadcast_to_user(peer_id, {
+                        "type": "MESSAGE_READ",
+                        "conversation_id": str(conversation_id),
+                        "reader_id": str(current_user.id),
+                        "last_read_message_id": state.last_read_message_id,
+                        "read_at": read_at,
+                    })
+
         return {"status": "success"}
     except ConversationNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found") from None

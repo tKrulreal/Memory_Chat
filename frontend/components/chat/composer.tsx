@@ -7,6 +7,8 @@ import { useSendMessage } from "@/hooks/use-send-message";
 import { v4 as uuidv4 } from "uuid";
 import { useUIStore } from "@/lib/stores/ui-store";
 import { Textarea } from "@/components/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
+import { getSettings } from "@/lib/api/settings";
 
 type ComposerProps = {
   conversationId: string;
@@ -17,6 +19,14 @@ export function Composer({ conversationId }: ComposerProps) {
   const mutation = useSendMessage(conversationId);
   const setCopilotOpen = useUIStore((s) => s.setCopilotOpen);
   const isSendingRef = useRef(false);
+
+  const { data: settings } = useQuery({
+    queryKey: ["my-settings"],
+    queryFn: getSettings,
+    staleTime: 60_000,
+  });
+
+  const enterIsSend = settings?.enter_is_send !== false;
 
   useEffect(() => {
     const handleInsert = (e: any) => {
@@ -60,10 +70,20 @@ export function Composer({ conversationId }: ComposerProps) {
     // Ngăn lỗi bộ gõ tiếng Việt (IME) chèn lại text khi nhấn Enter để kết thúc gõ dấu
     if (e.nativeEvent.isComposing) return;
 
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      if (mutation.isPending || isSendingRef.current) return;
-      handleSend();
+    if (enterIsSend) {
+      // Khi bật enter_is_send: Enter để gửi, Shift+Enter xuống dòng
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        if (mutation.isPending || isSendingRef.current) return;
+        handleSend();
+      }
+    } else {
+      // Khi tắt enter_is_send: Ctrl+Enter hoặc Cmd+Enter để gửi, Enter đơn thuần xuống dòng
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        if (mutation.isPending || isSendingRef.current) return;
+        handleSend();
+      }
     }
   };
 
@@ -82,7 +102,7 @@ export function Composer({ conversationId }: ComposerProps) {
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Reply or type '/' for AI commands..."
+        placeholder={enterIsSend ? "Nhập tin nhắn (Enter để gửi, Shift+Enter xuống dòng)..." : "Nhập tin nhắn (Bấm nút Gửi hoặc Ctrl+Enter)..."}
         aria-label="Message composer"
         className="scrollbar-thin max-h-32 min-h-[40px] flex-1 resize-none bg-transparent py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
       />

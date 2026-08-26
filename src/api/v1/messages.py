@@ -53,8 +53,39 @@ def list_messages(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found") from None
     except MessageOwnershipError:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to access this conversation") from None
+
+    # Calculate read receipt status
+    conv = service.conversation_repository.get(db, id=conversation_id)
+    peer_id = conv.user_b_id if conv and conv.user_a_id == current_user.id else (conv.user_a_id if conv else None)
+    
+    peer_read_at = None
+    if peer_id:
+        from src.models.user import Setting
+        from src.models.chat import ConversationUserState, Message
+        peer_setting = db.query(Setting).filter(Setting.user_id == peer_id).first()
+        peer_allows_read = peer_setting.read_receipts if peer_setting is not None else True
+        if peer_allows_read:
+            peer_state = db.query(ConversationUserState).filter(
+                ConversationUserState.user_id == peer_id,
+                ConversationUserState.conversation_id == conversation_id
+            ).first()
+            if peer_state and peer_state.last_read_message_id:
+                try:
+                    read_msg = db.get(Message, uuid.UUID(peer_state.last_read_message_id))
+                    if read_msg:
+                        peer_read_at = read_msg.created_at
+                except Exception:
+                    pass
+
+    data = []
+    for message in messages:
+        msg_resp = MessageResponse.model_validate(message)
+        if msg_resp.sender_user_id == current_user.id and peer_read_at and message.created_at <= peer_read_at:
+            msg_resp.is_read = True
+        data.append(msg_resp)
+
     return CursorPaginatedResponse(
-        data=[MessageResponse.model_validate(message) for message in messages],
+        data=data,
         pagination=CursorPagination(has_next=has_next, limit=limit),
     )
 

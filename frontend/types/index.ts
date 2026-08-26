@@ -37,6 +37,7 @@ export type Message = {
   created_at: string;
   client_message_id?: string | null;
   deleted_at?: string | null;
+  is_read?: boolean;
   local_status?: "sending" | "sent" | "failed";
 };
 

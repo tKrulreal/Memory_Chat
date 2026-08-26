@@ -24,5 +24,6 @@ class MessageResponse(MessageBase):
     created_at: datetime
     edited_at: datetime | None = None
     deleted_at: datetime | None = None
+    is_read: bool = False
 
     model_config = ConfigDict(from_attributes=True)
