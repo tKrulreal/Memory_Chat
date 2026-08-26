@@ -1,68 +1,97 @@
-# Python
+# Python & Bytecode
 __pycache__/
 *.py[cod]
+*$py.class
 *.so
 *.egg-info/
 dist/
 build/
 .eggs/
+*.egg
 
 # Virtual environments
 venv/
 .venv/
 env/
+ENV/
+env.bak/
+venv.bak/
 
-# Environment variables
+# Environment variables & secrets (keep .env.example only)
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
+!.env.test
 
-# IDE
+# IDEs & Editors
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+*.sublime-workspace
+*.sublime-project
+.cursor/
 
-# OS
+# OS Specific
 .DS_Store
 Thumbs.db
+desktop.ini
+ehthumbs.db
 
-# Data (never commit large data)
+# Databases & Vector DB & Cache
 data/
+!data/.gitkeep
 *.db
+*.sqlite
 *.sqlite3
+chroma.sqlite3
+tmp_test_chroma/
+db.sqlite3
 
 # Logs
 logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Test coverage
+# AI logs & Prompts
+.ai-log/
+*.jsonl
+.vibecoding
+
+# Test coverage & Caches
 htmlcov/
 .coverage
+.coverage.*
 coverage.xml
+*.cover
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
 
-# Docker
+# Node & Next.js Frontend
+node_modules/
+frontend/node_modules/
+frontend-next/
+.next/
+frontend/.next/
+out/
+frontend/out/
+.nuxt/
+.turbo/
+*.tsbuildinfo
+frontend/*.tsbuildinfo
+
+# Docker override
 docker-compose.override.yml
 
-# Node (frontend)
-node_modules/
-.next/
-out/
-.nuxt/
-
-# Build
-*.pyc
-*.pyo
-
-# AI logs — tracked structure, ignored content
-.ai-log/*.jsonl
-.ai-log/archive/
-.vibecoding
-*.jsonl
-!data/.gitkeep
-!backup/.gitkeep
-
-# Local backup files
+# Backups
 backup/*.tar.gz
+backup/*.sql
 backup/latest.tar.gz
+!backup/.gitkeep

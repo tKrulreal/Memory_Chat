@@ -1,0 +1,162 @@
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy.orm import Session
+
+from src.api.deps import get_db, get_event_bus
+from src.core.security import get_current_user
+from src.events.bus import EventBus
+from src.events.types import EventType
+from src.models.user import User
+from src.repositories.conversation import ConversationRepository
+from src.repositories.message import MessageRepository
+from src.schemas.message import MessageCreate, MessageResponse
+from datetime import datetime
+from src.schemas.pagination import CursorPaginatedResponse, CursorPagination
+from src.services.message import (
+    MessageConflictError,
+    MessageConversationNotFoundError,
+    MessageNotFoundError,
+    MessageOwnershipError,
+    MessageService,
+)
+
+router = APIRouter()
+
+
+def get_message_service() -> MessageService:
+    return MessageService(MessageRepository(), ConversationRepository())
+
+
+MessageServiceDep = Annotated[MessageService, Depends(get_message_service)]
+CurrentUserDep = Annotated[User, Depends(get_current_user)]
+DatabaseDep = Annotated[Session, Depends(get_db)]
+EventBusDep = Annotated[EventBus, Depends(get_event_bus)]
+
+
+@router.get("/direct-conversations/{conversation_id}/messages", response_model=CursorPaginatedResponse[MessageResponse])
+def list_messages(
+    conversation_id: uuid.UUID,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+    service: MessageServiceDep,
+    before_created_at: datetime | None = None,
+    before_id: uuid.UUID | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 50,
+):
+    try:
+        messages, has_next = service.list_messages(
+            db, current_user.id, conversation_id, limit, before_created_at, before_id
+        )
+    except MessageConversationNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found") from None
+    except MessageOwnershipError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to access this conversation") from None
+
+    # Calculate read receipt status
+    conv = service.conversation_repository.get(db, id=conversation_id)
+    peer_id = conv.user_b_id if conv and conv.user_a_id == current_user.id else (conv.user_a_id if conv else None)
+    
+    peer_read_at = None
+    if peer_id:
+        from src.models.user import Setting
+        from src.models.chat import ConversationUserState, Message
+        peer_setting = db.query(Setting).filter(Setting.user_id == peer_id).first()
+        peer_allows_read = peer_setting.read_receipts if peer_setting is not None else True
+        if peer_allows_read:
+            peer_state = db.query(ConversationUserState).filter(
+                ConversationUserState.user_id == peer_id,
+                ConversationUserState.conversation_id == conversation_id
+            ).first()
+            if peer_state and peer_state.last_read_message_id:
+                try:
+                    read_msg = db.get(Message, uuid.UUID(peer_state.last_read_message_id))
+                    if read_msg:
+                        peer_read_at = read_msg.created_at
+                except Exception:
+                    pass
+
+    data = []
+    for message in messages:
+        msg_resp = MessageResponse.model_validate(message)
+        if msg_resp.sender_user_id == current_user.id and peer_read_at and message.created_at <= peer_read_at:
+            msg_resp.is_read = True
+        data.append(msg_resp)
+
+    return CursorPaginatedResponse(
+        data=data,
+        pagination=CursorPagination(has_next=has_next, limit=limit),
+    )
+
+
+@router.post("/direct-conversations/{conversation_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+async def create_message(
+    conversation_id: uuid.UUID,
+    message_in: MessageCreate,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+    service: MessageServiceDep,
+    event_bus: EventBusDep,
+    response: Response,
+):
+    try:
+        message, is_new = service.create_message(db, current_user.id, conversation_id, message_in, event_bus)
+        if not is_new:
+            # Idempotency: Return 200 OK with the existing message instead of 201 Created
+            response.status_code = status.HTTP_200_OK
+    except MessageConversationNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found") from None
+    except MessageOwnershipError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to access this conversation") from None
+        
+    # Fan-out to connected websocket clients
+    from src.api.ws import manager
+    conversation = service.conversation_repository.get(db, id=conversation_id)
+    msg_dict = MessageResponse.model_validate(message).model_dump(mode="json")
+    msg_dict["type"] = "NEW_MESSAGE"
+    if conversation:
+        await manager.broadcast_to_user(conversation.user_a_id, msg_dict)
+        await manager.broadcast_to_user(conversation.user_b_id, msg_dict)
+
+    return MessageResponse.model_validate(message)
+
+
+@router.get("/messages/{message_id}", response_model=MessageResponse)
+def get_message(
+    message_id: uuid.UUID, current_user: CurrentUserDep, db: DatabaseDep, service: MessageServiceDep
+):
+    return MessageResponse.model_validate(_get_owned_message(service, db, current_user.id, message_id))
+
+
+@router.delete("/messages/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_message(
+    message_id: uuid.UUID, current_user: CurrentUserDep, db: DatabaseDep, service: MessageServiceDep
+) -> Response:
+    message = service.delete_message(db, current_user.id, message_id)
+    
+    # Broadcast MESSAGE_RECALLED event
+    from src.api.ws import manager
+    conversation = service.conversation_repository.get(db, id=message.conversation_id)
+    if conversation:
+        event_payload = {
+            "type": "MESSAGE_RECALLED",
+            "conversation_id": str(message.conversation_id),
+            "message_id": str(message.id),
+            "deleted_at": message.deleted_at.isoformat() if message.deleted_at else None,
+        }
+        await manager.broadcast_to_user(conversation.user_a_id, event_payload)
+        await manager.broadcast_to_user(conversation.user_b_id, event_payload)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _get_owned_message(service: MessageService, db: Session, user_id: uuid.UUID, message_id: uuid.UUID):
+    try:
+        return service.get_owned_message(db, user_id, message_id)
+    except MessageNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found") from None
+    except MessageConversationNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found") from None
+    except MessageOwnershipError:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not allowed to access this message") from None
