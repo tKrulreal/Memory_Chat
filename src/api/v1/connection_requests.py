@@ -268,19 +268,29 @@ def send_connection_request(
     
     for rec in recs_to_update:
         rec.status = "ACCEPTED"
-        
-    db.commit()
-    db.refresh(new_req)
 
     # Publish real-time event
-    event_bus.publish(
-        db=db,
-        event_type=EventType.CONNECTION_REQUEST,
-        user_id=target_user.id,
-        payload={"request_id": str(new_req.id), "sender_name": current_user.full_name or current_user.email},
-    )
+    if event_bus:
+        try:
+            event_bus.publish(
+                db=db,
+                event_type=EventType.CONNECTION_REQUEST,
+                user_id=target_user.id,
+                payload={"request_id": str(new_req.id), "sender_name": current_user.full_name or current_user.email},
+            )
+        except Exception:
+            pass
 
-    return new_req
+    db.commit()
+
+    # Re-query with eager loading of sender and receiver for reliable serialization
+    result_req = (
+        db.query(ConnectionRequest)
+        .options(joinedload(ConnectionRequest.sender), joinedload(ConnectionRequest.receiver))
+        .filter(ConnectionRequest.id == new_req.id)
+        .first()
+    )
+    return result_req
 
 
 @router.post("/{request_id}/accept", response_model=ConnectionRequestResponse)
@@ -336,8 +346,12 @@ def accept_connection_request(
             n.status = "READ"
 
     db.commit()
-    db.refresh(req)
-    return req
+    return (
+        db.query(ConnectionRequest)
+        .options(joinedload(ConnectionRequest.sender), joinedload(ConnectionRequest.receiver))
+        .filter(ConnectionRequest.id == req.id)
+        .first()
+    )
 
 
 @router.post("/{request_id}/reject", response_model=ConnectionRequestResponse)
@@ -371,8 +385,12 @@ def reject_connection_request(
             n.status = "READ"
 
     db.commit()
-    db.refresh(req)
-    return req
+    return (
+        db.query(ConnectionRequest)
+        .options(joinedload(ConnectionRequest.sender), joinedload(ConnectionRequest.receiver))
+        .filter(ConnectionRequest.id == req.id)
+        .first()
+    )
 
 
 @router.post("/{request_id}/cancel", response_model=ConnectionRequestResponse)
@@ -393,8 +411,12 @@ def cancel_connection_request(
 
     req.status = "CANCELLED"
     db.commit()
-    db.refresh(req)
-    return req
+    return (
+        db.query(ConnectionRequest)
+        .options(joinedload(ConnectionRequest.sender), joinedload(ConnectionRequest.receiver))
+        .filter(ConnectionRequest.id == req.id)
+        .first()
+    )
 
 
 @router.delete("/friends/{target_user_id}", status_code=status.HTTP_200_OK)
@@ -406,9 +428,8 @@ def remove_friend_connection(
     """
     Hủy kết bạn (Unfriend):
     1. Xóa mọi ConnectionRequest giữa current_user và target_user.
-    2. Xóa cuộc trò chuyện trực tiếp (direct_conversations) và trạng thái liên quan.
-    3. Xóa bản ghi contacts/contact_memories liên quan nếu có.
-    4. Xóa các recommendation liên quan.
+    2. Xóa cuộc trò chuyện trực tiếp (direct_conversations) và trạng thái / tin nhắn / trí nhớ liên quan.
+    3. Xóa các recommendation kết bạn liên quan.
     """
     if current_user.id == target_user_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot unfriend yourself")
@@ -425,17 +446,38 @@ def remove_friend_connection(
         )
     ).delete(synchronize_session=False)
 
-    # 2. Delete conversation between them
+    # 2. Delete conversation between them and cascading data
     uid_a, uid_b = sorted([str(current_user.id), str(target_user_id)])
     existing_conv = (
         db.query(Conversation)
         .filter(Conversation.user_a_id == uid_a, Conversation.user_b_id == uid_b)
         .first()
     )
-    # 3. Clean up contact records if any
     if existing_conv:
-        db.query(Contact).filter(Contact.conversation_id == existing_conv.id).delete(synchronize_session=False)
+        from src.models.chat import Message, ConversationUserState, MessageReaction
+        from src.models.ai import AssistantMemory, EventLog
+
+        msg_ids = [m.id for m in db.query(Message.id).filter(Message.conversation_id == existing_conv.id).all()]
+        if msg_ids:
+            db.query(MessageReaction).filter(MessageReaction.message_id.in_(msg_ids)).delete(synchronize_session=False)
+
+        db.query(Message).filter(Message.conversation_id == existing_conv.id).delete(synchronize_session=False)
+        db.query(ConversationUserState).filter(ConversationUserState.conversation_id == existing_conv.id).delete(synchronize_session=False)
+        db.query(AssistantMemory).filter(AssistantMemory.conversation_id == existing_conv.id).delete(synchronize_session=False)
+        db.query(EventLog).filter(EventLog.conversation_id == existing_conv.id).update({"conversation_id": None}, synchronize_session=False)
         db.delete(existing_conv)
+
+    # 3. Clean up contact records between the two users if any
+    try:
+        from src.models.contact import Contact
+        db.query(Contact).filter(
+            or_(
+                and_(Contact.user_id == current_user.id, Contact.contact_user_id == target_user_id),
+                and_(Contact.user_id == target_user_id, Contact.contact_user_id == current_user.id),
+            )
+        ).delete(synchronize_session=False)
+    except Exception:
+        pass
 
     # 4. Clean up any recommendations between them
     db.query(Recommendation).filter(
