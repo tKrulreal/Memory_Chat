@@ -1,6 +1,6 @@
 """
 Seed Data Script - Comprehensive Seed for MemoryChat
-Seeds users, extended profiles, settings, conversations, messages, tags, AI configs, and connection requests.
+Seeds users, extended profiles, settings, conversations, messages, assistant memories, copilot chat, tags, AI configs, and connection requests.
 
 Usage:
     python seed_data.py          # Wipe and re-seed database cleanly
@@ -153,6 +153,9 @@ USERS = [
         "experience": [
             {"role": "Lead DevOps Engineer", "company": "CloudFirst", "years": "2021 - Present", "description": "Quản trị cụm Kubernetes AWS EKS và tự động hóa pipeline GitHub Actions."},
             {"role": "System Administrator", "company": "Viettel IDC", "years": "2018 - 2021", "description": "Vận hành hệ thống trung tâm dữ liệu và giám sát hạ tầng."}
+        ],
+        "education": [
+            {"school": "Đại học Bách Khoa Hà Nội", "degree": "Kỹ sư Điện tử Viễn thông", "year": "2014 - 2018"}
         ]
     },
 ]
@@ -174,6 +177,32 @@ CONVERSATIONS = [
             {"sender": "22222222-2222-2222-2222-222222222222", "content": "Tuyệt quá! Cuối tuần này chúng mình cafe trao đổi thêm về mô hình hợp tác nhé?"},
             {"sender": "11111111-1111-1111-1111-111111111111", "content": "Nhất trí! Hẹn bạn chiều Thứ 7 lúc 3h nha."},
         ],
+        "memories": {
+            "11111111-1111-1111-1111-111111111111": {
+                "summary": "Lan là Lead Product Manager tại StartupHub, đang mở rộng tính năng AI cá nhân hóa cho EdTech. Đã hẹn gặp cafe chiều Thứ 7 lúc 3h để bàn về hợp tác.",
+                "facts": {
+                    "last_met": "Chiều Thứ 7 lúc 3h",
+                    "interested_in": ["EdTech", "AI Cá nhân hóa", "SaaS Growth", "Hợp tác sản phẩm"],
+                    "follow_up": "Gặp mặt cafe chiều Thứ 7 lúc 3h trao đổi mô hình hợp tác",
+                    "relationship_score": 85,
+                    "timeline": [
+                        {"date": "2026-08-26", "message_count": 6, "last_message_preview": "Hẹn bạn chiều Thứ 7 lúc 3h nha.", "participants": ["USER", "CONTACT"]}
+                    ]
+                }
+            },
+            "22222222-2222-2222-2222-222222222222": {
+                "summary": "Minh là Senior Backend Engineer tại TechCorp Vietnam, có chuyên môn sâu về FastAPI, hệ thống phân tán và Vector Search với Qdrant.",
+                "facts": {
+                    "last_met": "Chiều Thứ 7 lúc 3h",
+                    "interested_in": ["FastAPI", "Vector Search", "Qdrant", "Hệ thống phân tán"],
+                    "follow_up": "Trao đổi cafe chiều Thứ 7 về kỹ thuật AI Agent",
+                    "relationship_score": 85,
+                    "timeline": [
+                        {"date": "2026-08-26", "message_count": 6, "last_message_preview": "Hẹn bạn chiều Thứ 7 lúc 3h nha.", "participants": ["USER", "CONTACT"]}
+                    ]
+                }
+            }
+        }
     },
     # 2. Minh (1) & Khoa (3)
     {
@@ -187,6 +216,20 @@ CONVERSATIONS = [
             {"sender": "11111111-1111-1111-1111-111111111111", "content": "Nếu cần truy xuất context realtime dưới 10ms thì Redis Cluster là tối ưu nhất. Kafka dùng khi cần log streaming và replay tin nhắn."},
             {"sender": "33333333-3333-3333-3333-333333333333", "content": "Cảm ơn Minh rất nhiều! Để mình benchmark thử trên cluster của bên mình."},
         ],
+        "memories": {
+            "11111111-1111-1111-1111-111111111111": {
+                "summary": "Khoa là AI & Data Scientist tại AI Labs, đang triển khai RAG Pipeline và LLM Router cho hệ thống Copilot.",
+                "facts": {
+                    "last_met": None,
+                    "interested_in": ["RAG Pipeline", "LLM Serving", "Redis", "Kafka", "Qdrant"],
+                    "follow_up": "Theo dõi kết quả benchmark kiến trúc Redis Cluster từ Khoa",
+                    "relationship_score": 75,
+                    "timeline": [
+                        {"date": "2026-08-26", "message_count": 5, "last_message_preview": "Cảm ơn Minh rất nhiều! Để mình benchmark thử...", "participants": ["USER", "CONTACT"]}
+                    ]
+                }
+            }
+        }
     },
     # 3. Lan (2) & Mai (4)
     {
@@ -199,11 +242,25 @@ CONVERSATIONS = [
             {"sender": "44444444-4444-4444-4444-444444444444", "content": "Mình có portfolio chuyên về Gamification và Design Systems, mình vừa gửi qua email cho bạn tham khảo nhé!"},
             {"sender": "22222222-2222-2222-2222-222222222222", "content": "Portfolio đẹp và chỉn chu lắm Mai ơi. Sáng mai 10h mình setup buổi meeting online nhé!"},
         ],
+        "memories": {
+            "22222222-2222-2222-2222-222222222222": {
+                "summary": "Mai là Lead UI/UX Designer tại Design Studio, có kinh nghiệm chuyên sâu về Gamification và Design Systems cho ứng dụng EdTech.",
+                "facts": {
+                    "last_met": "Sáng mai 10h",
+                    "interested_in": ["UI/UX Design", "Gamification", "Design System", "Figma"],
+                    "follow_up": "Meeting online lúc 10h sáng mai để trao đổi chi tiết dự án",
+                    "relationship_score": 80,
+                    "timeline": [
+                        {"date": "2026-08-26", "message_count": 4, "last_message_preview": "Sáng mai 10h mình setup buổi meeting online nhé!", "participants": ["USER", "CONTACT"]}
+                    ]
+                }
+            }
+        }
     },
 ]
 
 # ============================================================
-# Pending Connection Requests (for testing Accept / Reject)
+# Pending & Accepted Connection Requests
 # ============================================================
 CONNECTION_REQUESTS = [
     # Mai (4) sent friend request to Minh (1) -> PENDING (Minh can Accept or Reject)
@@ -234,6 +291,52 @@ CONNECTION_REQUESTS = [
         "receiver_id": "22222222-2222-2222-2222-222222222222",
         "status": "ACCEPTED",
     },
+]
+
+# ============================================================
+# Sample Copilot Messages (User 1 - Tran Minh)
+# ============================================================
+COPILOT_MESSAGES = [
+    {
+        "id": "cccc1111-1111-1111-1111-111111111111",
+        "user_id": "11111111-1111-1111-1111-111111111111",
+        "role": "user",
+        "content": "Tìm giúp tôi người làm về UI/UX hoặc Design System trong mạng lưới.",
+        "tools_used": [],
+        "sources": [],
+        "intent": "SEARCH",
+        "minutes_ago": 120,
+    },
+    {
+        "id": "cccc2222-2222-2222-2222-222222222222",
+        "user_id": "11111111-1111-1111-1111-111111111111",
+        "role": "assistant",
+        "content": "Dựa trên hồ sơ của các thành viên, tôi tìm thấy **Lê Mai** (Lead UI/UX Designer tại Design Studio).\n\n- **Chuyên môn:** UI Design, Design Systems, Gamification, Figma, Tailwind CSS.\n- **Kinh nghiệm:** Thiết kế Design System SaaS đa nền tảng.\n- **Nhu cầu:** Đang tìm kiếm Backend Developer và Frontend Developer để hợp tác.\n\nBạn có thể gửi lời mời kết nối với Mai từ trang Kết nối!",
+        "tools_used": ["semantic_search"],
+        "sources": ["user_profiles", "tags"],
+        "intent": "SEARCH",
+        "minutes_ago": 119,
+    },
+    {
+        "id": "cccc3333-3333-3333-3333-333333333333",
+        "user_id": "11111111-1111-1111-1111-111111111111",
+        "role": "user",
+        "content": "Tôi và Lan đã hẹn gặp nhau khi nào nhỉ?",
+        "tools_used": [],
+        "sources": [],
+        "intent": "MEMORY",
+        "minutes_ago": 45,
+    },
+    {
+        "id": "cccc4444-4444-4444-4444-444444444444",
+        "user_id": "11111111-1111-1111-1111-111111111111",
+        "role": "assistant",
+        "content": "Theo ghi nhận từ cuộc trò chuyện gần nhất giữa bạn và **Nguyễn Thị Lan**, hai bạn đã thống nhất lịch hẹn cafe vào **Chiều Thứ 7 lúc 3h** để trao đổi về hợp tác sản phẩm EdTech và AI Agent.",
+        "tools_used": ["get_peer_info"],
+        "sources": ["assistant_memories", "direct_conversations"],
+        "intent": "MEMORY",
+        "minutes_ago": 44,
+    }
 ]
 
 # ============================================================
@@ -310,7 +413,11 @@ INSERT INTO settings (
     media_auto_download = EXCLUDED.media_auto_download,
     message_preview = EXCLUDED.message_preview,
     accent_color = EXCLUDED.accent_color,
-    font_size = EXCLUDED.font_size;
+    font_size = EXCLUDED.font_size,
+    ai_memory_refresh_interval = EXCLUDED.ai_memory_refresh_interval,
+    ai_memory_window = EXCLUDED.ai_memory_window,
+    ai_recommendation_interval = EXCLUDED.ai_recommendation_interval,
+    ai_copilot_context_turns = EXCLUDED.ai_copilot_context_turns;
 """
         sql_statements.append(s_sql.strip())
 
@@ -412,7 +519,7 @@ ON CONFLICT (user_id, name) DO NOTHING;
 """
             sql_statements.append(tag_sql.strip())
 
-    # 2. CONVERSATIONS & MESSAGES
+    # 2. CONVERSATIONS, MESSAGES & ASSISTANT MEMORIES
     for c_idx, conv in enumerate(CONVERSATIONS):
         # Enforce user_a_id < user_b_id
         uid_a, uid_b = sorted([conv["user_a_id"], conv["user_b_id"]])
@@ -469,7 +576,51 @@ VALUES (
 """
             sql_statements.append(msg_sql.strip())
 
-    # 3. CONNECTION REQUESTS
+        # Assistant Memories
+        if "memories" in conv:
+            for owner_id, mem_data in conv["memories"].items():
+                facts_json = json.dumps(mem_data["facts"]).replace("'", "''")
+                summary_escaped = mem_data["summary"].replace("'", "''")
+                mem_sql = f"""
+INSERT INTO assistant_memories (id, owner_user_id, conversation_id, scope, summary, facts, created_at, updated_at)
+VALUES (
+    '{uuid.uuid4()}',
+    '{owner_id}',
+    '{conv["id"]}',
+    'CONVERSATION',
+    '{summary_escaped}',
+    '{facts_json}'::json,
+    '{now.isoformat()}',
+    '{now.isoformat()}'
+) ON CONFLICT (id) DO NOTHING;
+"""
+                sql_statements.append(mem_sql.strip())
+
+    # 3. COPILOT MESSAGES
+    for cmsg in COPILOT_MESSAGES:
+        cmsg_time = now - timedelta(minutes=cmsg["minutes_ago"])
+        tools_json = json.dumps(cmsg.get("tools_used", [])).replace("'", "''")
+        sources_json = json.dumps(cmsg.get("sources", [])).replace("'", "''")
+        content_escaped = cmsg["content"].replace("'", "''")
+        intent_val = f"'{cmsg['intent']}'" if cmsg.get("intent") else "NULL"
+
+        copilot_sql = f"""
+INSERT INTO copilot_messages (id, user_id, role, content, tools_used, sources, intent, created_at, updated_at)
+VALUES (
+    '{cmsg["id"]}',
+    '{cmsg["user_id"]}',
+    '{cmsg["role"]}',
+    '{content_escaped}',
+    '{tools_json}'::json,
+    '{sources_json}'::json,
+    {intent_val},
+    '{cmsg_time.isoformat()}',
+    '{cmsg_time.isoformat()}'
+) ON CONFLICT (id) DO NOTHING;
+"""
+        sql_statements.append(copilot_sql.strip())
+
+    # 4. CONNECTION REQUESTS
     for req in CONNECTION_REQUESTS:
         req_sql = f"""
 INSERT INTO connection_requests (id, sender_id, receiver_id, status, created_at, updated_at)
@@ -486,7 +637,7 @@ VALUES (
 """
         sql_statements.append(req_sql.strip())
 
-    # 4. NOTIFICATIONS
+    # 5. NOTIFICATIONS
     user_map = {u["id"]: u for u in USERS}
 
     for req in CONNECTION_REQUESTS:
@@ -573,6 +724,7 @@ def clean_and_seed_database():
 
     # 1. Delete all records from tables in foreign-key safe order
     tables_to_clean = [
+        "copilot_messages",
         "message_reactions",
         "messages",
         "conversation_user_state",
@@ -614,7 +766,7 @@ def clean_and_seed_database():
             if stmt_clean:
                 conn.execute(text(stmt_clean + ";"))
 
-    print("✓ Successfully seeded Users, Profiles, Settings, AI Configs, Tags, Conversations, Messages, and Connection Requests!", flush=True)
+    print("✓ Successfully seeded Users, Profiles, Settings, AI Configs, Tags, Conversations, Messages, Assistant Memories, Copilot History, and Connection Requests!", flush=True)
 
 
 def main():
