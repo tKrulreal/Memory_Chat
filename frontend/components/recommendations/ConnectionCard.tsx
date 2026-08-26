@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { usePresenceStore } from "@/lib/stores/presence-store";
 
 type Priority = "HIGH" | "MEDIUM" | "LOW";
 
@@ -172,14 +173,21 @@ export function ConnectionCard({
       {/* Main Candidate Card */}
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex items-center gap-4 min-w-0">
-          <Avatar className="h-14 w-14 shrink-0 border border-slate-100 shadow-sm">
-            {recommendation.target_user_avatar && (
-              <AvatarImage src={recommendation.target_user_avatar} alt={targetName} />
+          <div className="relative shrink-0">
+            <Avatar className="h-14 w-14 border border-slate-100 shadow-sm">
+              {recommendation.target_user_avatar && (
+                <AvatarImage src={recommendation.target_user_avatar} alt={targetName} />
+              )}
+              <AvatarFallback className="bg-blue-50 text-blue-700 font-bold text-lg uppercase">
+                {targetInitials}
+              </AvatarFallback>
+            </Avatar>
+            {recommendation.target_user_id && usePresenceStore.getState().isUserOnline(recommendation.target_user_id) ? (
+              <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-white" title="Đang hoạt động" />
+            ) : (
+              <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-slate-100 border-2 border-slate-400 ring-2 ring-white" title="Không hoạt động" />
             )}
-            <AvatarFallback className="bg-blue-50 text-blue-700 font-bold text-lg uppercase">
-              {targetInitials}
-            </AvatarFallback>
-          </Avatar>
+          </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <h3 className="truncate text-base font-bold text-slate-900 group-hover:text-blue-700 transition-colors">

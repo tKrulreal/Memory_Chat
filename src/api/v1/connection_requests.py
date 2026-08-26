@@ -196,25 +196,35 @@ def send_connection_request(
             status_code=status.HTTP_409_CONFLICT,
             detail="This user already sent you a request — accept it instead",
         )
-    # Check for existing request
+    # Check for existing request in either direction
     existing_req = db.query(ConnectionRequest).filter(
-        ConnectionRequest.sender_id == current_user.id,
-        ConnectionRequest.receiver_id == target_user.id
+        or_(
+            and_(ConnectionRequest.sender_id == current_user.id, ConnectionRequest.receiver_id == target_user.id),
+            and_(ConnectionRequest.sender_id == target_user.id, ConnectionRequest.receiver_id == current_user.id),
+        )
     ).first()
 
     if existing_req:
         if existing_req.status == "PENDING":
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Connection request already sent",
-            )
+            if existing_req.sender_id == current_user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Bạn đã gửi lời mời kết bạn cho người này rồi",
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Người này đã gửi lời mời cho bạn, vui lòng chấp nhận lời mời",
+                )
         elif existing_req.status == "ACCEPTED":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Already connected",
+                detail="Hai bạn đã là bạn bè",
             )
         else:
             # Reuse cancelled or rejected request
+            existing_req.sender_id = current_user.id
+            existing_req.receiver_id = target_user.id
             existing_req.status = "PENDING"
             new_req = existing_req
             db.add(new_req)

@@ -354,10 +354,13 @@ def accept_connection(
             elif existing_req.sender_id == target_user.id:
                 # Target user already sent a request, so accept it!
                 existing_req.status = "ACCEPTED"
-                new_conv = Conversation(user_a_id=existing_req.sender_id, user_b_id=existing_req.receiver_id)
-                db.add(new_conv)
-                db.flush()
-                target_conv_id = new_conv.id
+                uid_a, uid_b = sorted([str(existing_req.sender_id), str(existing_req.receiver_id)])
+                existing = db.query(Conversation).filter(Conversation.user_a_id == uid_a, Conversation.user_b_id == uid_b).first()
+                if not existing:
+                    existing = Conversation(user_a_id=uid_a, user_b_id=uid_b)
+                    db.add(existing)
+                    db.flush()
+                target_conv_id = existing.id
 
     db.commit()
     db.refresh(rec)
