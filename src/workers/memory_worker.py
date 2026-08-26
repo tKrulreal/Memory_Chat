@@ -66,6 +66,11 @@ class MemoryWorker:
             logger.info("MemoryWorker: AI is globally disabled for user_id=%s. Skipping memory refresh.", user_id)
             return
 
+        # Check chat extraction toggle
+        if setting and getattr(setting, "ai_extract_chat", True) is False:
+            logger.info("MemoryWorker: AI chat extraction is disabled for user_id=%s. Skipping memory refresh.", user_id)
+            return
+
         # Check specific memory toggle
         from src.models.tag import AISystemConfig
         ai_config = session.query(AISystemConfig).filter(

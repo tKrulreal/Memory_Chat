@@ -198,6 +198,22 @@ export default function AIHubPage() {
                             <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
                           </label>
                         </div>
+
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-0.5">
+                            <span className="text-sm text-slate-700 font-medium">Cho phép AI trích xuất đoạn chat</span>
+                            <p className="text-[11px] text-slate-400">Phân tích tin nhắn để học thói quen và thông tin</p>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              className="sr-only peer" 
+                              checked={settings.ai_extract_chat !== false}
+                              onChange={(e) => handleUpdateSetting("ai_extract_chat", e.target.checked)}
+                            />
+                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                          </label>
+                        </div>
                       </div>
 
                       {settings.ai_enabled && (

@@ -88,13 +88,32 @@ export type SearchResult = {
 export type Setting = {
   user_id: string;
   theme?: string;
+  language?: string;
   notifications_enabled?: boolean;
+  notification?: boolean;
+  sound_enabled?: boolean;
+  enter_is_send?: boolean;
+  read_receipts?: boolean;
+  online_status?: boolean;
+  media_auto_download?: boolean;
+  message_preview?: boolean;
+  accent_color?: string;
+  font_size?: string;
   ai_enabled?: boolean;
   ai_read_profile?: boolean;
+  ai_extract_chat?: boolean;
   ai_memory_refresh_interval?: string;
   ai_memory_window?: string;
   ai_recommendation_interval?: string;
   ai_copilot_context_turns?: number;
+};
+
+export type BlockedUser = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  avatar: string | null;
+  blocked_at: string;
 };
 
 export type Tag = {

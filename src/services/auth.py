@@ -57,3 +57,19 @@ class AuthService:
 
         access_token = create_access_token(data={"sub": str(user.id)})
         return {"access_token": access_token, "token_type": "bearer"}
+
+    @staticmethod
+    def change_password(db: Session, user: User, current_password: str, new_password: str) -> dict[str, str]:
+        if not verify_password(current_password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mật khẩu hiện tại không chính xác",
+            )
+        if len(new_password) < 6:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mật khẩu mới phải có tối thiểu 6 ký tự",
+            )
+        user.password_hash = get_password_hash(new_password)
+        db.commit()
+        return {"message": "Đổi mật khẩu thành công"}

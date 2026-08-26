@@ -24,6 +24,10 @@ class UserResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
 @router.post("/register", response_model=UserResponse)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
     return AuthService.register(db, user_in)
@@ -35,6 +39,14 @@ def login(user_in: UserLogin, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+@router.post("/change-password")
+def change_password(
+    req: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return AuthService.change_password(db, current_user, req.current_password, req.new_password)
 
 class WSTicketResponse(BaseModel):
     ticket: str

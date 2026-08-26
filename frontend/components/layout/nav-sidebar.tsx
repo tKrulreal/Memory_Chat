@@ -1,8 +1,8 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { MessageCircle, Users, Settings, LogOut, Sparkles, Box, Bell } from "lucide-react";
+import { MessageCircle, Users, Settings, LogOut, Sparkles, Box, Bell, User as UserIcon } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useAISettings } from "@/hooks/use-ai-settings";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ import { getUnreadNotificationsCount } from "@/lib/api/notifications";
 const NAV_ITEMS = [
   { href: "/chats", label: "Chats", icon: MessageCircle },
   { href: "/connections", label: "Connections", icon: Users },
+  { href: "/profile", label: "Profile", icon: UserIcon },
   { href: "/ai-hub", label: "AI Hub", icon: Box },
   { href: "/copilot", label: "Copilot", icon: Sparkles },
   { href: "/notifications", label: "Notifications", icon: Bell },
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
 
 export function NavSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { features } = useAISettings();
 
@@ -146,17 +148,20 @@ export function NavSidebar() {
           </span>
         </Button>
 
-        {/* User Info */}
+        {/* User Info / Profile Link */}
         {user && (
-          <div className="mt-2 flex items-center gap-3 rounded-xl bg-slate-800 p-3 w-[196px]">
+          <Link
+            href="/profile"
+            className="mt-2 flex items-center gap-3 rounded-xl bg-slate-800 hover:bg-slate-700/80 transition-colors p-3 w-[196px] cursor-pointer"
+          >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-sm font-bold text-blue-400">
               {initials ?? "U"}
             </div>
             <div className="min-w-0 flex-1 transition-opacity duration-200 opacity-0 group-hover:opacity-100">
-              <p className="truncate text-sm font-semibold text-white">{user.full_name}</p>
+              <p className="truncate text-sm font-semibold text-white">{user.full_name || "Tài khoản"}</p>
               <p className="truncate text-[11px] text-slate-400 leading-tight mt-0.5">{user.email}</p>
             </div>
-          </div>
+          </Link>
         )}
       </div>
     </aside>
