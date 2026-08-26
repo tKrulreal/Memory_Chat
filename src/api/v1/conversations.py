@@ -162,7 +162,7 @@ async def mark_conversation_as_read(
         allows_read_receipts = setting.read_receipts if setting is not None else True
 
         if allows_read_receipts:
-            conv = service.conversation_repository.get(db, id=conversation_id)
+            conv = service.repository.get(db, id=conversation_id)
             if conv:
                 peer_id = conv.user_b_id if conv.user_a_id == current_user.id else conv.user_a_id
                 state = db.query(ConversationUserState).filter(

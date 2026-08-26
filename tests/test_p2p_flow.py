@@ -133,4 +133,12 @@ async def test_p2p_flow_e2e(
         assert ws_msg["type"] == "NEW_MESSAGE"
         assert ws_msg["content"] == "Hello B from A"
 
+        # Test Mark Conversation As Read
+        res_read = await integration_client.post(
+            f"/api/v1/direct-conversations/{conv_id_1}/read",
+            headers=headers_b
+        )
+        assert res_read.status_code == 200
+        assert res_read.json() == {"status": "success"}
+
     print("All P2P Flow tests passed!")

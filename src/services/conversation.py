@@ -23,6 +23,7 @@ class ConversationDuplicateError(Exception):
 class ConversationService:
     def __init__(self, repository: ConversationRepository):
         self.repository = repository
+        self.conversation_repository = repository
 
     def list_conversations(
         self,
