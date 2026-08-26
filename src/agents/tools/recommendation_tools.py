@@ -60,12 +60,13 @@ def get_recommendations(
             return f"Invalid user_id: {user_id}"
 
         from sqlalchemy import desc, select
+        from src.models.user import User
 
-        # ✅ FIX: Lọc theo user_id để ngăn data leak
+        # ✅ FIX: Lọc theo owner_user_id để ngăn data leak
         stmt = (
-            select(Recommendation, Contact.display_name)
-            .join(Contact, Recommendation.contact_id == Contact.id)
-            .where(Contact.user_id == uid)  # ✅ ENFORCE USER SCOPE
+            select(Recommendation, User.full_name)
+            .outerjoin(User, Recommendation.target_user_id == User.id)
+            .where(Recommendation.owner_user_id == uid)
             .where(Recommendation.status == status)
             .order_by(desc(Recommendation.created_at))
             .limit(limit)

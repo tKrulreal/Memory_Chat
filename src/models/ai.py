@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import JSON, DateTime, ForeignKey, String, Float
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 from src.models.database import Base, created_at_col, updated_at_col, uuid_pk
 
@@ -24,46 +24,26 @@ class Recommendation(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         index=True
     )
-
-    # User-to-User recommendation reference
     target_user_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("users.id", ondelete="SET NULL"),
         index=True,
         nullable=True
     )
 
-    # Contact reference (cho FOLLOWUP, REPLY, PRIORITY)
-    contact_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("contacts.id", ondelete="CASCADE"),
-        index=True,
-        nullable=True
-    )
-
-    # Target contact reference (cho legacy/third-party contact connection)
-    target_contact_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("contacts.id", ondelete="CASCADE"),
-        index=True,
-        nullable=True
-    )
-
-    # Recommendation details
     type: Mapped[str] = mapped_column(String(50))  # FOLLOWUP, REPLY, PRIORITY, CONNECTION
-    reason: Mapped[str] = mapped_column(String)
-    priority: Mapped[str] = mapped_column(String(20), default="MEDIUM")  # HIGH, MEDIUM, LOW
-    confidence: Mapped[float] = mapped_column(Float, default=0.5)  # 0.0 - 1.0
+    status: Mapped[str] = mapped_column(String(50), default="PENDING")  # PENDING, ACCEPTED, REJECTED, DISMISSED
+    reason: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    match_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    confidence = synonym("match_score")
+    priority: Mapped[str | None] = mapped_column(String(50), default="MEDIUM", nullable=True)
+    metadata_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
-    # Status
-    status: Mapped[str] = mapped_column(String(20), default="PENDING")  # PENDING, ACCEPTED, REJECTED, DISMISSED
-
-    # Metadata
     created_at: Mapped[created_at_col]
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[updated_at_col]
 
     # Relationships
     owner = relationship("User", foreign_keys=[owner_user_id], back_populates="recommendations")
     target_user = relationship("User", foreign_keys=[target_user_id])
-    contact = relationship("Contact", foreign_keys=[contact_id], back_populates="recommendations")
-    target_contact = relationship("Contact", foreign_keys=[target_contact_id], back_populates="target_recommendations")
 
 
 

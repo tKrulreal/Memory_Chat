@@ -35,7 +35,7 @@ class User(Base):
     search_history = relationship("SearchHistory", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     event_logs = relationship("EventLog", back_populates="user", cascade="all, delete-orphan")
-    contacts = relationship("Contact", back_populates="owner", cascade="all, delete-orphan")
+    contacts = relationship("Contact", foreign_keys="[Contact.user_id]", back_populates="user", cascade="all, delete-orphan")
     recommendations = relationship("Recommendation", foreign_keys="[Recommendation.owner_user_id]", back_populates="owner", cascade="all, delete-orphan")
     message_reactions = relationship("MessageReaction", back_populates="user", cascade="all, delete-orphan")
     blocked_users = relationship("UserBlock", foreign_keys="[UserBlock.blocker_id]", back_populates="blocker", cascade="all, delete-orphan")
