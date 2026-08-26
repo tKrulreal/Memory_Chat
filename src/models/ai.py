@@ -112,3 +112,26 @@ class OutboxEvent(Base):
     status: Mapped[str] = mapped_column(String(50), default="PENDING", index=True) # PENDING, PROCESSED, FAILED
     
     created_at: Mapped[created_at_col]
+
+
+class CopilotMessage(Base):
+    """
+    Lưu trữ lịch sử hội thoại Copilot giữa user và AI.
+    """
+    __tablename__ = "copilot_messages"
+
+    id: Mapped[uuid_pk]
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        index=True
+    )
+    role: Mapped[str] = mapped_column(String(20))  # "user" | "assistant"
+    content: Mapped[str] = mapped_column(String)
+    tools_used: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    sources: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    intent: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    created_at: Mapped[created_at_col]
+    updated_at: Mapped[updated_at_col]
+
+    user = relationship("User")

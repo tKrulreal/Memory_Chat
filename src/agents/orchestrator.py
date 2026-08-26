@@ -206,6 +206,7 @@ async def run_copilot(
     user_id: str | None = None,
     contact_id: str | None = None,
     conversation_id: str | None = None,
+    history: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """
     Copilot Agent using LangChain Tool Calling:
@@ -417,10 +418,22 @@ async def run_copilot(
     tools = [semantic_search, get_recent_messages, get_peer_info, suggest_reply]
     llm_with_tools = chat_model.bind_tools(tools)
 
+    from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AIMessage
+
     messages = [
         SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(content=query),
     ]
+    if history:
+        for h in history:
+            role = h.get("role")
+            content = h.get("content", "")
+            if content:
+                if role == "user":
+                    messages.append(HumanMessage(content=content))
+                elif role == "assistant":
+                    messages.append(AIMessage(content=content))
+
+    messages.append(HumanMessage(content=query))
 
     tools_used: list[str] = []
     try:

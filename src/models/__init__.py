@@ -3,7 +3,7 @@
 from src.models.database import Base, SessionLocal, engine
 
 # 2. Models without foreign keys to other new tables
-from src.models.ai import AssistantMemory, EventLog, OutboxEvent, Recommendation
+from src.models.ai import AssistantMemory, EventLog, OutboxEvent, Recommendation, CopilotMessage
 from src.models.chat import Conversation, ConversationUserState, Message
 from src.models.connection import ConnectionRequest
 
@@ -36,4 +36,5 @@ __all__ = [
     "Tag",
     "UserTag",
     "AISystemConfig",
+    "CopilotMessage",
 ]
