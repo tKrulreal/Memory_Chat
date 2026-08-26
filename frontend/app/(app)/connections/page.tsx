@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Search,
   UserPlus,
+  UserMinus,
   Clock,
   Users,
   Sparkles,
@@ -25,6 +26,7 @@ import {
   rejectConnectionRequest,
   cancelConnectionRequest,
   sendConnectionRequest,
+  unfriendUser,
   ConnectionRequest,
 } from "@/lib/api/connection-requests";
 import { searchUsers, SearchUser, UserRelation } from "@/lib/api/search";
@@ -130,9 +132,10 @@ interface UserCardProps {
   onAddFriend: (userId: string) => void;
   onAccept: (userId: string) => void;
   onChat: (conversationId: string) => void;
+  onUnfriend: (userId: string) => void;
 }
 
-function UserCard({ user, loadingId, onAddFriend, onAccept, onChat }: UserCardProps) {
+function UserCard({ user, loadingId, onAddFriend, onAccept, onChat, onUnfriend }: UserCardProps) {
   const router = useRouter();
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
   const isOnline = onlineUserIds.has(user.id);
@@ -198,16 +201,28 @@ function UserCard({ user, loadingId, onAddFriend, onAccept, onChat }: UserCardPr
         />
         {user.relation === "friend" && (
           <DropdownMenu>
-            <DropdownMenuTrigger className="h-8 w-8 rounded-xl shrink-0 inline-flex items-center justify-center hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none">
+            <DropdownMenuTrigger className="h-8 w-8 rounded-xl shrink-0 inline-flex items-center justify-center hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none cursor-pointer">
               <MoreHorizontal size={15} />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-2xl shadow-lg border-slate-200">
+            <DropdownMenuContent align="end" className="rounded-2xl shadow-lg border-slate-200 p-1 min-w-[160px]">
               <DropdownMenuItem
                 onClick={() => router.push(`/profile/${user.id}`)}
-                className="text-xs font-semibold cursor-pointer"
+                className="text-xs font-semibold cursor-pointer rounded-xl"
               >
                 <ExternalLink size={13} className="mr-2" />
                 Xem trang cá nhân
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-1 bg-slate-100" />
+              <DropdownMenuItem
+                onClick={() => {
+                  if (confirm(`Bạn có chắc chắn muốn hủy kết bạn với ${user.full_name || user.email}?`)) {
+                    onUnfriend(user.id);
+                  }
+                }}
+                className="text-xs font-semibold cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl"
+              >
+                <UserMinus size={13} className="mr-2" />
+                Hủy kết bạn
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -419,6 +434,28 @@ function MyNetworkView() {
     },
   });
 
+  // ── Unfriend Mutation ─────────────────────────────────────────────────────
+  const unfriendMutation = useMutation({
+    mutationFn: (targetUserId: string) => unfriendUser(targetUserId),
+    onSuccess: (_, targetUserId) => {
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["connections"] });
+      updateUserRelation(targetUserId, { relation: "none", conversation_id: undefined });
+      toast.success("Đã hủy kết bạn thành công.");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Lỗi khi hủy kết bạn.");
+    },
+  });
+
+  const handleUnfriend = useCallback(
+    (targetUserId: string) => {
+      unfriendMutation.mutate(targetUserId);
+    },
+    [unfriendMutation]
+  );
+
   // ── Display list ──────────────────────────────────────────────────────────
   const isSearchMode = debouncedQuery.length >= 2;
   const displayPeople = isSearchMode ? peopleResults : friendsFromConvs;
@@ -586,6 +623,7 @@ function MyNetworkView() {
                     onAddFriend={handleAddFriend}
                     onAccept={handleAcceptFromPeople}
                     onChat={handleChat}
+                    onUnfriend={handleUnfriend}
                   />
                 ))}
               </div>

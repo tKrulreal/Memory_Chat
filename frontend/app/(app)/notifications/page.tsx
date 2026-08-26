@@ -9,7 +9,11 @@ import {
   markAllNotificationsRead,
   deleteNotification,
 } from "@/lib/api/notifications";
-import { acceptConnectionRequest, rejectConnectionRequest } from "@/lib/api/connection-requests";
+import {
+  acceptConnectionRequest,
+  rejectConnectionRequest,
+  getConnectionRequests,
+} from "@/lib/api/connection-requests";
 import {
   Bell,
   Check,
@@ -26,6 +30,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -85,9 +90,55 @@ export default function NotificationsPage() {
   });
 
   const acceptRequestMutation = useMutation({
-    mutationFn: async ({ requestId, notifId }: { requestId: string; notifId: string }) => {
-      await acceptConnectionRequest(requestId);
-      await markNotificationRead(notifId);
+    mutationFn: async ({
+      requestId,
+      senderId,
+      notifId,
+    }: {
+      requestId?: string;
+      senderId?: string;
+      notifId: string;
+    }) => {
+      let targetReqId = requestId;
+
+      // Fallback: If requestId is missing, lookup pending incoming request by senderId
+      if (!targetReqId && senderId) {
+        try {
+          const incoming = await getConnectionRequests("incoming", "PENDING", 1, 100);
+          const matched = incoming.data.find(
+            (r) => r.sender_id === senderId || r.sender?.id === senderId
+          );
+          if (matched) {
+            targetReqId = matched.id;
+          }
+        } catch (e) {
+          console.warn("Failed to lookup request for sender", e);
+        }
+      }
+
+      if (!targetReqId) {
+        await markNotificationRead(notifId);
+        toast.info("Lời mời kết bạn này đã được xử lý hoặc không còn khả dụng.");
+        return;
+      }
+
+      try {
+        await acceptConnectionRequest(targetReqId);
+        await markNotificationRead(notifId);
+      } catch (err: any) {
+        const msg = err.message || "";
+        if (
+          msg.includes("not pending") ||
+          msg.includes("không ở trạng thái") ||
+          msg.includes("Already") ||
+          msg.includes("bạn bè")
+        ) {
+          await markNotificationRead(notifId);
+          toast.info("Lời mời này đã được chấp nhận trước đó!");
+          return;
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
@@ -103,8 +154,31 @@ export default function NotificationsPage() {
   });
 
   const rejectRequestMutation = useMutation({
-    mutationFn: async ({ requestId, notifId }: { requestId: string; notifId: string }) => {
-      await rejectConnectionRequest(requestId);
+    mutationFn: async ({
+      requestId,
+      senderId,
+      notifId,
+    }: {
+      requestId?: string;
+      senderId?: string;
+      notifId: string;
+    }) => {
+      let targetReqId = requestId;
+      if (!targetReqId && senderId) {
+        try {
+          const incoming = await getConnectionRequests("incoming", "PENDING", 1, 100);
+          const matched = incoming.data.find(
+            (r) => r.sender_id === senderId || r.sender?.id === senderId
+          );
+          if (matched) targetReqId = matched.id;
+        } catch (e) {}
+      }
+
+      if (targetReqId) {
+        try {
+          await rejectConnectionRequest(targetReqId);
+        } catch (e) {}
+      }
       await markNotificationRead(notifId);
     },
     onSuccess: () => {
@@ -245,7 +319,10 @@ export default function NotificationsPage() {
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-24 rounded-2xl bg-white border border-slate-100 animate-pulse shadow-xs" />
+                <div
+                  key={i}
+                  className="h-24 rounded-2xl bg-white border border-slate-100 animate-pulse shadow-xs"
+                />
               ))}
             </div>
           ) : filteredNotifications.length === 0 ? (
@@ -273,7 +350,7 @@ export default function NotificationsPage() {
                 notif.type === "CONNECTION_RECOMMENDATION" ||
                 notif.type === "RECOMMENDATION";
               const isAccepted = notif.type === "CONNECTION_ACCEPTED";
-              const data = notif.data || {};
+              const notifData = notif.data || {};
 
               return (
                 <div
@@ -290,34 +367,34 @@ export default function NotificationsPage() {
                     {/* Left Icon / Avatar */}
                     {isRequest ? (
                       <div className="relative shrink-0">
-                        {data.sender_avatar ? (
-                          <img
-                            src={data.sender_avatar}
-                            alt={data.sender_name || "Sender"}
-                            className="h-11 w-11 rounded-full object-cover border border-blue-200"
-                          />
-                        ) : (
-                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold text-sm">
-                            {(data.sender_name || "U")[0].toUpperCase()}
-                          </div>
-                        )}
+                        <Avatar className="h-11 w-11 border border-blue-200">
+                          {notifData.sender_avatar && (
+                            <AvatarImage
+                              src={notifData.sender_avatar}
+                              alt={notifData.sender_name || "Sender"}
+                            />
+                          )}
+                          <AvatarFallback className="bg-blue-100 text-blue-700 font-bold text-sm">
+                            {(notifData.sender_name || "U")[0].toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
                         <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white shadow-xs">
                           <UserPlus size={11} />
                         </span>
                       </div>
                     ) : isMatching ? (
                       <div className="relative shrink-0">
-                        {data.target_avatar ? (
-                          <img
-                            src={data.target_avatar}
-                            alt={data.target_name || "Match"}
-                            className="h-11 w-11 rounded-full object-cover border border-purple-200"
-                          />
-                        ) : (
-                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-purple-100 text-purple-600 font-bold text-sm">
-                            <Sparkles size={18} />
-                          </div>
-                        )}
+                        <Avatar className="h-11 w-11 border border-purple-200">
+                          {notifData.target_avatar && (
+                            <AvatarImage
+                              src={notifData.target_avatar}
+                              alt={notifData.target_name || "Match"}
+                            />
+                          )}
+                          <AvatarFallback className="bg-purple-100 text-purple-700 font-bold text-sm">
+                            <Sparkles size={16} />
+                          </AvatarFallback>
+                        </Avatar>
                         <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-purple-600 text-white shadow-xs">
                           <Sparkles size={11} />
                         </span>
@@ -345,9 +422,9 @@ export default function NotificationsPage() {
                             {notif.title}
                           </h4>
 
-                          {isMatching && data.match_score && (
+                          {isMatching && notifData.match_score && (
                             <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-[10px] font-bold px-2 py-0.2 shadow-none">
-                              {data.match_score}% Tương thích
+                              {notifData.match_score}% Tương thích
                             </Badge>
                           )}
 
@@ -367,62 +444,79 @@ export default function NotificationsPage() {
                       </p>
 
                       {/* Extra Sub-info for Request or Match */}
-                      {isRequest && (data.sender_profession || data.sender_company) && (
-                        <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-0.5">
-                          {data.sender_profession && (
-                            <span className="font-medium text-slate-700">{data.sender_profession}</span>
-                          )}
-                          {data.sender_profession && data.sender_company && <span>•</span>}
-                          {data.sender_company && <span>{data.sender_company}</span>}
-                        </div>
-                      )}
+                      {isRequest &&
+                        (notifData.sender_profession || notifData.sender_company) && (
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-0.5">
+                            {notifData.sender_profession && (
+                              <span className="font-medium text-slate-700">
+                                {notifData.sender_profession}
+                              </span>
+                            )}
+                            {notifData.sender_profession &&
+                              notifData.sender_company && <span>•</span>}
+                            {notifData.sender_company && (
+                              <span>{notifData.sender_company}</span>
+                            )}
+                          </div>
+                        )}
 
-                      {isMatching && (data.target_name || data.target_profession) && (
-                        <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-0.5">
-                          {data.target_name && (
-                            <span className="font-semibold text-slate-800">{data.target_name}</span>
-                          )}
-                          {data.target_name && data.target_profession && <span>•</span>}
-                          {data.target_profession && <span>{data.target_profession}</span>}
-                          {data.target_location && (
-                            <>
-                              <span>•</span>
-                              <span>{data.target_location}</span>
-                            </>
-                          )}
-                        </div>
-                      )}
+                      {isMatching &&
+                        (notifData.target_name || notifData.target_profession) && (
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-0.5">
+                            {notifData.target_name && (
+                              <span className="font-semibold text-slate-800">
+                                {notifData.target_name}
+                              </span>
+                            )}
+                            {notifData.target_name &&
+                              notifData.target_profession && <span>•</span>}
+                            {notifData.target_profession && (
+                              <span>{notifData.target_profession}</span>
+                            )}
+                            {notifData.target_location && (
+                              <>
+                                <span>•</span>
+                                <span>{notifData.target_location}</span>
+                              </>
+                            )}
+                          </div>
+                        )}
 
                       {/* Action Buttons Bar */}
-                      <div className="pt-2 flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                        {isRequest && data.request_id && (
+                      <div
+                        className="pt-2 flex items-center gap-2 flex-wrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {isRequest && (
                           <>
                             <Button
                               size="xs"
                               variant="default"
                               onClick={() =>
                                 acceptRequestMutation.mutate({
-                                  requestId: data.request_id,
+                                  requestId: notifData.request_id,
+                                  senderId: notifData.sender_id,
                                   notifId: notif.id,
                                 })
                               }
                               disabled={acceptRequestMutation.isPending}
-                              className="rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-semibold px-3 py-1.5 shadow-xs"
+                              className="rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-semibold px-3 py-1.5 shadow-xs cursor-pointer"
                             >
                               <UserCheck size={13} className="mr-1.5" />
-                              Chấp nhận
+                              {acceptRequestMutation.isPending ? "Đang xử lý..." : "Chấp nhận"}
                             </Button>
                             <Button
                               size="xs"
                               variant="outline"
                               onClick={() =>
                                 rejectRequestMutation.mutate({
-                                  requestId: data.request_id,
+                                  requestId: notifData.request_id,
+                                  senderId: notifData.sender_id,
                                   notifId: notif.id,
                                 })
                               }
                               disabled={rejectRequestMutation.isPending}
-                              className="rounded-lg border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 text-xs font-semibold px-3 py-1.5"
+                              className="rounded-lg border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 text-xs font-semibold px-3 py-1.5 cursor-pointer"
                             >
                               <X size={13} className="mr-1.5" />
                               Từ chối
@@ -438,7 +532,7 @@ export default function NotificationsPage() {
                               if (isUnread) markAsReadMutation.mutate(notif.id);
                               router.push("/connections?tab=matchmaker");
                             }}
-                            className="rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold px-3 py-1.5 shadow-xs"
+                            className="rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold px-3 py-1.5 shadow-xs cursor-pointer"
                           >
                             <Sparkles size={13} className="mr-1.5 text-purple-600" />
                             Xem gợi ý & Kết nối
@@ -448,45 +542,29 @@ export default function NotificationsPage() {
                         {isAccepted && (
                           <Button
                             size="xs"
-                            variant="secondary"
+                            variant="outline"
                             onClick={() => {
                               if (isUnread) markAsReadMutation.mutate(notif.id);
                               router.push("/chats");
                             }}
-                            className="rounded-lg bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 text-xs font-semibold px-3 py-1.5 shadow-xs"
+                            className="rounded-lg border-green-200 bg-green-50/50 hover:bg-green-100 text-green-700 text-xs font-semibold px-3 py-1.5 shadow-xs cursor-pointer"
                           >
                             <MessageSquare size={13} className="mr-1.5 text-green-600" />
-                            Nhắn tin ngay
+                            Mở cuộc trò chuyện
                           </Button>
                         )}
-                      </div>
-                    </div>
 
-                    {/* Quick Right Side Icons: Mark Read & Delete */}
-                    <div
-                      className="flex items-center gap-1 shrink-0 ml-1"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {isUnread && (
-                        <button
-                          type="button"
-                          onClick={() => markAsReadMutation.mutate(notif.id)}
-                          disabled={markAsReadMutation.isPending}
-                          className="rounded-lg p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-100/50 transition-colors"
-                          title="Đánh dấu đã đọc"
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => deleteMutation.mutate(notif.id)}
+                          disabled={deleteMutation.isPending}
+                          className="h-7 text-[11px] px-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 ml-auto cursor-pointer"
                         >
-                          <Check size={15} />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => deleteMutation.mutate(notif.id)}
-                        disabled={deleteMutation.isPending}
-                        className="rounded-lg p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
-                        title="Xóa thông báo"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                          <Trash2 size={12} className="mr-1" />
+                          Xóa
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

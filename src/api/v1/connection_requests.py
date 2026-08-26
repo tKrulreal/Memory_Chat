@@ -12,6 +12,9 @@ from src.events.types import EventType
 from src.models.user import User, Notification
 from src.models.connection import ConnectionRequest
 from src.models.chat import Conversation
+from src.models.contact import Contact
+from src.models.ai import Recommendation
+from src.schemas.enums import RecommendationType
 from src.schemas.connection import ConnectionRequestCreate, ConnectionRequestResponse
 from src.schemas.pagination import PaginatedResponse, Pagination
 
@@ -317,6 +320,13 @@ def accept_connection_request(
         receiver_user=current_user,
     )
 
+    # Mark any unread CONNECTION_REQUEST notifications for this request/sender as READ
+    db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.type == "CONNECTION_REQUEST",
+        Notification.status == "UNREAD",
+    ).update({"status": "READ"}, synchronize_session=False)
+
     db.commit()
     db.refresh(req)
     return req
@@ -339,6 +349,14 @@ def reject_connection_request(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request is not pending")
 
     req.status = "REJECTED"
+
+    # Mark any unread CONNECTION_REQUEST notifications for this request as READ
+    db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.type == "CONNECTION_REQUEST",
+        Notification.status == "UNREAD",
+    ).update({"status": "READ"}, synchronize_session=False)
+
     db.commit()
     db.refresh(req)
     return req
@@ -364,3 +382,56 @@ def cancel_connection_request(
     db.commit()
     db.refresh(req)
     return req
+
+
+@router.delete("/friends/{target_user_id}", status_code=status.HTTP_200_OK)
+def remove_friend_connection(
+    target_user_id: uuid.UUID,
+    current_user: CurrentUserDep,
+    db: DatabaseDep,
+):
+    """
+    Hủy kết bạn (Unfriend):
+    1. Xóa mọi ConnectionRequest giữa current_user và target_user.
+    2. Xóa cuộc trò chuyện trực tiếp (direct_conversations) và trạng thái liên quan.
+    3. Xóa bản ghi contacts/contact_memories liên quan nếu có.
+    4. Xóa các recommendation liên quan.
+    """
+    if current_user.id == target_user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot unfriend yourself")
+
+    target_user = db.get(User, target_user_id)
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target user not found")
+
+    # 1. Delete all connection requests between them
+    db.query(ConnectionRequest).filter(
+        or_(
+            and_(ConnectionRequest.sender_id == current_user.id, ConnectionRequest.receiver_id == target_user_id),
+            and_(ConnectionRequest.sender_id == target_user_id, ConnectionRequest.receiver_id == current_user.id),
+        )
+    ).delete(synchronize_session=False)
+
+    # 2. Delete conversation between them
+    uid_a, uid_b = sorted([str(current_user.id), str(target_user_id)])
+    existing_conv = (
+        db.query(Conversation)
+        .filter(Conversation.user_a_id == uid_a, Conversation.user_b_id == uid_b)
+        .first()
+    )
+    # 3. Clean up contact records if any
+    if existing_conv:
+        db.query(Contact).filter(Contact.conversation_id == existing_conv.id).delete(synchronize_session=False)
+        db.delete(existing_conv)
+
+    # 4. Clean up any recommendations between them
+    db.query(Recommendation).filter(
+        Recommendation.type == RecommendationType.CONNECTION.value,
+        or_(
+            and_(Recommendation.owner_user_id == current_user.id, Recommendation.target_user_id == target_user_id),
+            and_(Recommendation.owner_user_id == target_user_id, Recommendation.target_user_id == current_user.id),
+        )
+    ).delete(synchronize_session=False)
+
+    db.commit()
+    return {"message": "Đã hủy kết bạn thành công", "target_user_id": str(target_user_id)}

@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   MoreVertical,
   PanelRightClose,
   PanelRightOpen,
   Sparkles,
   User,
+  UserMinus,
+  ExternalLink,
   MessageSquare,
 } from "lucide-react";
 import { useInView } from "react-intersection-observer";
@@ -19,6 +22,7 @@ import { usePresenceStore } from "@/lib/stores/presence-store";
 import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { getMessages, deleteMessage } from "@/lib/api/messages";
 import { getConversations } from "@/lib/api/conversations";
+import { unfriendUser } from "@/lib/api/connection-requests";
 import { Composer } from "@/components/chat/composer";
 import { MessageBubble } from "@/components/chat/message-bubble";
 import { cn, formatMessageTime, parseServerDate, getDateDividerLabel } from "@/lib/utils";
@@ -27,14 +31,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAISettings } from "@/hooks/use-ai-settings";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 export function ChatWindow() {
+  const router = useRouter();
   const infoPanelOpen = useUIStore((s) => s.infoPanelOpen);
   const toggleInfoPanel = useUIStore((s) => s.toggleInfoPanel);
   const toggleCopilot = useUIStore((s) => s.toggleCopilot);
 
   const user = useAuthStore((s) => s.user);
   const activeId = useConversationStore((s) => s.activeConversationId);
+  const setActiveConversation = useConversationStore((s) => s.setActiveConversation);
 
   const sendMessageMutation = useSendMessage(activeId || "");
   const { features } = useAISettings();
@@ -52,6 +66,20 @@ export function ChatWindow() {
     onSuccess: () => {},
     onError: (error) => {
       console.error("Failed to recall message:", error);
+    },
+  });
+
+  const unfriendMutation = useMutation({
+    mutationFn: (targetUserId: string) => unfriendUser(targetUserId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["connections"] });
+      setActiveConversation(null);
+      toast.success("Đã hủy kết bạn thành công.");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Lỗi khi hủy kết bạn.");
     },
   });
 
@@ -187,7 +215,7 @@ export function ChatWindow() {
               variant="ghost"
               type="button"
               onClick={toggleCopilot}
-              className="h-9 w-9 p-0 rounded-xl text-blue-600 hover:bg-blue-50"
+              className="h-9 w-9 p-0 rounded-xl text-blue-600 hover:bg-blue-50 cursor-pointer"
               title="Mở AI Copilot"
             >
               <Sparkles size={17} />
@@ -197,11 +225,45 @@ export function ChatWindow() {
             variant="ghost"
             type="button"
             onClick={toggleInfoPanel}
-            className="h-9 w-9 p-0 rounded-xl text-slate-600 hover:bg-slate-100"
+            className="h-9 w-9 p-0 rounded-xl text-slate-600 hover:bg-slate-100 cursor-pointer"
             title={infoPanelOpen ? "Đóng thông tin" : "Mở thông tin"}
           >
             {infoPanelOpen ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}
           </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors focus:outline-none"
+              title="Tùy chọn khác"
+            >
+              <MoreVertical size={17} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-2xl shadow-lg border-slate-200 p-1 min-w-[160px]">
+              <DropdownMenuItem
+                onClick={() => peerId && router.push(`/profile/${peerId}`)}
+                className="text-xs font-semibold cursor-pointer rounded-xl"
+              >
+                <ExternalLink size={13} className="mr-2" />
+                Xem trang cá nhân
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-1 bg-slate-100" />
+              <DropdownMenuItem
+                onClick={() => {
+                  if (
+                    peerId &&
+                    confirm(`Bạn có chắc chắn muốn hủy kết bạn với ${peerName}? Cuộc trò chuyện này sẽ kết thúc.`)
+                  ) {
+                    unfriendMutation.mutate(peerId);
+                  }
+                }}
+                disabled={unfriendMutation.isPending}
+                className="text-xs font-semibold cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl"
+              >
+                <UserMinus size={13} className="mr-2" />
+                Hủy kết bạn
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 

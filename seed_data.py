@@ -486,6 +486,64 @@ VALUES (
 """
         sql_statements.append(req_sql.strip())
 
+    # 4. NOTIFICATIONS
+    user_map = {u["id"]: u for u in USERS}
+
+    for req in CONNECTION_REQUESTS:
+        if req["status"] == "PENDING":
+            sender = user_map.get(req["sender_id"])
+            if sender:
+                notif_data_json = json.dumps({
+                    "request_id": req["id"],
+                    "sender_id": req["sender_id"],
+                    "sender_name": sender["full_name"],
+                    "sender_avatar": sender["avatar"],
+                    "sender_profession": sender.get("profession"),
+                    "sender_company": sender.get("company"),
+                }).replace("'", "''")
+
+                notif_sql = f"""
+INSERT INTO notifications (id, user_id, type, title, content, data, status, created_at)
+VALUES (
+    '{uuid.uuid4()}',
+    '{req["receiver_id"]}',
+    'CONNECTION_REQUEST',
+    'Lời mời kết bạn mới',
+    '{sender["full_name"]} đã gửi cho bạn một lời mời kết bạn.',
+    '{notif_data_json}'::json,
+    'UNREAD',
+    '{now.isoformat()}'
+) ON CONFLICT (id) DO NOTHING;
+"""
+                sql_statements.append(notif_sql.strip())
+
+    # Sample matching notification for User 1 (Minh Tran)
+    target_user = USERS[3] # Mai Le
+    match_data_json = json.dumps({
+        "target_user_id": target_user["id"],
+        "target_name": target_user["full_name"],
+        "target_avatar": target_user["avatar"],
+        "target_profession": target_user.get("profession"),
+        "target_company": target_user.get("company"),
+        "target_location": target_user.get("location"),
+        "match_score": 92,
+    }).replace("'", "''")
+
+    match_notif_sql = f"""
+INSERT INTO notifications (id, user_id, type, title, content, data, status, created_at)
+VALUES (
+    '{uuid.uuid4()}',
+    '{USERS[0]["id"]}',
+    'MATCH_SUGGESTION',
+    'Gợi ý kết nối AI',
+    'Profile của {target_user["full_name"]} rất phù hợp với bạn, hãy thử kết nối!',
+    '{match_data_json}'::json,
+    'UNREAD',
+    '{(now - timedelta(hours=2)).isoformat()}'
+) ON CONFLICT (id) DO NOTHING;
+"""
+    sql_statements.append(match_notif_sql.strip())
+
     return "\n\n".join(sql_statements)
 
 
