@@ -33,8 +33,10 @@ class VectorStoreService:
         self.qdrant_url = settings.qdrant_url
         self.qdrant_api_key = settings.qdrant_api_key
         self.collection_name = settings.qdrant_collection
+        self.profile_collection_name = getattr(settings, "qdrant_profile_collection", "user_profiles")
         self._client: QdrantClient | None = None
         self._initialized = False
+        self._profile_initialized = False
 
     @classmethod
     def get_instance(cls) -> "VectorStoreService":
@@ -221,6 +223,105 @@ class VectorStoreService:
             top_k=top_k,
         )
 
+    def _ensure_profile_collection(self) -> None:
+        if self._profile_initialized:
+            return
+
+        client = self._get_client()
+        try:
+            collections = client.get_collections()
+            collection_names = [c.name for c in collections.collections]
+
+            if self.profile_collection_name not in collection_names:
+                client.create_collection(
+                    collection_name=self.profile_collection_name,
+                    vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
+                )
+                logger.info("Created new Qdrant collection '%s'", self.profile_collection_name)
+                client.create_payload_index(self.profile_collection_name, field_name="user_id", field_schema="keyword")
+            else:
+                logger.info("Connected to existing Qdrant collection '%s'", self.profile_collection_name)
+
+            self._profile_initialized = True
+        except Exception as e:
+            logger.error("Failed to initialize Qdrant profile collection '%s': %s", self.profile_collection_name, e)
+            raise e
+
+    def upsert_profile(
+        self,
+        user_id: str,
+        text: str,
+        embedding: list[float],
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Lưu hoặc cập nhật embedding hồ sơ cá nhân vào Qdrant."""
+        self._ensure_profile_collection()
+        client = self._get_client()
+
+        payload = (metadata or {}).copy()
+        payload["user_id"] = str(user_id)
+        payload["document"] = text
+
+        qdrant_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"profile_{user_id}"))
+
+        client.upsert(
+            collection_name=self.profile_collection_name,
+            points=[
+                PointStruct(
+                    id=qdrant_id,
+                    vector=embedding,
+                    payload=payload,
+                )
+            ],
+        )
+        logger.info("Upserted user_id=%s profile into Qdrant collection '%s'", user_id, self.profile_collection_name)
+
+    def search_profiles(
+        self,
+        query_embedding: list[float],
+        top_k: int = 50,
+        exclude_user_ids: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Tìm kiếm Top-K hồ sơ người dùng tương đồng ngữ nghĩa nhất qua Qdrant.
+        Trả về danh sách dict: [{'user_id': ..., 'score': float, 'document': ..., 'metadata': ...}]
+        """
+        try:
+            self._ensure_profile_collection()
+            client = self._get_client()
+
+            must_not_conditions = []
+            if exclude_user_ids:
+                for uid in exclude_user_ids:
+                    must_not_conditions.append(
+                        FieldCondition(key="user_id", match=MatchValue(value=str(uid)))
+                    )
+
+            query_filter = Filter(must_not=must_not_conditions) if must_not_conditions else None
+
+            results = client.search(
+                collection_name=self.profile_collection_name,
+                query_vector=query_embedding,
+                query_filter=query_filter,
+                limit=top_k,
+                with_payload=True,
+                with_vectors=False,
+            )
+
+            candidates = []
+            for r in results:
+                payload = r.payload or {}
+                candidates.append({
+                    "user_id": str(payload.get("user_id", "")),
+                    "score": float(r.score),
+                    "document": payload.get("document", ""),
+                    "metadata": {k: v for k, v in payload.items() if k not in ["user_id", "document"]},
+                })
+            return candidates
+        except Exception as e:
+            logger.warning("Qdrant search_profiles encountered error or offline: %s", e)
+            return []
+
     def reset(self) -> None:
         """Xoá toàn bộ collection — CHỈ dùng cho testing."""
         client = self._get_client()
@@ -229,7 +330,13 @@ class VectorStoreService:
             logger.warning("Deleted Qdrant collection '%s'", self.collection_name)
         except Exception:
             pass
+        try:
+            client.delete_collection(collection_name=self.profile_collection_name)
+            logger.warning("Deleted Qdrant profile collection '%s'", self.profile_collection_name)
+        except Exception:
+            pass
         self._initialized = False
+        self._profile_initialized = False
 
     def close(self) -> None:
         """Đóng client và giải phóng resource."""
@@ -241,3 +348,4 @@ class VectorStoreService:
                 pass
         self._client = None
         self._initialized = False
+        self._profile_initialized = False

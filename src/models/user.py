@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, ForeignKey, String, DateTime, Integer
+from sqlalchemy import JSON, Boolean, ForeignKey, String, DateTime, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.models.database import Base, created_at_col, updated_at_col, uuid_pk
@@ -38,6 +38,24 @@ class User(Base):
     contacts = relationship("Contact", back_populates="owner", cascade="all, delete-orphan")
     recommendations = relationship("Recommendation", foreign_keys="[Recommendation.owner_user_id]", back_populates="owner", cascade="all, delete-orphan")
     message_reactions = relationship("MessageReaction", back_populates="user", cascade="all, delete-orphan")
+    blocked_users = relationship("UserBlock", foreign_keys="[UserBlock.blocker_id]", back_populates="blocker", cascade="all, delete-orphan")
+    blocked_by = relationship("UserBlock", foreign_keys="[UserBlock.blocked_id]", back_populates="blocked", cascade="all, delete-orphan")
+
+
+class UserBlock(Base):
+    __tablename__ = "user_blocks"
+    __table_args__ = (
+        UniqueConstraint("blocker_id", "blocked_id", name="uq_user_block"),
+    )
+
+    id: Mapped[uuid_pk]
+    blocker_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    blocked_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+
+    created_at: Mapped[created_at_col]
+
+    blocker = relationship("User", foreign_keys=[blocker_id], back_populates="blocked_users")
+    blocked = relationship("User", foreign_keys=[blocked_id], back_populates="blocked_by")
 
 
 class UserProfile(Base):

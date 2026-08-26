@@ -138,3 +138,49 @@ QUY TẮC ĐÁNH GIÁ (MATCHING LOGIC):
 
 Chỉ trả về JSON hợp lệ, không thêm bất kỳ văn bản nào khác.
 """
+
+GENERATE_MATCH_REASON_PROMPT = """Bạn là chuyên gia AI cố vấn networking nghề nghiệp (Professional Networking Advisor).
+
+Ứng viên dưới đây đã được thuật toán xếp hạng là một trong những đối tác phù hợp nhất (Điểm phù hợp: {score_percent}%) cho Người dùng hiện tại.
+Hãy soạn thảo lý do kết nối (reason) và câu mở lời (suggested_intro) thật tự nhiên, chính xác, không bịa đặt dựa trên thông tin sau:
+
+========================================
+1. NGƯỜI DÙNG HIỆN TẠI (CURRENT USER)
+========================================
+- Họ tên: {current_user_name} ({current_user_email})
+- Chuyên môn: {current_user_profession} tại {current_user_company} ({current_user_location})
+- Kỹ năng: {current_user_skills}
+- Sở thích: {current_user_interests}
+- Đang tìm kiếm: {current_user_needs}
+- Đang cung cấp/chia sẻ: {current_user_offers}
+
+========================================
+2. ỨNG VIÊN ĐƯỢC GỢI Ý (CANDIDATE)
+========================================
+- Họ tên: {candidate_name} ({candidate_email})
+- Chuyên môn: {candidate_profession} tại {candidate_company} ({candidate_location})
+- Kỹ năng: {candidate_skills}
+- Sở thích: {candidate_interests}
+- Đang tìm kiếm: {candidate_needs}
+- Đang cung cấp/chia sẻ: {candidate_offers}
+- Điểm đánh giá thuật toán: {score_percent}%
+
+========================================
+YÊU CẦU ĐẦU RA (JSON FORMAT):
+========================================
+1. **reason**: Viết 2-3 câu bằng tiếng Việt tự nhiên, trực tiếp gửi tới người dùng hiện tại (bắt đầu bằng "Bạn nên kết nối với {candidate_name}..."). Nêu bật điểm bổ trợ kỹ năng hoặc sự tương đồng mục tiêu giữa 2 người.
+2. **suggested_intro**: Viết 1-2 câu tin nhắn mở đầu chuyên nghiệp, thân thiện, súc tích để người dùng gửi trực tiếp khi mời kết nối.
+3. **complementary_aspects**: Danh sách 1-3 điểm bổ trợ nổi bật (ví dụ: ["Cần tư vấn AI", "Thế mạnh phát triển Mobile"]).
+4. **shared_interests**: Danh sách 1-3 sở thích/chủ đề chung (nếu có).
+
+```json
+{{
+    "reason": "Bạn nên kết nối với {candidate_name} ({candidate_profession} tại {candidate_company}) vì bạn đang quan tâm đến ... trong khi {candidate_name} có nhiều kinh nghiệm về ...",
+    "suggested_intro": "Chào {candidate_name}, mình thấy bạn có chuyên môn sâu về {candidate_skills}. Mình rất muốn kết nối để trao đổi thêm cơ hội hợp tác!",
+    "complementary_aspects": ["Điểm bổ trợ 1", "Điểm bổ trợ 2"],
+    "shared_interests": ["Chủ đề chung"]
+}}
+```
+Chỉ trả về JSON hợp lệ.
+"""
+
