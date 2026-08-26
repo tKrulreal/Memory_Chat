@@ -320,12 +320,17 @@ def accept_connection_request(
         receiver_user=current_user,
     )
 
-    # Mark any unread CONNECTION_REQUEST notifications for this request/sender as READ
-    db.query(Notification).filter(
+    # Update CONNECTION_REQUEST notifications to record action_taken = 'ACCEPTED' and status = 'READ'
+    notifs = db.query(Notification).filter(
         Notification.user_id == current_user.id,
         Notification.type == "CONNECTION_REQUEST",
-        Notification.status == "UNREAD",
-    ).update({"status": "READ"}, synchronize_session=False)
+    ).all()
+    for n in notifs:
+        n_data = dict(n.data or {})
+        if n_data.get("request_id") == str(req.id) or n_data.get("sender_id") == str(req.sender_id):
+            n_data["action_taken"] = "ACCEPTED"
+            n.data = n_data
+            n.status = "READ"
 
     db.commit()
     db.refresh(req)
@@ -350,12 +355,17 @@ def reject_connection_request(
 
     req.status = "REJECTED"
 
-    # Mark any unread CONNECTION_REQUEST notifications for this request as READ
-    db.query(Notification).filter(
+    # Update CONNECTION_REQUEST notifications to record action_taken = 'REJECTED' and status = 'READ'
+    notifs = db.query(Notification).filter(
         Notification.user_id == current_user.id,
         Notification.type == "CONNECTION_REQUEST",
-        Notification.status == "UNREAD",
-    ).update({"status": "READ"}, synchronize_session=False)
+    ).all()
+    for n in notifs:
+        n_data = dict(n.data or {})
+        if n_data.get("request_id") == str(req.id) or n_data.get("sender_id") == str(req.sender_id):
+            n_data["action_taken"] = "REJECTED"
+            n.data = n_data
+            n.status = "READ"
 
     db.commit()
     db.refresh(req)

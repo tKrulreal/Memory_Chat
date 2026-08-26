@@ -43,7 +43,7 @@ function getRelativeTime(dateString: string) {
   if (diffInSeconds < 60) return "Vừa xong";
   const diffInMinutes = Math.floor(diffInSeconds / 60);
   if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
-  const diffInHours = Math.floor(diffInMinutes / 60);
+  const diffInHours = Math.floor(diffInSeconds / 60);
   if (diffInHours < 24) return `${diffInHours} giờ trước`;
   const diffInDays = Math.floor(diffInHours / 24);
   if (diffInDays < 7) return `${diffInDays} ngày trước`;
@@ -51,12 +51,13 @@ function getRelativeTime(dateString: string) {
   return date.toLocaleDateString("vi-VN");
 }
 
-type TabType = "all" | "unread" | "requests" | "matching";
+type TabType = "all" | "unread" | "read" | "requests" | "matching";
 
 export default function NotificationsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>("all");
+  const [handledActions, setHandledActions] = useState<Record<string, "ACCEPTED" | "REJECTED">>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ["notifications"],
@@ -118,13 +119,15 @@ export default function NotificationsPage() {
 
       if (!targetReqId) {
         await markNotificationRead(notifId);
-        toast.info("Lời mời kết bạn này đã được xử lý hoặc không còn khả dụng.");
+        setHandledActions((prev) => ({ ...prev, [notifId]: "ACCEPTED" }));
+        toast.info("Lời mời kết bạn này đã được xử lý.");
         return;
       }
 
       try {
         await acceptConnectionRequest(targetReqId);
         await markNotificationRead(notifId);
+        setHandledActions((prev) => ({ ...prev, [notifId]: "ACCEPTED" }));
       } catch (err: any) {
         const msg = err.message || "";
         if (
@@ -134,6 +137,7 @@ export default function NotificationsPage() {
           msg.includes("bạn bè")
         ) {
           await markNotificationRead(notifId);
+          setHandledActions((prev) => ({ ...prev, [notifId]: "ACCEPTED" }));
           toast.info("Lời mời này đã được chấp nhận trước đó!");
           return;
         }
@@ -180,6 +184,7 @@ export default function NotificationsPage() {
         } catch (e) {}
       }
       await markNotificationRead(notifId);
+      setHandledActions((prev) => ({ ...prev, [notifId]: "REJECTED" }));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
@@ -191,9 +196,11 @@ export default function NotificationsPage() {
 
   const allNotifications = data?.data || [];
   const unreadCount = allNotifications.filter((n) => n.status === "UNREAD").length;
+  const readCount = allNotifications.filter((n) => n.status === "READ").length;
 
   const filteredNotifications = allNotifications.filter((notif) => {
     if (activeTab === "unread") return notif.status === "UNREAD";
+    if (activeTab === "read") return notif.status === "READ";
     if (activeTab === "requests") return notif.type === "CONNECTION_REQUEST";
     if (activeTab === "matching") {
       return (
@@ -250,7 +257,7 @@ export default function NotificationsPage() {
               size="sm"
               onClick={() => markAllReadMutation.mutate()}
               disabled={markAllReadMutation.isPending}
-              className="rounded-xl border-slate-200 text-xs font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50/50 shadow-xs"
+              className="rounded-xl border-slate-200 text-xs font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50/50 shadow-xs cursor-pointer"
             >
               <CheckCheck size={14} className="mr-1.5 text-blue-500" />
               Đánh dấu tất cả đã đọc
@@ -283,6 +290,18 @@ export default function NotificationsPage() {
             )}
           >
             Chưa đọc ({unreadCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("read")}
+            className={cn(
+              "rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer",
+              activeTab === "read"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
+            )}
+          >
+            Đã đọc ({readCount})
           </button>
           <button
             type="button"
@@ -333,7 +352,9 @@ export default function NotificationsPage() {
               <h3 className="text-base font-bold text-slate-800">Không có thông báo nào</h3>
               <p className="text-xs text-slate-500 max-w-sm mt-1">
                 {activeTab === "unread"
-                  ? "Bạn đã đọc hết các thông báo."
+                  ? "Bạn đã đọc hết các thông báo mới."
+                  : activeTab === "read"
+                  ? "Chưa có thông báo nào trong mục đã đọc."
                   : activeTab === "requests"
                   ? "Hiện tại không có lời mời kết bạn nào đang chờ."
                   : activeTab === "matching"
@@ -351,6 +372,7 @@ export default function NotificationsPage() {
                 notif.type === "RECOMMENDATION";
               const isAccepted = notif.type === "CONNECTION_ACCEPTED";
               const notifData = notif.data || {};
+              const actionTaken = handledActions[notif.id] || notifData.action_taken;
 
               return (
                 <div
@@ -489,38 +511,66 @@ export default function NotificationsPage() {
                       >
                         {isRequest && (
                           <>
-                            <Button
-                              size="xs"
-                              variant="default"
-                              onClick={() =>
-                                acceptRequestMutation.mutate({
-                                  requestId: notifData.request_id,
-                                  senderId: notifData.sender_id,
-                                  notifId: notif.id,
-                                })
-                              }
-                              disabled={acceptRequestMutation.isPending}
-                              className="rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-semibold px-3 py-1.5 shadow-xs cursor-pointer"
-                            >
-                              <UserCheck size={13} className="mr-1.5" />
-                              {acceptRequestMutation.isPending ? "Đang xử lý..." : "Chấp nhận"}
-                            </Button>
-                            <Button
-                              size="xs"
-                              variant="outline"
-                              onClick={() =>
-                                rejectRequestMutation.mutate({
-                                  requestId: notifData.request_id,
-                                  senderId: notifData.sender_id,
-                                  notifId: notif.id,
-                                })
-                              }
-                              disabled={rejectRequestMutation.isPending}
-                              className="rounded-lg border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 text-xs font-semibold px-3 py-1.5 cursor-pointer"
-                            >
-                              <X size={13} className="mr-1.5" />
-                              Từ chối
-                            </Button>
+                            {actionTaken === "ACCEPTED" ? (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                                  <Check size={13} className="text-emerald-600" />
+                                  Đã chấp nhận
+                                </span>
+                                <Button
+                                  size="xs"
+                                  variant="outline"
+                                  onClick={() => {
+                                    if (isUnread) markAsReadMutation.mutate(notif.id);
+                                    router.push("/chats");
+                                  }}
+                                  className="rounded-lg border-blue-200 text-blue-700 hover:bg-blue-50 text-xs font-semibold px-2.5 py-1 shadow-2xs cursor-pointer"
+                                >
+                                  <MessageSquare size={12} className="mr-1 text-blue-600" />
+                                  Nhắn tin
+                                </Button>
+                              </div>
+                            ) : actionTaken === "REJECTED" ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500 border border-slate-200">
+                                <X size={13} className="text-slate-400" />
+                                Đã từ chối
+                              </span>
+                            ) : (
+                              <>
+                                <Button
+                                  size="xs"
+                                  variant="default"
+                                  onClick={() =>
+                                    acceptRequestMutation.mutate({
+                                      requestId: notifData.request_id,
+                                      senderId: notifData.sender_id,
+                                      notifId: notif.id,
+                                    })
+                                  }
+                                  disabled={acceptRequestMutation.isPending}
+                                  className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3 py-1.5 shadow-xs cursor-pointer"
+                                >
+                                  <UserCheck size={13} className="mr-1.5" />
+                                  {acceptRequestMutation.isPending ? "Đang xử lý..." : "Chấp nhận"}
+                                </Button>
+                                <Button
+                                  size="xs"
+                                  variant="outline"
+                                  onClick={() =>
+                                    rejectRequestMutation.mutate({
+                                      requestId: notifData.request_id,
+                                      senderId: notifData.sender_id,
+                                      notifId: notif.id,
+                                    })
+                                  }
+                                  disabled={rejectRequestMutation.isPending}
+                                  className="rounded-lg border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 text-xs font-semibold px-3 py-1.5 cursor-pointer"
+                                >
+                                  <X size={13} className="mr-1.5" />
+                                  Từ chối
+                                </Button>
+                              </>
+                            )}
                           </>
                         )}
 
@@ -551,6 +601,21 @@ export default function NotificationsPage() {
                           >
                             <MessageSquare size={13} className="mr-1.5 text-green-600" />
                             Mở cuộc trò chuyện
+                          </Button>
+                        )}
+
+                        {/* Mark as read quick button for unread */}
+                        {isUnread && (
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => markAsReadMutation.mutate(notif.id)}
+                            disabled={markAsReadMutation.isPending}
+                            className="h-7 text-[11px] px-2 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
+                            title="Đánh dấu đã đọc (chuyển sang tab Đã đọc)"
+                          >
+                            <Check size={12} className="mr-1 text-blue-500" />
+                            Đã đọc
                           </Button>
                         )}
 

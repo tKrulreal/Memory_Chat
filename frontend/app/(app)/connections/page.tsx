@@ -58,9 +58,17 @@ interface RelationButtonProps {
   onAddFriend: (userId: string) => void;
   onAccept: (userId: string) => void;
   onChat: (conversationId: string) => void;
+  onUnfriend?: (userId: string) => void;
 }
 
-function RelationButton({ user, loading, onAddFriend, onAccept, onChat }: RelationButtonProps) {
+function RelationButton({
+  user,
+  loading,
+  onAddFriend,
+  onAccept,
+  onChat,
+  onUnfriend,
+}: RelationButtonProps) {
   const { relation, conversation_id } = user;
 
   if (relation === "none") {
@@ -70,7 +78,7 @@ function RelationButton({ user, loading, onAddFriend, onAccept, onChat }: Relati
         onClick={() => onAddFriend(user.id)}
         disabled={loading}
         id={`add-friend-${user.id}`}
-        className="rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3.5 transition-colors shadow-xs"
+        className="rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3.5 transition-colors shadow-xs cursor-pointer"
       >
         <UserPlus size={13} className="mr-1.5" />
         {loading ? "Đang gửi..." : "Kết bạn"}
@@ -100,7 +108,7 @@ function RelationButton({ user, loading, onAddFriend, onAccept, onChat }: Relati
         onClick={() => onAccept(user.id)}
         disabled={loading}
         id={`accept-${user.id}`}
-        className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 transition-colors shadow-xs"
+        className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 transition-colors shadow-xs cursor-pointer"
       >
         <Check size={13} className="mr-1.5" />
         {loading ? "Đang xử lý..." : "Chấp nhận"}
@@ -110,17 +118,36 @@ function RelationButton({ user, loading, onAddFriend, onAccept, onChat }: Relati
 
   // friend
   return (
-    <Button
-      size="sm"
-      variant="outline"
-      onClick={() => conversation_id && onChat(conversation_id)}
-      disabled={!conversation_id}
-      id={`chat-${user.id}`}
-      className="rounded-full border-blue-200 text-blue-700 hover:bg-blue-50 text-xs font-semibold px-3.5 shadow-2xs"
-    >
-      <MessageSquare size={13} className="mr-1.5 text-blue-600" />
-      Nhắn tin
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => conversation_id && onChat(conversation_id)}
+        disabled={!conversation_id}
+        id={`chat-${user.id}`}
+        className="rounded-full border-blue-200 text-blue-700 hover:bg-blue-50 text-xs font-semibold px-3.5 shadow-2xs cursor-pointer"
+      >
+        <MessageSquare size={13} className="mr-1.5 text-blue-600" />
+        Nhắn tin
+      </Button>
+      {onUnfriend && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            if (confirm(`Bạn có chắc chắn muốn xóa bạn bè với ${user.full_name || user.email}?`)) {
+              onUnfriend(user.id);
+            }
+          }}
+          id={`unfriend-${user.id}`}
+          className="rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 text-xs font-semibold px-3 shadow-2xs cursor-pointer"
+          title="Xóa bạn"
+        >
+          <UserMinus size={13} className="mr-1.5 text-red-500" />
+          Xóa bạn
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -198,6 +225,7 @@ function UserCard({ user, loadingId, onAddFriend, onAccept, onChat, onUnfriend }
           onAddFriend={onAddFriend}
           onAccept={onAccept}
           onChat={onChat}
+          onUnfriend={onUnfriend}
         />
         {user.relation === "friend" && (
           <DropdownMenu>

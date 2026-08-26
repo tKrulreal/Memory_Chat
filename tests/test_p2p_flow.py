@@ -128,6 +128,8 @@ async def test_p2p_flow_e2e(
         # So we should immediately receive it.
         
         ws_msg = websocket_b.receive_json()
+        while ws_msg.get("type") in ("ONLINE_USERS", "USER_PRESENCE"):
+            ws_msg = websocket_b.receive_json()
         assert ws_msg["type"] == "NEW_MESSAGE"
         assert ws_msg["content"] == "Hello B from A"
 
