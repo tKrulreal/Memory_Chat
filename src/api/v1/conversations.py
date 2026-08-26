@@ -1,6 +1,9 @@
+import logging
 import uuid
 from typing import Annotated, Any
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -339,7 +342,7 @@ async def trigger_context_refresh(
             db=db,
         )
     except Exception as e:
-        logging.getLogger(__name__).error("Failed to build memory: %s", e)
+        logger.error("Failed to build memory: %s", e)
         memory_res = None
 
     # 3. Cập nhật AssistantMemory trong database
@@ -392,7 +395,7 @@ async def trigger_context_refresh(
             },
         )
     except Exception as e:
-        logging.getLogger(__name__).warning("Failed to sync updated context to Qdrant: %s", e)
+        logger.warning("Failed to sync updated context to Qdrant: %s", e)
 
     # 5. Phát sự kiện thông báo cập nhật
     event_bus.publish(
@@ -406,6 +409,13 @@ async def trigger_context_refresh(
 
     context_data = dict(memory.facts or {})
     context_data["summary"] = memory.summary
+    context_data.setdefault("tags", [])
+    context_data.setdefault("pending_tags", [])
+    if isinstance(context_data.get("interested_in"), dict):
+        context_data["interested_in"] = context_data["interested_in"].get("interests", [])
+    elif not isinstance(context_data.get("interested_in"), list):
+        context_data["interested_in"] = []
+
     return AIContext.model_validate(context_data)
 
 
