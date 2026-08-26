@@ -1,249 +1,257 @@
-# 🤖 MemoryChat — AI-Powered Messaging Platform
+# 🤖 MemoryChat — AI-Native Messaging & Context-Aware Relationship Platform
 
-**MemoryChat** là nền tảng nhắn tin AI-native với khả năng ghi nhớ và hiểu mối quan hệ dài hạn với người dùng.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Railway%20App-00c853?style=for-the-badge&logo=railway)](https://c4-app-214.up.railway.app/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.115+-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%2015-336791?style=for-the-badge&logo=postgresql)](https://www.postgresql.org)
+[![LangGraph](https://img.shields.io/badge/AI%20Orchestrator-LangGraph-FF6F00?style=for-the-badge&logo=openai)](https://langchain-ai.github.io/langgraph/)
+[![Docker](https://img.shields.io/badge/Container-Docker%20Compose-2496ED?style=for-the-badge&logo=docker)](https://www.docker.com)
+
+> 🌐 **Live Production URL:** [https://c4-app-214.up.railway.app/](https://c4-app-214.up.railway.app/)
 
 ---
 
-## 🐳 Docker Development Setup
+## 📖 Giới Thiệu (Overview)
 
-> Developer mới chỉ cần Git + Docker Desktop — không cần cài Python, Node, PostgreSQL local.
+**MemoryChat** là nền tảng nhắn tin P2P thế hệ mới tích hợp sâu các **AI Agents** (Multi-Agent System với LangGraph) giúp tự động trích xuất thông tin, ghi nhớ ngữ cảnh dài hạn (Long-term Memory), gợi ý kết nối mạng lưới thông minh (AI Matchmaker) và hỗ trợ trợ lý cá nhân **AI Copilot** theo ngữ cảnh riêng của từng người dùng.
 
-### Requirements
+### ✨ Tính Năng Nổi Bật (Key Features)
 
-- [Git](https://git-scm.com/)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- 💬 **Real-time Chat & P2P Messaging:** Nhắn tin thời gian thực với WebSocket, hỗ trợ thả cảm xúc (emoji reactions), trả lời tin nhắn (reply thread), trạng thái đã đọc và đếm tin nhắn chưa đọc.
+- 🧠 **AI Long-term Memory (Trí nhớ thông minh):** Tự động phân tích hội thoại theo cửa sổ trượt (Memory Window), trích xuất tóm tắt và sự thật (facts), quản lý linh hoạt qua AI Hub.
+- 🤖 **AI Copilot Chat:** Trợ lý ảo hiểu rõ hồ sơ cá nhân và ngữ cảnh mối quan hệ của bạn, lưu trữ lịch sử nhiều lượt trò chuyện (multi-turn conversation) và cho phép quản lý lịch sử trò chuyện độc lập.
+- 🤝 **Smart Connection & Matchmaker:** Thuật toán AI đối sánh 5 bước (Jaccard Similarity, Mục tiêu tương hỗ, Địa lý, Hoạt động) để đề xuất bạn bè phù hợp nhất.
+- 👥 **Quản Lý Kết Nối & Lời Mời:** Gửi, Chấp nhận, Từ chối, Hủy lời mời kết bạn và Hủy kết bạn (Unfriend) đồng bộ tức thì trên cả trang Bạn bè và Trung tâm thông báo.
+- 🔔 **Interactive Notification Center:** Thông báo phân loại rõ ràng (Chưa đọc / Đã đọc), cập nhật trạng thái tương tác tức thời (Đã chấp nhận / Đã từ chối).
 
-### Quick Start
+---
 
+## 🛠️ Tech Stack
+
+| Thành phần | Công nghệ / Thư viện | Mục đích sử dụng |
+|---|---|---|
+| **Backend API** | **FastAPI** (Python 3.11), Uvicorn | RESTful API hiệu năng cao, WebSocket real-time |
+| **AI Framework** | **LangGraph**, **LangChain**, OpenAI / OpenRouter | Xây dựng luồng Multi-Agent, Memory Agent, Recommendation Agent, Copilot Agent |
+| **Primary Database** | **PostgreSQL 15**, SQLAlchemy 2.0, Alembic | Lưu trữ dữ liệu quan hệ, transactional outbox pattern, migration tự động |
+| **Vector Database** | **Qdrant Cloud** | Lưu trữ vector embeddings phục vụ Semantic Search & Trí nhớ AI |
+| **Frontend** | **Next.js 14** (App Router), TypeScript, React | Giao diện người dùng hiện đại, Server & Client Components |
+| **Styling & UI** | **Tailwind CSS**, Radix UI, Lucide Icons, Sonner | Giao diện chuẩn mực, responsive, dark/light theme |
+| **State & Cache** | **TanStack Query** (React Query), **Zustand** | Quản lý server state, optimistic updates và client store |
+| **DevOps & Deploy** | **Docker**, Docker Compose, Railway | Đóng gói container, triển khai cloud production |
+
+---
+
+## 🏗️ Cấu Trúc Thư Mục (Project Structure)
+
+```
+P-214/
+├── alembic/                      # Quản lý Database Migrations (13 revisions tuyến tính)
+│   ├── versions/                 # Các file migration từ gốc đến HEAD
+│   └── env.py                    # Cấu hình Alembic môi trường
+├── docs/                         # Tài liệu kiến trúc và đặc tả kỹ thuật
+│   ├── specs/                    # Đặc tả API, AI Agents, Database, Architecture
+│   └── plan/                     # Kế hoạch phát triển chi tiết
+├── frontend/                     # Mã nguồn Next.js Frontend
+│   ├── app/                      # Next.js App Router (chats, connections, notifications, copilot, profile, settings)
+│   ├── components/               # UI components (chat, ai, layout, modals, ui)
+│   ├── lib/                      # API clients, stores (Zustand), hooks, utils
+│   ├── types/                    # TypeScript interfaces & types
+│   ├── Dockerfile                # Multi-stage Docker build cho Next.js Standalone
+│   └── package.json              # Frontend dependencies
+├── src/                          # Mã nguồn Backend FastAPI
+│   ├── agents/                   # LangGraph AI Agents (Orchestrator, Memory, Connection, Reply, Search, Tagging)
+│   ├── api/                      # REST API Routers (v1: auth, chat, connections, copilot, notifications, profile...)
+│   ├── core/                     # Bảo mật, JWT, Middlewares, Structured Logging, Scheduler
+│   ├── events/                   # Event Bus & Outbox Event types
+│   ├── models/                   # SQLAlchemy Models (User, Chat, AI, Contact, Connection...)
+│   ├── schemas/                  # Pydantic Schemas (Request/Response validation)
+│   ├── services/                 # Business logic & LLM Gateway
+│   ├── workers/                  # Background Workers (Outbox Worker, Memory Worker)
+│   └── main.py                   # Application Entrypoint & Lifespan
+├── tests/                        # Toàn bộ Test Suite (81 Unit & Integration Tests với Pytest)
+├── .env.example                  # File cấu hình biến môi trường mẫu
+├── .gitignore                    # Bộ quy tắc bỏ qua file nhạy cảm, logs, cache
+├── docker-compose.yml            # Khởi chạy toàn bộ hệ thống (Frontend + Backend + PostgreSQL)
+├── Dockerfile                    # Multi-stage Docker build cho Backend FastAPI
+├── requirements.txt              # Danh sách Python dependencies (pinned versions)
+├── seed_data.py                  # Script nạp dữ liệu mẫu chuẩn (Users, Profiles, AI Context, Chats)
+└── README.md                     # Tài liệu hướng dẫn dự án
+```
+
+---
+
+## 🚀 Hướng Dẫn Cài Đặt & Khởi Chạy (Step-by-Step Guide)
+
+### Cách 1: Chạy bằng Docker (Khuyên Dùng — Nhanh & Tiện Lợi Nhất)
+
+> **Yêu cầu:** Máy đã cài đặt [Git](https://git-scm.com/) và [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+
+#### Bước 1: Clone Repository
 ```bash
-# 1. Clone và cd vào project
 git clone <repository-url>
 cd P-214
+```
 
-# 2. Copy và chỉnh sửa .env
+#### Bước 2: Thiết Lập Biến Môi Trường
+Tạo file `.env` từ file mẫu `.env.example`:
+```bash
 cp .env.example .env
-# Chỉnh sửa .env: OPENAI_API_KEY, QDRANT_URL, QDRANT_API_KEY, JWT_SECRET
-
-# 3. Build và chạy
-docker compose up --build
 ```
+*Cấu hình các API key cần thiết trong file `.env` (ví dụ: `OPENAI_API_KEY`, `JWT_SECRET`).*
 
-> ✅ **Tự động hoàn toàn**: Backend tự động chạy database migrations khi khởi động.
-
-### Services
-
-| Service  | Port | URL                          |
-|----------|------|------------------------------|
-| Frontend | 3000 | http://localhost:3000        |
-| Backend | 8000 | http://localhost:8000        |
-| API Docs | 8000 | http://localhost:8000/docs   |
-| Postgres| 5432 | localhost:5432              |
-
-> **Qdrant**: Sử dụng **Qdrant Cloud** (SaaS). Cấu hình trong `.env`:
-> - `QDRANT_URL`
-> - `QDRANT_API_KEY`
-> - Đăng ký miễn phí tại [cloud.qdrant.io](https://cloud.qdrant.io)
-
-### Everyday Commands
-
+#### Bước 3: Khởi Động Toàn Bộ Ứng Dụng Với Docker Compose
 ```bash
-# Start background
-docker compose up -d
-
-# Rebuild và start
-docker compose up --build
-
-# Stop (giữ data)
-docker compose down
-
-# Restart
-docker compose restart
-
-# Xem logs
-docker compose logs -f         # Tất cả
-docker compose logs -f backend # Backend only
-
-# Kiểm tra trạng thái
-docker compose ps
+docker compose up -d --build
 ```
+> ✅ **Tự động hóa:** Container backend sẽ **tự động chạy lệnh `alembic upgrade head`** để tạo mới và cập nhật toàn bộ database schema lên phiên bản mới nhất.
 
-### Database
-
-Database PostgreSQL chạy hoàn toàn trong Docker:
-
-- **Volume**: `pgdata` — data được giữ nguyên sau `docker compose down`
-- **Migrations**: Tự động chạy khi backend khởi động
-- **Development dump**: `database/development.sql` — được restore lần đầu tiên
-
+#### Bước 4: Nạp Dữ Liệu Mẫu (Seed Data)
+Chạy lệnh sau để nạp ngay 5 tài khoản mẫu và dữ liệu hội thoại, trí nhớ AI:
 ```bash
-# Backup database
-make db-backup
-
-# Update development.sql từ database hiện tại
-make db-dump
-
-# Restore từ backup
-make db-restore FILE=backup/db-TIMESTAMP.sql
-
-# Reset về development.sql
-make db-reset
+docker compose exec backend python seed_data.py
 ```
 
-> ⚠️ **Cảnh báo**: `docker compose down -v` sẽ **XÓA** volume `pgdata` và toàn bộ data!
+#### Bước 5: Truy Cập Ứng Dụng
+- **Frontend App:** [http://localhost:3000](http://localhost:3000)
+- **Backend API Docs (Swagger UI):** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Database PostgreSQL:** `localhost:5432`
 
 ---
 
-## ⚡ Local Development
+### Cách 2: Chạy Thủ Công Trên Môi Trường Local
 
-### Backend ngoài Docker (với hot reload)
-
+#### 1. Khởi chạy Database:
 ```bash
-# Chỉ chạy database trong Docker
 docker compose up -d postgres
-
-# Chạy backend trực tiếp với hot reload
-cd P-214
-source .venv/Scripts/activate  # Windows: .venv\Scripts\activate
-python -m uvicorn src.main:app --reload --port 8000
 ```
+
+#### 2. Cài đặt và chạy Backend:
+```bash
+# Tạo virtual environment
+python -m venv .venv
+source .venv/bin/activate   # Trên Linux/macOS
+# .venv\Scripts\activate   # Trên Windows
+
+# Cài đặt thư viện
+pip install -r requirements.txt
+
+# Chạy migration
+alembic upgrade head
+
+# Nạp dữ liệu mẫu
+python seed_data.py
+
+# Khởi chạy server FastAPI
+uvicorn src.main:app --reload --port 8000
+```
+
+#### 3. Cài đặt và chạy Frontend:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Truy cập giao diện tại: `http://localhost:3000`
 
 ---
 
-## 🔧 Troubleshooting
+## 👥 Danh Sách Tài Khoản Mẫu Để Trải Nghiệm (Test Accounts)
 
-### Port đã được sử dụng
+Tất cả các tài khoản đều có mật khẩu mặc định là: `password123`
+
+| Họ và tên | Email | Vai trò / Nghề nghiệp | Điểm mạnh hồ sơ AI |
+|---|---|---|---|
+| **Trần Minh** | `minh.tran@example.com` | Senior Backend Engineer | Python, FastAPI, Docker, Microservices |
+| **Nguyễn Thị Lan** | `lan.nguyen@example.com` | Lead Product Manager | EdTech, SaaS Growth, Design Thinking |
+| **Phạm Khoa** | `khoa.pham@example.com` | AI & Data Scientist | RAG Pipelines, LLM Agents, PyTorch |
+| **Lê Mai** | `mai.le@example.com` | Senior Frontend Developer | Next.js, React Native, UI/UX Design |
+| **Võ Hiếu** | `hieu.vo@example.com` | DevOps & Cloud Architect | Kubernetes, AWS, CI/CD, Terraform |
+
+---
+
+## 🌍 Danh Sách Biến Môi Trường Cần Thiết (Environment Variables)
+
+| Tên Biến | Mô Tả | Ví Dụ Định Dạng / Giá Trị Mẫu | Bắt Buộc |
+|---|---|---|:---:|
+| `APP_ENV` | Môi trường triển khai | `development` / `production` | Không |
+| `DEBUG` | Chế độ debug | `true` / `false` | Không |
+| `APP_PORT` | Port backend lắng nghe | `8000` | Không |
+| `DATABASE_URL` | Chuỗi kết nối PostgreSQL | `postgresql://user:pass@host:5432/dbname` | **Có** |
+| `JWT_SECRET` | Khóa bí mật mã hóa token JWT | `chuỗi_bí_mật_ngẫu_nhiên` | **Có** |
+| `JWT_EXPIRE_MINUTES` | Thời gian hết hạn của Access Token | `60` | Không |
+| `OPENAI_API_KEY` | API Key OpenAI cho các AI Agents | `sk-proj-...` | **Có** |
+| `USE_OPENROUTER` | Bật sử dụng OpenRouter thay cho OpenAI | `false` / `true` | Không |
+| `OPENROUTER_API_KEY` | API Key OpenRouter (nếu bật) | `sk-or-...` | Không |
+| `QDRANT_URL` | URL kết nối Vector DB Qdrant Cloud | `https://xxxx.aws.cloud.qdrant.io` | Tùy chọn |
+| `QDRANT_API_KEY` | API Key xác thực Qdrant Cloud | `xxxx...` | Tùy chọn |
+| `NEXT_PUBLIC_API_URL`| URL Backend API cung cấp cho Frontend | `http://localhost:8000` | **Có** |
+
+---
+
+## 📡 Tài Liệu API Chính (Key API Endpoints)
+
+Hệ thống cung cấp đầy đủ Swagger UI tương tác tại `/docs`. Dưới đây là tóm tắt các endpoint chính:
+
+### 1. Authentication (`/api/v1/auth`)
+- `POST /api/v1/auth/register`: Đăng ký tài khoản mới.
+- `POST /api/v1/auth/login`: Đăng nhập, nhận JWT Access Token.
+- `GET /api/v1/auth/me`: Lấy thông tin user hiện tại.
+
+### 2. Conversations & Real-time Messages (`/api/v1/conversations`)
+- `GET /api/v1/conversations`: Danh sách cuộc trò chuyện trực tiếp (kèm unread count, last message).
+- `POST /api/v1/conversations`: Tạo hoặc mở cuộc trò chuyện với bạn bè.
+- `GET /api/v1/conversations/{id}/messages`: Phân trang lịch sử tin nhắn.
+- `POST /api/v1/conversations/{id}/read`: Đánh dấu đã đọc toàn bộ tin nhắn trong hội thoại.
+- `WS /api/v1/ws/chat`: Kênh WebSocket real-time nhận gửi tin nhắn và reaction.
+
+### 3. Connection Requests & Network (`/api/v1/connection-requests`)
+- `GET /api/v1/connection-requests`: Danh sách lời mời (incoming, outgoing, pending).
+- `POST /api/v1/connection-requests`: Gửi lời mời kết bạn mới.
+- `POST /api/v1/connection-requests/{id}/accept`: Chấp nhận kết bạn (tự động tạo cuộc trò chuyện).
+- `POST /api/v1/connection-requests/{id}/reject`: Từ chối lời mời kết bạn.
+- `POST /api/v1/connection-requests/{id}/cancel`: Thu hồi lời mời kết bạn đã gửi.
+- `DELETE /api/v1/connection-requests/friends/{target_user_id}`: Hủy kết bạn (Unfriend) an toàn.
+
+### 4. AI Copilot & Memory Hub (`/api/v1/copilot` & `/api/v1/assistant`)
+- `POST /api/v1/copilot/chat`: Trò chuyện với AI Copilot có ngữ cảnh quan hệ và profile.
+- `GET /api/v1/copilot/messages`: Lấy lịch sử chat Copilot theo cài đặt Memory Window.
+- `DELETE /api/v1/copilot/messages`: Xóa lịch sử chat Copilot.
+- `POST /api/v1/assistant/context/refresh`: Làm mới và trích xuất lại AI Memory & Relationship Context.
+
+### 5. Notifications & Profile (`/api/v1/notifications` & `/api/v1/profile`)
+- `GET /api/v1/notifications`: Lấy danh sách thông báo (phân trang).
+- `POST /api/v1/notifications/{id}/read`: Đánh dấu đã đọc một thông báo.
+- `POST /api/v1/notifications/read-all`: Đánh dấu đã đọc toàn bộ thông báo.
+- `GET /api/v1/profile/me`: Lấy hồ sơ cá nhân và cài đặt AI Hub.
+- `PUT /api/v1/profile/me`: Cập nhật thông tin profile và tùy chọn AI.
+
+---
+
+## 🧪 Kiểm Thử (Testing)
+
+Dự án tuân thủ nghiêm ngặt chuẩn mực **Test-Driven Development (TDD)** với 100% test cases tự động:
 
 ```bash
-# Kiểm tra port
-netstat -ano | findstr :8000
-netstat -ano | findstr :5432
-
-# Đổi port trong .env
-POSTGRES_PORT=5433
+# Chạy toàn bộ 81 bài kiểm thử
+pytest tests/ -v
 ```
 
-### Backend không healthy
-
-```bash
-# Xem logs
-docker compose logs backend
-
-# Restart
-docker compose restart backend
-```
-
-### Database migration lỗi
-
-```bash
-# Chạy migration thủ công
-docker compose exec backend python -m alembic upgrade head
-
-# Kiểm tra migrations hiện tại
-docker compose exec backend python -m alembic history
-```
-
-### Reset hoàn toàn
-
-```bash
-docker compose down -v
-docker compose up --build
+**Kết quả kiểm thử:**
+```text
+======================= 81 passed, 1 warning in 18.12s ========================
 ```
 
 ---
 
-## 🏗 Architecture
+## 👨‍💻 Thành Viên Dự Án (Team Members)
 
-```
-┌─────────────────────────────────────────────────┐
-│              Frontend (Next.js :3000)            │
-└──────────────────────┬──────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────┐
-│              Backend (FastAPI :8000)             │
-├──────────────────────┬──────────────────────────┤
-│                      │                          │
-│      PostgreSQL      │     Qdrant Cloud        │
-│     (:5432 Docker)   │   (Vector Store)        │
-└──────────────────────┴──────────────────────────┘
-```
-
-Documentation:
-- [System Architecture](docs/specs/architecture.md)
-- [AI Agents](docs/specs/ai-agents.md)
-- [Database Schema](docs/specs/database.md)
-- [API Endpoints](docs/specs/api.md)
+| Họ và tên | Vai trò | Trách nhiệm chính |
+|---|---|---|
+| **Đội ngũ Phát triển P-214** | **Fullstack & AI Engineers** | Kiến trúc Multi-Agent, Backend FastAPI, Frontend Next.js, DevOps & Deployment |
 
 ---
 
-## 🛠 Tech Stack
+## 🔗 Liên Kết Quan Trọng (Important Links)
 
-| Layer | Technology |
-|-------|-----------|
-| API | FastAPI + Uvicorn |
-| LLM | OpenAI `gpt-4o-mini` (LangGraph) |
-| Agent | LangGraph Orchestrator |
-| Database | PostgreSQL 15 (Docker) + Alembic |
-| Vector DB | Qdrant Cloud |
-| Frontend | Next.js + TypeScript |
-| Container | Docker Compose |
-
----
-
-## 🌍 Environment Variables
-
-Xem [`.env.example`](.env.example) để biết tất cả biến cần thiết.
-
-```bash
-cp .env.example .env
-# Bắt buộc:
-# - OPENAI_API_KEY
-# - QDRANT_URL
-# - QDRANT_API_KEY
-# - JWT_SECRET
-```
-
----
-
-## 📁 Project Structure
-
-```
-├── alembic/              # Database migrations
-├── database/             # Development database dump
-│   └── development.sql  # Auto-restored on first run
-├── src/
-│   ├── agents/          # LangGraph AI Agents
-│   ├── api/v1/          # FastAPI Routers
-│   ├── models/          # SQLAlchemy Models
-│   ├── services/        # Business Logic & LLM Gateway
-│   └── main.py          # Application Entrypoint
-├── frontend/             # Next.js Frontend
-├── scripts/              # Utility scripts
-├── .env.example          # Environment Variables Template
-├── Makefile              # Development commands
-├── docker-compose.yml    # Docker services
-└── RUN_WITH_DOCKER.md   # Docker setup guide
-```
-
----
-
-## 🎯 Features
-
-- 💬 **Chat**: Real-time messaging với WebSocket
-- 🧠 **AI Memory**: Tự động ghi nhớ thông tin về Contact
-- 🔍 **Semantic Search**: Tìm kiếm theo ngữ nghĩa
-- 🤖 **AI Copilot**: Trợ lý AI trả lời theo ngữ cảnh
-- 💡 **Recommendations**: Đề xuất follow-up, reply, priority
-- 🏷️ **Tags & Connections**: Tự động gợi ý tags và kết nối
-
----
-
-## 📚 Documentation
-
-| Document | Description |
-|----------|-------------|
-| [SPEC.md](docs/specs/SPEC.md) | Project specifications |
-| [RUN_WITH_DOCKER.md](RUN_WITH_DOCKER.md) | Docker setup guide |
-| [AI Agents](docs/specs/ai-agents.md) | AI agent architecture |
-| [API](docs/specs/api.md) | API endpoints reference |
-| [Frontend](docs/specs/frontend.md) | Frontend architecture |
+- 🚀 **Live Production:** [https://c4-app-214.up.railway.app/](https://c4-app-214.up.railway.app/)
+- 📑 **Swagger API Docs:** [https://c4-app-214.up.railway.app/docs](https://c4-app-214.up.railway.app/docs)
