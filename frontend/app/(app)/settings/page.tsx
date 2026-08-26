@@ -51,7 +51,6 @@ type SettingTab =
   | "account"
   | "chat"
   | "privacy"
-  | "ai"
   | "notifications"
   | "appearance"
   | "about";
@@ -195,7 +194,6 @@ export default function SettingsPage() {
     { id: "account", label: "Tài khoản & Bảo mật", icon: Shield },
     { id: "chat", label: "Trò chuyện & Media", icon: MessageSquare },
     { id: "privacy", label: "Quyền riêng tư", icon: Lock },
-    { id: "ai", label: "Trí tuệ Nhân tạo & AI", icon: Sparkles },
     { id: "notifications", label: "Thông báo & Âm thanh", icon: Bell },
     { id: "appearance", label: "Giao diện & Ngôn ngữ", icon: Palette },
     { id: "about", label: "Về ứng dụng", icon: Info },
@@ -212,11 +210,20 @@ export default function SettingsPage() {
               Cài đặt Hệ thống (Settings)
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Quản lý tài khoản, trải nghiệm trò chuyện, quyền riêng tư và cấu hình AI trợ lý.
+              Quản lý tài khoản, trải nghiệm trò chuyện, quyền riêng tư, thông báo và giao diện ứng dụng.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push("/ai-hub")}
+              className="flex items-center gap-1.5 rounded-xl shadow-xs text-blue-600 border-blue-200 hover:bg-blue-50"
+            >
+              <Sparkles size={14} />
+              Cấu hình AI Hub
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -568,7 +575,7 @@ export default function SettingsPage() {
                   {/* Read Receipts */}
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-semibold text-slate-800">Hiển thị trạng thái "Đã xem" (Read Receipts)</p>
+                      <p className="text-sm font-semibold text-slate-800">Hiển thị trạng thái &quot;Đã xem&quot; (Read Receipts)</p>
                       <p className="text-xs text-slate-400">
                         Cho phép đối phương biết khi bạn đã đọc tin nhắn của họ.
                       </p>
@@ -646,139 +653,7 @@ export default function SettingsPage() {
             )}
 
             {/* ================================================================= */}
-            {/* TAB 4: TRÍ TUỆ NHÂN TẠO & AI COPILOT */}
-            {/* ================================================================= */}
-            {activeTab === "ai" && (
-              <div className="space-y-6">
-                <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
-                  <h2 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-4 flex items-center gap-2">
-                    <Brain size={18} className="text-blue-600" />
-                    Cấu hình Trí tuệ Nhân tạo (AI & Copilot)
-                  </h2>
-
-                  {/* Master AI Assistant Toggle */}
-                  <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-blue-50/60 border border-blue-100">
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <Sparkles size={16} className="text-blue-600" />
-                        <p className="text-sm font-bold text-slate-800">Kích hoạt Trợ lý AI (Master AI Switch)</p>
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        Bật/tắt toàn bộ hệ sinh thái tính năng AI (Copilot, gợi ý tin nhắn, matchmaker, tagging).
-                      </p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        checked={settings?.ai_enabled !== false}
-                        onChange={(e) => handleToggleSetting("ai_enabled", e.target.checked)}
-                      />
-                      <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </div>
-
-                  {settings?.ai_enabled !== false && (
-                    <>
-                      <hr className="border-slate-100" />
-
-                      {/* FEATURE REQUEST: TOGGLE CHO PHÉP AI TRÍCH XUẤT ĐOẠN CHAT */}
-                      <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                        <div className="space-y-1 max-w-md">
-                          <div className="flex items-center gap-2">
-                            <MessageSquare size={16} className="text-blue-600" />
-                            <p className="text-sm font-bold text-slate-800">
-                              Cho phép AI trích xuất phân tích đoạn chat
-                            </p>
-                          </div>
-                          <p className="text-xs text-slate-500 leading-relaxed">
-                            {settings?.ai_extract_chat !== false
-                              ? "BẬT: Trợ lý AI và Memory Worker sẽ phân tích nội dung cuộc hội thoại để tự động học hỏi thói quen, điểm quan tâm, thông tin liên lạc và hỗ trợ bạn tốt nhất."
-                              : "TẮT (Bảo mật tối đa): AI sẽ bị khóa hoàn toàn quyền đọc và trích xuất tin nhắn chat của bạn."}
-                          </p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                          <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={settings?.ai_extract_chat !== false}
-                            onChange={(e) => handleToggleSetting("ai_extract_chat", e.target.checked)}
-                          />
-                          <div className="w-12 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                      </div>
-
-                      <hr className="border-slate-100" />
-
-                      {/* Allow AI to Read Profile */}
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="space-y-0.5">
-                          <p className="text-sm font-semibold text-slate-800">Cho phép AI đọc Hồ sơ (Profile Matching)</p>
-                          <p className="text-xs text-slate-400">
-                            Cho phép thuật toán AI Matchmaker đọc kỹ năng, kinh nghiệm để gợi ý bạn bè và đối tác.
-                          </p>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={settings?.ai_read_profile !== false}
-                            onChange={(e) => handleToggleSetting("ai_read_profile", e.target.checked)}
-                          />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                      </div>
-
-                      <hr className="border-slate-100" />
-
-                      {/* Copilot Context Turns */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div className="space-y-0.5">
-                          <p className="text-sm font-semibold text-slate-800">Số tin nhắn ngữ cảnh Copilot</p>
-                          <p className="text-xs text-slate-400">
-                            Số lượng tin nhắn gần nhất AI Copilot tham khảo để trả lời chính xác.
-                          </p>
-                        </div>
-                        <select
-                          value={settings?.ai_copilot_context_turns ?? 10}
-                          onChange={(e) => handleToggleSetting("ai_copilot_context_turns", parseInt(e.target.value))}
-                          className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none"
-                        >
-                          <option value="5">5 tin nhắn gần nhất</option>
-                          <option value="10">10 tin nhắn (Đề xuất)</option>
-                          <option value="20">20 tin nhắn</option>
-                          <option value="50">50 tin nhắn</option>
-                          <option value="0">Toàn bộ cuộc trò chuyện</option>
-                        </select>
-                      </div>
-
-                      <hr className="border-slate-100" />
-
-                      {/* Memory Refresh Interval */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div className="space-y-0.5">
-                          <p className="text-sm font-semibold text-slate-800">Chu kỳ cập nhật Trí nhớ AI</p>
-                          <p className="text-xs text-slate-400">Tần suất hệ thống tổng hợp thông tin quan trọng từ chat.</p>
-                        </div>
-                        <select
-                          value={settings?.ai_memory_refresh_interval || "realtime"}
-                          onChange={(e) => handleToggleSetting("ai_memory_refresh_interval", e.target.value)}
-                          className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none"
-                        >
-                          <option value="realtime">Tức thì (Realtime)</option>
-                          <option value="5_mins">Mỗi 5 phút sau khi chat</option>
-                          <option value="hourly">Hàng giờ</option>
-                          <option value="daily">Hàng ngày</option>
-                        </select>
-                      </div>
-                    </>
-                  )}
-                </Card>
-              </div>
-            )}
-
-            {/* ================================================================= */}
-            {/* TAB 5: THÔNG BÁO & ÂM THANH */}
+            {/* TAB 4: THÔNG BÁO & ÂM THANH */}
             {/* ================================================================= */}
             {activeTab === "notifications" && (
               <div className="space-y-6">

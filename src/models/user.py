@@ -110,6 +110,14 @@ class Setting(Base):
     ai_recommendation_interval: Mapped[str] = mapped_column(String(50), default="24h")
     ai_copilot_context_turns: Mapped[int] = mapped_column(Integer, default=10)
 
+    @property
+    def notifications_enabled(self) -> bool:
+        return self.notification
+
+    @notifications_enabled.setter
+    def notifications_enabled(self, value: bool) -> None:
+        self.notification = value
+
     user = relationship("User", back_populates="setting")
 
 
