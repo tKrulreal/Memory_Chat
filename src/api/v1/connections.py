@@ -47,13 +47,34 @@ async def list_connections(
 ):
     """
     Lấy danh sách các gợi ý kết nối dành cho bản thân người dùng hiện tại do AI đánh giá thật.
-    Hiển thị đầy đủ danh sách cho AI Matchmaker (ngưỡng min_matching_score chỉ dùng để kích hoạt thông báo).
+    Áp dụng ngưỡng min_matching_score từ cài đặt AI Hub để lọc cả hiển thị trên trang AI Matchmaker lẫn thông báo.
     """
+    # 1. Read user AI config
+    ai_config = db.query(AISystemConfig).filter(
+        AISystemConfig.user_id == current_user.id,
+        AISystemConfig.key == "ai_settings"
+    ).first()
+
+    min_score_percent = 50
+    can_generate = True
+
+    if not current_user.setting or not current_user.setting.ai_enabled:
+        can_generate = False
+
+    if ai_config and isinstance(ai_config.value, dict):
+        features = ai_config.value.get("features", {})
+        if features.get("recommendation") is False:
+            can_generate = False
+        min_score_percent = int(ai_config.value.get("min_matching_score", 50))
+
+    min_score = min_score_percent / 100.0
+
     query = (
         db.query(Recommendation)
         .filter(
             Recommendation.owner_user_id == current_user.id,
             Recommendation.type == RecommendationType.CONNECTION.value,
+            Recommendation.match_score >= min_score,
         )
     )
 
@@ -70,35 +91,18 @@ async def list_connections(
     agent = ConnectionRecommendationAgent()
 
     # If user has no pending recommendations yet, trigger dynamic AI evaluation in real time
-    if (status_filter == "PENDING" or status_filter == "ALL") and not recommendations:
-        # Only auto-generate if AI and Recommendation feature are enabled
-        can_generate = True
-        
-        if not current_user.setting or not current_user.setting.ai_enabled:
-            can_generate = False
-            
-        ai_config = db.query(AISystemConfig).filter(
-            AISystemConfig.user_id == current_user.id,
-            AISystemConfig.key == "ai_settings"
-        ).first()
-
-        if ai_config and isinstance(ai_config.value, dict):
-            features = ai_config.value.get("features", {})
-            if features.get("recommendation") is False:
-                can_generate = False
-            
-        if can_generate:
-            try:
-                await agent.generate(current_user.id, min_score=0.4, limit=10)
-                recommendations = (
-                    query
-                    .order_by(Recommendation.confidence.desc(), Recommendation.created_at.desc())
-                    .limit(limit)
-                    .all()
-                )
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning(f"Auto AI generation error for user {current_user.id}: {e}")
+    if (status_filter == "PENDING" or status_filter == "ALL") and not recommendations and can_generate:
+        try:
+            await agent.generate(current_user.id, min_score=min_score, limit=10)
+            recommendations = (
+                query
+                .order_by(Recommendation.confidence.desc(), Recommendation.created_at.desc())
+                .limit(limit)
+                .all()
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Auto AI generation error for user {current_user.id}: {e}")
 
     results = []
     for rec in recommendations:

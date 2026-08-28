@@ -368,6 +368,41 @@ def seed_db():
                 is_public=prof_data["is_public"]
             )
             db.add(profile)
+
+            # Create AI System Config
+            ai_config_val = {
+                "features": {
+                    "copilot": True,
+                    "recommendation": True,
+                    "memory": True,
+                    "tagging": True,
+                },
+                "model_name": "gpt-4o-mini",
+                "temperature": 0.7,
+                "tag_limit": 3,
+                "min_matching_score": 50,
+                "notification_interval": "24h",
+            }
+            ai_cfg = AISystemConfig(
+                id=uuid.uuid4(),
+                user_id=user.id,
+                key="ai_settings",
+                value=ai_config_val,
+                description="Default AI configurations",
+            )
+            db.add(ai_cfg)
+
+            # Create Default Tags
+            for tag_name, tag_cat in [("Developer", "profession"), ("AI & Data", "skill"), ("Startup & Founder", "interest"), ("Product Manager", "profession")]:
+                tag = Tag(
+                    id=uuid.uuid4(),
+                    user_id=user.id,
+                    name=tag_name,
+                    category=tag_cat,
+                    is_active=True,
+                )
+                db.add(tag)
+
             db.commit()
             db.refresh(user)
             created_users.append(user)
@@ -450,6 +485,68 @@ def seed_db():
             
         db.commit()
         logger.info("Seeded 6 conversations and messages for User 1 successfully.")
+
+        # 5. Seed Copilot Messages for User 1
+        copilot_msgs = [
+            ("user", "Chào bạn, hãy tóm tắt các cuộc trò chuyện gần đây của tôi?", [], []),
+            ("assistant", "Chào bạn! Gần đây bạn đã trao đổi với Trần Thị Hai về việc thiết kế API Backend cho dự án AI Chat, trao đổi với Lê Văn Ba về giao diện React/TailwindCSS, và bàn bạc với Đỗ Hoàng Sáu về dự án app di động iOS.", [], ["messages"]),
+            ("user", "Trong mạng lưới của tôi có ai có kinh nghiệm về DevOps không?", [], []),
+            ("assistant", "Trong mạng lưới của bạn có Hoàng Văn Năm (DevOps Engineer tại Viettel chuyên Docker/K8s) và Phạm Văn Mười Một (Cloud Architect chuyên AWS/Terraform). Bạn có thể kết nối với họ để nhận tư vấn hạ tầng.", [], ["contacts", "user_profile"]),
+        ]
+        for c_idx, (c_role, c_content, c_tools, c_sources) in enumerate(copilot_msgs):
+            c_msg = CopilotMessage(
+                id=uuid.uuid4(),
+                user_id=u1.id,
+                role=c_role,
+                content=c_content,
+                tools_used=c_tools,
+                sources=c_sources,
+                created_at=datetime.now(timezone.utc) - timedelta(minutes=30 - c_idx * 5),
+                updated_at=datetime.now(timezone.utc) - timedelta(minutes=30 - c_idx * 5),
+            )
+            db.add(c_msg)
+        db.commit()
+        logger.info("Seeded Copilot messages history for User 1.")
+
+        # 6. Seed AI Matchmaker Recommendation & Synchronized Notification for User 1 matching User 4 (Phạm Thị Bốn)
+        u4 = created_users[3] # Phạm Thị Bốn - AI Researcher at VinAI
+        rec_id = uuid.uuid4()
+        rec = Recommendation(
+            id=rec_id,
+            owner_user_id=u1.id,
+            target_user_id=u4.id,
+            type="CONNECTION",
+            status="PENDING",
+            reason=f"Profile của {u4.full_name} có sự tương đồng cao về định hướng phát triển sản phẩm AI và nghiên cứu NLP/Generative AI.",
+            match_score=0.92,
+            priority="HIGH",
+            created_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            updated_at=datetime.now(timezone.utc) - timedelta(hours=2),
+        )
+        db.add(rec)
+
+        notif = Notification(
+            id=uuid.uuid4(),
+            user_id=u1.id,
+            type="MATCH_SUGGESTION",
+            title="Gợi ý kết nối AI",
+            content=f"Profile của {u4.full_name} rất phù hợp với bạn, hãy thử kết nối!",
+            data={
+                "target_user_id": str(u4.id),
+                "target_name": u4.full_name,
+                "target_avatar": None,
+                "target_profession": "AI Researcher",
+                "target_company": "VinAI",
+                "target_location": "Hà Nội",
+                "match_score": 92,
+                "recommendation_id": str(rec_id),
+            },
+            status="UNREAD",
+            created_at=datetime.now(timezone.utc) - timedelta(hours=2),
+        )
+        db.add(notif)
+        db.commit()
+        logger.info("Seeded synchronized AI Matchmaker recommendation and notification for User 1.")
         logger.info("Database seeding successfully completed!")
         
     except Exception as e:
