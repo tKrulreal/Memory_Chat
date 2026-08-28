@@ -269,6 +269,18 @@ def send_connection_request(
     for rec in recs_to_update:
         rec.status = "ACCEPTED"
 
+    # Synchronize MATCH_SUGGESTION notifications for current_user
+    matching_notifs = db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.type.in_(["MATCH_SUGGESTION", "CONNECTION_RECOMMENDATION", "RECOMMENDATION"])
+    ).all()
+    for n in matching_notifs:
+        n_data = dict(n.data or {})
+        if n_data.get("target_user_id") == str(target_user.id):
+            n_data["action_taken"] = "ACCEPTED"
+            n.data = n_data
+            n.status = "READ"
+
     # Publish real-time event
     if event_bus:
         try:
@@ -341,6 +353,31 @@ def accept_connection_request(
     for n in notifs:
         n_data = dict(n.data or {})
         if n_data.get("request_id") == str(req.id) or n_data.get("sender_id") == str(req.sender_id):
+            n_data["action_taken"] = "ACCEPTED"
+            n.data = n_data
+            n.status = "READ"
+
+    # Update any existing recommendation between these two users to ACCEPTED
+    recs = db.query(Recommendation).filter(
+        Recommendation.type == RecommendationType.CONNECTION.value,
+        Recommendation.status == "PENDING",
+        or_(
+            and_(Recommendation.owner_user_id == req.sender_id, Recommendation.target_user_id == req.receiver_id),
+            and_(Recommendation.owner_user_id == req.receiver_id, Recommendation.target_user_id == req.sender_id),
+        )
+    ).all()
+    for r in recs:
+        r.status = "ACCEPTED"
+
+    # Also update any MATCH_SUGGESTION notifications for both users
+    matching_notifs = db.query(Notification).filter(
+        Notification.user_id.in_([req.sender_id, req.receiver_id]),
+        Notification.type.in_(["MATCH_SUGGESTION", "CONNECTION_RECOMMENDATION", "RECOMMENDATION"]),
+    ).all()
+    for n in matching_notifs:
+        n_data = dict(n.data or {})
+        other_user_id = str(req.sender_id) if n.user_id == req.receiver_id else str(req.receiver_id)
+        if n_data.get("target_user_id") == other_user_id:
             n_data["action_taken"] = "ACCEPTED"
             n.data = n_data
             n.status = "READ"

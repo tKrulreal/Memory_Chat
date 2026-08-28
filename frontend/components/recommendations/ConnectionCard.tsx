@@ -80,6 +80,8 @@ export function ConnectionCard({
       queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
       queryClient.invalidateQueries({ queryKey: ["connections"] });
       queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
       onAccept?.(recommendation.id);
       toast.success(`Đã gửi lời mời kết bạn đến ${targetName}`, {
         description: "Bạn có thể nhắn tin sau khi lời mời được chấp nhận.",
@@ -99,6 +101,8 @@ export function ConnectionCard({
     try {
       await rejectConnection(recommendation.id);
       queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
       onReject?.(recommendation.id);
     } catch (error) {
       console.error("Failed to reject:", error);
@@ -114,6 +118,8 @@ export function ConnectionCard({
     try {
       await dismissConnection(recommendation.id);
       queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
       onDismiss?.(recommendation.id);
     } catch (error) {
       console.error("Failed to dismiss:", error);

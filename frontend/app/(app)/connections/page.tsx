@@ -665,10 +665,21 @@ function MyNetworkView() {
 
 // ─── AI Matchmaker View ────────────────────────────────────────────────────
 function AIMatchmakerView() {
-  const [selectedRecommendationId, setSelectedRecommendationId] = useState<string | null>(null);
-  const [modalRecommendationId, setModalRecommendationId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const recIdParam = searchParams?.get("recId");
+  const targetIdParam = searchParams?.get("targetId");
+
+  const [selectedRecommendationId, setSelectedRecommendationId] = useState<string | null>(recIdParam || null);
+  const [modalRecommendationId, setModalRecommendationId] = useState<string | null>(recIdParam || null);
   const { features, isLoading } = useAISettings();
   const router = useRouter();
+
+  useEffect(() => {
+    if (recIdParam) {
+      setSelectedRecommendationId(recIdParam);
+      setModalRecommendationId(recIdParam);
+    }
+  }, [recIdParam]);
 
   if (!isLoading && !features.recommendation) {
     return (

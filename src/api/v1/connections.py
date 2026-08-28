@@ -288,8 +288,12 @@ def accept_connection(
     Chấp nhận một connection recommendation:
     1. Cập nhật trạng thái Recommendation thành ACCEPTED.
     2. Tự động gửi một ConnectionRequest đến Target User.
+    3. Đồng bộ trạng thái vào thông báo MATCH_SUGGESTION của người dùng.
     """
     from src.models.connection import ConnectionRequest
+    from src.models.user import Notification
+    from src.services.notifications import NotificationService
+
     rec = (
         db.query(Recommendation)
         .filter(
@@ -351,6 +355,14 @@ def accept_connection(
                     status="PENDING"
                 )
                 db.add(new_req)
+                db.flush()
+                # Create notification for target user
+                NotificationService.get_instance().send_connection_request_notification(
+                    db=db,
+                    receiver_id=target_user.id,
+                    sender_user=current_user,
+                    request_id=new_req.id,
+                )
             elif existing_req.sender_id == target_user.id:
                 # Target user already sent a request, so accept it!
                 existing_req.status = "ACCEPTED"
@@ -361,6 +373,26 @@ def accept_connection(
                     db.add(existing)
                     db.flush()
                 target_conv_id = existing.id
+                NotificationService.get_instance().send_connection_accepted_notification(
+                    db=db,
+                    sender_id=existing_req.sender_id,
+                    receiver_user=current_user,
+                )
+
+    # Synchronize MATCH_SUGGESTION notifications for current user
+    matching_notifs = db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.type.in_(["MATCH_SUGGESTION", "CONNECTION_RECOMMENDATION", "RECOMMENDATION"])
+    ).all()
+    for n in matching_notifs:
+        n_data = dict(n.data or {})
+        if (
+            n_data.get("recommendation_id") == str(rec.id) or
+            (target_user and n_data.get("target_user_id") == str(target_user.id))
+        ):
+            n_data["action_taken"] = "ACCEPTED"
+            n.data = n_data
+            n.status = "READ"
 
     db.commit()
     db.refresh(rec)
@@ -374,7 +406,7 @@ def accept_connection(
         confidence=rec.confidence,
         status=rec.status,
         created_at=rec.created_at,
-        expires_at=rec.expires_at,
+        expires_at=getattr(rec, "expires_at", None),
         target_user_name=target_user.full_name if target_user else None,
         target_user_email=target_user.email if target_user else None,
         conversation_id=target_conv_id if target_user else None,
@@ -387,7 +419,8 @@ def reject_connection(
     current_user: CurrentUserDep,
     db: DatabaseDep,
 ):
-    """Từ chối một connection recommendation."""
+    """Từ chối một connection recommendation và đồng bộ thông báo."""
+    from src.models.user import Notification
     rec = (
         db.query(Recommendation)
         .filter(
@@ -405,6 +438,22 @@ def reject_connection(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Recommendation already processed")
 
     rec.status = "REJECTED"
+
+    # Synchronize MATCH_SUGGESTION notifications
+    matching_notifs = db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.type.in_(["MATCH_SUGGESTION", "CONNECTION_RECOMMENDATION", "RECOMMENDATION"])
+    ).all()
+    for n in matching_notifs:
+        n_data = dict(n.data or {})
+        if (
+            n_data.get("recommendation_id") == str(rec.id) or
+            (rec.target_user_id and n_data.get("target_user_id") == str(rec.target_user_id))
+        ):
+            n_data["action_taken"] = "REJECTED"
+            n.data = n_data
+            n.status = "READ"
+
     db.commit()
     db.refresh(rec)
 
@@ -417,7 +466,7 @@ def reject_connection(
         confidence=rec.confidence,
         status=rec.status,
         created_at=rec.created_at,
-        expires_at=rec.expires_at,
+        expires_at=getattr(rec, "expires_at", None),
     )
 
 
@@ -427,7 +476,8 @@ def dismiss_connection(
     current_user: CurrentUserDep,
     db: DatabaseDep,
 ):
-    """Bỏ qua một recommendation."""
+    """Bỏ qua một recommendation và đồng bộ thông báo."""
+    from src.models.user import Notification
     rec = (
         db.query(Recommendation)
         .filter(
@@ -442,6 +492,22 @@ def dismiss_connection(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recommendation not found")
 
     rec.status = "DISMISSED"
+
+    # Synchronize MATCH_SUGGESTION notifications
+    matching_notifs = db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.type.in_(["MATCH_SUGGESTION", "CONNECTION_RECOMMENDATION", "RECOMMENDATION"])
+    ).all()
+    for n in matching_notifs:
+        n_data = dict(n.data or {})
+        if (
+            n_data.get("recommendation_id") == str(rec.id) or
+            (rec.target_user_id and n_data.get("target_user_id") == str(rec.target_user_id))
+        ):
+            n_data["action_taken"] = "REJECTED"
+            n.data = n_data
+            n.status = "READ"
+
     db.commit()
     db.refresh(rec)
 
@@ -454,7 +520,7 @@ def dismiss_connection(
         confidence=rec.confidence,
         status=rec.status,
         created_at=rec.created_at,
-        expires_at=rec.expires_at,
+        expires_at=getattr(rec, "expires_at", None),
     )
 
 

@@ -73,6 +73,8 @@ export function ConnectionDetailPanel({
       queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
       queryClient.invalidateQueries({ queryKey: ["connections"] });
       queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
       onAccepted?.();
       toast.success(`Đã gửi lời mời kết bạn đến ${targetName}`, {
         description: "Bạn có thể nhắn tin sau khi lời mời được chấp nhận.",
@@ -87,6 +89,8 @@ export function ConnectionDetailPanel({
     mutationFn: () => rejectConnection(recommendationId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
       onClose();
     },
   });

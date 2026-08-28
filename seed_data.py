@@ -668,8 +668,27 @@ VALUES (
 """
                 sql_statements.append(notif_sql.strip())
 
-    # Sample matching notification for User 1 (Minh Tran)
+    # Sample matching recommendation & notification for User 1 (Minh Tran)
+    sample_rec_id = uuid.uuid4()
     target_user = USERS[3] # Mai Le
+
+    rec_sql = f"""
+INSERT INTO recommendations (id, owner_user_id, target_user_id, type, status, reason, match_score, priority, created_at, updated_at)
+VALUES (
+    '{sample_rec_id}',
+    '{USERS[0]["id"]}',
+    '{target_user["id"]}',
+    'CONNECTION',
+    'PENDING',
+    'Profile của {target_user["full_name"]} có sự tương đồng cao về định hướng phát triển sản phẩm công nghệ và kỹ năng Frontend/Backend.',
+    0.92,
+    'HIGH',
+    '{(now - timedelta(hours=2)).isoformat()}',
+    '{(now - timedelta(hours=2)).isoformat()}'
+) ON CONFLICT (id) DO NOTHING;
+"""
+    sql_statements.append(rec_sql.strip())
+
     match_data_json = json.dumps({
         "target_user_id": target_user["id"],
         "target_name": target_user["full_name"],
@@ -678,6 +697,7 @@ VALUES (
         "target_company": target_user.get("company"),
         "target_location": target_user.get("location"),
         "match_score": 92,
+        "recommendation_id": str(sample_rec_id),
     }).replace("'", "''")
 
     match_notif_sql = f"""

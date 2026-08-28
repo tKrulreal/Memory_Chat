@@ -95,6 +95,8 @@ export function ConnectionDetailModal({
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
       queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
       onAccepted?.();
       onClose();
       toast.success(`Đã gửi lời mời kết bạn đến ${targetName}`, {

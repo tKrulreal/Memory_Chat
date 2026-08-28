@@ -13,7 +13,12 @@ import {
   acceptConnectionRequest,
   rejectConnectionRequest,
   getConnectionRequests,
+  sendConnectionRequest,
 } from "@/lib/api/connection-requests";
+import {
+  acceptConnection,
+  rejectConnection,
+} from "@/lib/api/recommendations";
 import {
   Bell,
   Check,
@@ -210,6 +215,61 @@ export default function NotificationsPage() {
     },
   });
 
+  const connectMatchMutation = useMutation({
+    mutationFn: async ({
+      targetUserId,
+      recommendationId,
+      notifId,
+    }: {
+      targetUserId?: string;
+      recommendationId?: string;
+      notifId: string;
+    }) => {
+      if (recommendationId && isValidUuid(recommendationId)) {
+        await acceptConnection(recommendationId);
+      } else if (targetUserId && isValidUuid(targetUserId)) {
+        await sendConnectionRequest(targetUserId);
+      }
+      await markNotificationRead(notifId);
+      setHandledActions((prev) => ({ ...prev, [notifId]: "ACCEPTED" }));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["connections"] });
+      queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+      toast.success("Đã gửi lời mời kết bạn thành công!");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Không thể gửi lời mời kết bạn");
+    },
+  });
+
+  const dismissMatchMutation = useMutation({
+    mutationFn: async ({
+      recommendationId,
+      notifId,
+    }: {
+      recommendationId?: string;
+      notifId: string;
+    }) => {
+      if (recommendationId && isValidUuid(recommendationId)) {
+        try {
+          await rejectConnection(recommendationId);
+        } catch (e) {}
+      }
+      await markNotificationRead(notifId);
+      setHandledActions((prev) => ({ ...prev, [notifId]: "REJECTED" }));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+      toast.info("Đã bỏ qua gợi ý kết nối");
+    },
+  });
+
   const allNotifications = data?.data || [];
   const unreadCount = allNotifications.filter((n) => n.status === "UNREAD").length;
   const readCount = allNotifications.filter((n) => n.status === "READ").length;
@@ -232,6 +292,7 @@ export default function NotificationsPage() {
     if (notif.status === "UNREAD") {
       markAsReadMutation.mutate(notif.id);
     }
+    const notifData = notif.data || {};
     if (notif.type === "CONNECTION_REQUEST") {
       router.push("/connections");
     } else if (
@@ -239,7 +300,11 @@ export default function NotificationsPage() {
       notif.type === "CONNECTION_RECOMMENDATION" ||
       notif.type === "RECOMMENDATION"
     ) {
-      router.push("/connections?tab=matchmaker");
+      const qp = new URLSearchParams();
+      qp.set("tab", "matchmaker");
+      if (notifData.recommendation_id) qp.set("recId", notifData.recommendation_id);
+      if (notifData.target_user_id) qp.set("targetId", notifData.target_user_id);
+      router.push(`/connections?${qp.toString()}`);
     } else if (notif.type === "CONNECTION_ACCEPTED" || notif.type === "NEW_MESSAGE") {
       router.push("/chats");
     }
@@ -593,18 +658,83 @@ export default function NotificationsPage() {
                         )}
 
                         {isMatching && (
-                          <Button
-                            size="xs"
-                            variant="secondary"
-                            onClick={() => {
-                              if (isUnread) markAsReadMutation.mutate(notif.id);
-                              router.push("/connections?tab=matchmaker");
-                            }}
-                            className="rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold px-3 py-1.5 shadow-xs cursor-pointer"
-                          >
-                            <Sparkles size={13} className="mr-1.5 text-purple-600" />
-                            Xem gợi ý & Kết nối
-                          </Button>
+                          <>
+                            {actionTaken === "ACCEPTED" ? (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                                  <Check size={13} className="text-emerald-600" />
+                                  Đã gửi lời mời kết bạn
+                                </span>
+                                <Button
+                                  size="xs"
+                                  variant="outline"
+                                  onClick={() => {
+                                    if (isUnread) markAsReadMutation.mutate(notif.id);
+                                    router.push("/connections?tab=network");
+                                  }}
+                                  className="rounded-lg border-blue-200 text-blue-700 hover:bg-blue-50 text-xs font-semibold px-2.5 py-1 shadow-2xs cursor-pointer"
+                                >
+                                  <Users size={12} className="mr-1 text-blue-600" />
+                                  Xem mạng lưới
+                                </Button>
+                              </div>
+                            ) : actionTaken === "REJECTED" ? (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500 border border-slate-200">
+                                <X size={13} className="text-slate-400" />
+                                Đã bỏ qua gợi ý
+                              </span>
+                            ) : (
+                              <>
+                                <Button
+                                  size="xs"
+                                  variant="default"
+                                  onClick={() =>
+                                    connectMatchMutation.mutate({
+                                      targetUserId: notifData.target_user_id,
+                                      recommendationId: notifData.recommendation_id,
+                                      notifId: notif.id,
+                                    })
+                                  }
+                                  disabled={connectMatchMutation.isPending}
+                                  className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3 py-1.5 shadow-xs cursor-pointer"
+                                >
+                                  <UserPlus size={13} className="mr-1.5" />
+                                  {connectMatchMutation.isPending ? "Đang gửi..." : "Kết bạn ngay"}
+                                </Button>
+                                <Button
+                                  size="xs"
+                                  variant="secondary"
+                                  onClick={() => {
+                                    if (isUnread) markAsReadMutation.mutate(notif.id);
+                                    const qp = new URLSearchParams();
+                                    qp.set("tab", "matchmaker");
+                                    if (notifData.recommendation_id) qp.set("recId", notifData.recommendation_id);
+                                    if (notifData.target_user_id) qp.set("targetId", notifData.target_user_id);
+                                    router.push(`/connections?${qp.toString()}`);
+                                  }}
+                                  className="rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold px-3 py-1.5 shadow-xs cursor-pointer"
+                                >
+                                  <Sparkles size={13} className="mr-1.5 text-purple-600" />
+                                  Xem chi tiết AI
+                                </Button>
+                                <Button
+                                  size="xs"
+                                  variant="outline"
+                                  onClick={() =>
+                                    dismissMatchMutation.mutate({
+                                      recommendationId: notifData.recommendation_id,
+                                      notifId: notif.id,
+                                    })
+                                  }
+                                  disabled={dismissMatchMutation.isPending}
+                                  className="rounded-lg border-slate-200 text-slate-600 hover:text-red-600 hover:bg-red-50 text-xs font-semibold px-3 py-1.5 cursor-pointer"
+                                >
+                                  <X size={13} className="mr-1.5" />
+                                  Bỏ qua
+                                </Button>
+                              </>
+                            )}
+                          </>
                         )}
 
                         {isAccepted && (
