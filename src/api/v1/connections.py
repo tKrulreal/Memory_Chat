@@ -148,7 +148,7 @@ async def list_connections(
             confidence=rec.confidence,
             status=rec.status,
             created_at=rec.created_at,
-            expires_at=rec.expires_at,
+            expires_at=getattr(rec, "expires_at", None),
             target_user_name=target_name,
             target_user_email=target_email,
             target_user_avatar=target_avatar,
