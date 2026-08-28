@@ -133,7 +133,7 @@ export function ConnectionDetailModal({
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden rounded-3xl border-slate-100 shadow-2xl bg-slate-50">
+      <DialogContent className="max-w-5xl w-[95vw] md:w-[92vw] lg:w-[85vw] max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden rounded-3xl border-slate-100 shadow-2xl bg-slate-50">
         {/* Modal Header */}
         <DialogHeader className="px-6 py-5 border-b border-slate-200 bg-white shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -187,9 +187,9 @@ export function ConnectionDetailModal({
           ) : detail ? (
             <>
               {/* SIDE-BY-SIDE PROFILES COMPARISON */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Column 1: Current User */}
-                <div className="rounded-3xl border border-blue-100 bg-white p-5 space-y-4 shadow-sm relative overflow-hidden">
+                <div className="rounded-3xl border border-blue-100 bg-white p-6 space-y-4 shadow-sm relative overflow-hidden">
                   <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
                     Hồ sơ của bạn
                   </div>
@@ -264,7 +264,7 @@ export function ConnectionDetailModal({
                 </div>
 
                 {/* Column 2: Candidate */}
-                <div className="rounded-3xl border border-indigo-100 bg-white p-5 space-y-4 shadow-sm relative overflow-hidden">
+                <div className="rounded-3xl border border-indigo-100 bg-white p-6 space-y-4 shadow-sm relative overflow-hidden">
                   <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
                     Ứng viên được đề xuất
                   </div>

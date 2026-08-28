@@ -50,6 +50,8 @@ export function ConnectionList({ selectedId, onViewDetails }: ConnectionListProp
     mutationFn: generateConnections,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
       queryClient.invalidateQueries({ queryKey: ["user-profile"] });
       toast.success(data?.message || "Đã phân tích hồ sơ và cập nhật danh sách gợi ý!");
     },

@@ -151,3 +151,76 @@ def test_match_notification_sync_on_send_connection_request(db_session: Session)
     assert rec.status == "ACCEPTED"
     assert notif.status == "READ"
     assert notif.data.get("action_taken") == "ACCEPTED"
+
+
+@pytest.mark.asyncio
+async def test_generate_connections_syncs_notifications_and_scores(db_session: Session):
+    """Test that generate_connections creates matching notifications with exact same scores."""
+    from unittest.mock import AsyncMock
+    from src.models.user import Setting
+    from src.models.tag import AISystemConfig
+    from src.api.v1.connections import generate_connections
+
+    user_a = User(
+        id=uuid.uuid4(),
+        email=f"user_a_{uuid.uuid4().hex[:6]}@example.com",
+        full_name="User A",
+        password_hash="hash",
+    )
+    user_b = User(
+        id=uuid.uuid4(),
+        email=f"user_b_{uuid.uuid4().hex[:6]}@example.com",
+        full_name="User B",
+        password_hash="hash",
+    )
+    db_session.add_all([user_a, user_b])
+    db_session.commit()
+
+    setting_a = Setting(user_id=user_a.id, ai_enabled=True)
+    db_session.add(setting_a)
+
+    cfg = AISystemConfig(
+        id=uuid.uuid4(),
+        user_id=user_a.id,
+        key="ai_settings",
+        value={"features": {"recommendation": True}, "min_matching_score": 60},
+    )
+    db_session.add(cfg)
+    db_session.commit()
+
+    mock_rec = Recommendation(
+        id=uuid.uuid4(),
+        owner_user_id=user_a.id,
+        target_user_id=user_b.id,
+        type="CONNECTION",
+        status="PENDING",
+        match_score=0.85,
+        priority="HIGH",
+        reason="Good synergy",
+    )
+    db_session.add(mock_rec)
+    db_session.commit()
+
+    mock_agent = AsyncMock()
+    mock_agent.generate.return_value = [mock_rec]
+
+    resp = await generate_connections(
+        current_user=user_a,
+        db=db_session,
+        agent=mock_agent,
+        force_refresh=False,
+    )
+
+    assert resp.generated == 1
+
+    # Verify notification created for User A with exact score 85%
+    notif = db_session.query(Notification).filter(
+        Notification.user_id == user_a.id,
+        Notification.type == "MATCH_SUGGESTION",
+    ).first()
+
+    assert notif is not None
+    assert notif.data["target_user_id"] == str(user_b.id)
+    assert notif.data["match_score"] == 85
+    assert notif.data["recommendation_id"] == str(mock_rec.id)
+

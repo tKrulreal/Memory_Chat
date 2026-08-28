@@ -93,7 +93,21 @@ async def list_connections(
     # If user has no pending recommendations yet, trigger dynamic AI evaluation in real time
     if (status_filter == "PENDING" or status_filter == "ALL") and not recommendations and can_generate:
         try:
-            await agent.generate(current_user.id, min_score=min_score, limit=10)
+            new_recs = await agent.generate(current_user.id, min_score=min_score, limit=10)
+            from src.services.notifications import NotificationService
+            notification_service = NotificationService.get_instance()
+            for rec in new_recs:
+                if rec.target_user_id:
+                    target = db.get(User, rec.target_user_id)
+                    if target:
+                        match_score = int(round((rec.confidence or 0.5) * 100))
+                        notification_service.send_matching_notification(
+                            db=db,
+                            user_id=current_user.id,
+                            target_user=target,
+                            match_score=match_score,
+                            recommendation_id=rec.id,
+                        )
             recommendations = (
                 query
                 .order_by(Recommendation.confidence.desc(), Recommendation.created_at.desc())
@@ -537,6 +551,7 @@ async def generate_connections(
 ):
     """
     Trigger phân tích AI tự động tìm người dùng thật trong hệ thống phù hợp với User hiện tại.
+    Đồng bộ hóa danh sách Recommendation và Thông báo MATCH_SUGGESTION theo đúng ngưỡng % cài đặt.
     """
     try:
         # Check global toggle
@@ -564,13 +579,41 @@ async def generate_connections(
             ).all()
             for rec in old_pending:
                 db.delete(rec)
+
+            # Đồng bộ xoá các thông báo matching cũ chưa xử lý
+            from src.models.user import Notification
+            old_notifs = db.query(Notification).filter(
+                Notification.user_id == current_user.id,
+                Notification.type.in_(["MATCH_SUGGESTION", "CONNECTION_RECOMMENDATION", "RECOMMENDATION"]),
+            ).all()
+            for n in old_notifs:
+                n_data = dict(n.data or {})
+                if not n_data.get("action_taken"):
+                    db.delete(n)
             db.commit()
 
+        min_score = min_score_percent / 100.0
         recommendations = await agent.generate(
             user_id=current_user.id,
-            min_score=min_score_percent / 100.0,
+            min_score=min_score,
             limit=10,
         )
+
+        # Tạo thông báo matching đồng bộ cho các gợi ý mới tìm thấy
+        from src.services.notifications import NotificationService
+        notification_service = NotificationService.get_instance()
+        for rec in recommendations:
+            if rec.target_user_id:
+                target = db.get(User, rec.target_user_id)
+                if target:
+                    match_score = int(round((rec.confidence or 0.5) * 100))
+                    notification_service.send_matching_notification(
+                        db=db,
+                        user_id=current_user.id,
+                        target_user=target,
+                        match_score=match_score,
+                        recommendation_id=rec.id,
+                    )
 
         total_pending = (
             db.query(Recommendation)
@@ -578,6 +621,7 @@ async def generate_connections(
                 Recommendation.owner_user_id == current_user.id,
                 Recommendation.type == RecommendationType.CONNECTION.value,
                 Recommendation.status == "PENDING",
+                Recommendation.match_score >= min_score,
             )
             .count()
         )
@@ -585,7 +629,7 @@ async def generate_connections(
         return GenerateConnectionsResponse(
             generated=len(recommendations),
             total_pending=total_pending,
-            message=f"Đã tìm thấy {len(recommendations)} người dùng phù hợp để kết nối với bạn!" if recommendations else "Chưa có thêm người dùng mới phù hợp trong hệ thống.",
+            message=f"Đã tìm thấy {len(recommendations)} người dùng phù hợp (độ tương thích ≥ {min_score_percent}%) để kết nối với bạn!" if recommendations else f"Chưa có thêm người dùng mới phù hợp với ngưỡng {min_score_percent}% trong hệ thống.",
         )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

@@ -669,15 +669,15 @@ function AIMatchmakerView() {
   const recIdParam = searchParams?.get("recId");
   const targetIdParam = searchParams?.get("targetId");
 
-  const [selectedRecommendationId, setSelectedRecommendationId] = useState<string | null>(recIdParam || null);
+  const [selectedRecommendationId, setSelectedRecommendationId] = useState<string | null>(null);
   const [modalRecommendationId, setModalRecommendationId] = useState<string | null>(recIdParam || null);
   const { features, isLoading } = useAISettings();
   const router = useRouter();
 
   useEffect(() => {
     if (recIdParam) {
-      setSelectedRecommendationId(recIdParam);
       setModalRecommendationId(recIdParam);
+      setSelectedRecommendationId(null);
     }
   }, [recIdParam]);
 
@@ -729,55 +729,30 @@ function AIMatchmakerView() {
 
       {/* Main Container */}
       <main className="flex-1 overflow-hidden p-4 sm:p-6">
-        {selectedRecommendationId ? (
-          /* Split View (Master-Detail) when a card is selected */
-          <div className="flex h-full w-full gap-5 overflow-hidden">
-            {/* Left Column: Compact Connection List */}
-            <div className="w-full lg:w-[45%] xl:w-[40%] flex flex-col h-full overflow-y-auto pr-2 scrollbar-thin">
-              <ConnectionList
-                selectedId={selectedRecommendationId}
-                onViewDetails={(id) => {
-                  setSelectedRecommendationId(id);
-                  setModalRecommendationId(id);
-                }}
-              />
+        <div className="mx-auto max-w-4xl h-full overflow-y-auto scrollbar-thin space-y-5">
+          {/* Explanatory Banner */}
+          <div className="flex items-start gap-3.5 rounded-3xl border border-blue-100 bg-gradient-to-r from-blue-50/70 via-white to-indigo-50/70 p-5 shadow-xs">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-xs">
+              <Sparkles className="h-4 w-4" />
             </div>
-
-            {/* Right Column: Sliding Connection Detail Panel */}
-            <div className="hidden lg:flex lg:w-[55%] xl:w-[60%] flex-col h-full overflow-hidden">
-              <ConnectionDetailPanel
-                recommendationId={selectedRecommendationId}
-                onClose={() => setSelectedRecommendationId(null)}
-              />
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xs font-bold text-slate-900">
+                Cơ chế xếp hạng và đề xuất người dùng phù hợp
+              </h3>
+              <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                Hệ thống tự động so khớp hồ sơ của bạn với người dùng thật trong hệ thống, sắp xếp những người có <strong>điểm phù hợp cao nhất lên đầu</strong>. Bấm vào bất kỳ thẻ gợi ý nào để mở bảng so sánh chi tiết dạng pop-up và gửi lời mời kết bạn trực tiếp.
+              </p>
             </div>
           </div>
-        ) : (
-          /* Single Column when no card is selected */
-          <div className="mx-auto max-w-4xl h-full overflow-y-auto scrollbar-thin space-y-5">
-            {/* Explanatory Banner */}
-            <div className="flex items-start gap-3.5 rounded-3xl border border-blue-100 bg-gradient-to-r from-blue-50/70 via-white to-indigo-50/70 p-5 shadow-xs">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-xs">
-                <Sparkles className="h-4 w-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-bold text-slate-900">
-                  Cơ chế xếp hạng và đề xuất người dùng phù hợp
-                </h3>
-                <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                  Hệ thống tự động so khớp hồ sơ của bạn với người dùng thật trong hệ thống, sắp xếp những người có <strong>điểm phù hợp cao nhất lên đầu</strong>. Bấm vào nút <strong>&quot;Chi tiết&quot;</strong> trên thẻ gợi ý để xem bảng so sánh chi tiết dạng pop-up và gửi lời mời kết bạn trực tiếp.
-                </p>
-              </div>
-            </div>
 
-            {/* Full Width Connection List */}
-            <ConnectionList
-              selectedId={selectedRecommendationId}
-              onViewDetails={(id) => {
-                setModalRecommendationId(id);
-              }}
-            />
-          </div>
-        )}
+          {/* Full Width Connection List */}
+          <ConnectionList
+            selectedId={modalRecommendationId}
+            onViewDetails={(id) => {
+              setModalRecommendationId(id);
+            }}
+          />
+        </div>
       </main>
 
       {/* POPUP COMPARISON MODAL */}
