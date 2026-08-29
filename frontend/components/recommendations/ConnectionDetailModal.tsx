@@ -133,7 +133,7 @@ export function ConnectionDetailModal({
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl w-[95vw] md:w-[92vw] lg:w-[85vw] max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden rounded-3xl border-slate-100 shadow-2xl bg-slate-50">
+      <DialogContent className="w-[96vw] sm:w-[90vw] md:w-[80vw] lg:w-[68vw] xl:w-[66vw] max-w-[1250px] sm:max-w-none max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden rounded-3xl border-slate-100 shadow-2xl bg-slate-50">
         {/* Modal Header */}
         <DialogHeader className="px-6 py-5 border-b border-slate-200 bg-white shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
