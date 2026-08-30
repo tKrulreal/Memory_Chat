@@ -23,6 +23,7 @@ venv.bak/
 !.env.example
 !.env.test
 taikhoan.txt
+local-users.tsv
 
 # IDEs & Editors
 .vscode/
@@ -87,6 +88,20 @@ frontend/out/
 .turbo/
 *.tsbuildinfo
 frontend/*.tsbuildinfo
+
+# Expo and Flutter generated artifacts
+.expo/
+mobile_flutter/.dart_tool/
+mobile_flutter/.flutter-plugins
+mobile_flutter/.flutter-plugins-dependencies
+mobile_flutter/.packages
+.gradle/
+*.iml
+mobile_flutter/android/local.properties
+mobile_flutter/**/GeneratedPluginRegistrant.*
+mobile_flutter/ios/Flutter/Generated.xcconfig
+mobile_flutter/ios/Flutter/flutter_export_environment.sh
+mobile_flutter/ios/Flutter/ephemeral/
 
 # Docker override
 docker-compose.override.yml

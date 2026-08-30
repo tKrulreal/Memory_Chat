@@ -16,7 +16,7 @@ run: ## Run the application locally
 	uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 
 test: ## Run tests
-	pytest tests/ -v --tb=short
+	pytest tests/ -v --tb=short --cov=src --cov-report=term-missing
 
 test-cov: ## Run tests with coverage
 	pytest tests/ -v --cov=src --cov-report=term-missing
