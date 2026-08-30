@@ -68,7 +68,10 @@ def get_user_from_token(token: str, db: Session) -> User | None:
             return None # WS tokens shouldn't be used for standard auth
     except (JWTError, KeyError, ValueError):
         return None
-    return user_repo.get(db, id=user_id)
+    user = user_repo.get(db, id=user_id)
+    if not user or payload.get("token_version", 0) != user.token_version:
+        return None
+    return user
 
 
 def create_ws_ticket(user_id: str) -> str:

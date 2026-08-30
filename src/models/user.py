@@ -17,6 +17,7 @@ class User(Base):
     avatar: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     gender: Mapped[str | None] = mapped_column(String(50), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     created_at: Mapped[created_at_col]
     updated_at: Mapped[updated_at_col]
@@ -40,6 +41,20 @@ class User(Base):
     message_reactions = relationship("MessageReaction", back_populates="user", cascade="all, delete-orphan")
     blocked_users = relationship("UserBlock", foreign_keys="[UserBlock.blocker_id]", back_populates="blocker", cascade="all, delete-orphan")
     blocked_by = relationship("UserBlock", foreign_keys="[UserBlock.blocked_id]", back_populates="blocked", cascade="all, delete-orphan")
+    password_reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[uuid_pk]
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[created_at_col]
+
+    user = relationship("User", back_populates="password_reset_tokens")
 
 
 class UserBlock(Base):

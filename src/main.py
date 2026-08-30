@@ -91,13 +91,12 @@ async def lifespan(app: FastAPI):
         logger.info("app_shutdown_complete")
 
 
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from src.core.security_middlewares import RequestSizeLimitMiddleware
 from fastapi.responses import JSONResponse
 from fastapi import Request
+from src.core.rate_limit import limiter
 
 app = FastAPI(
     title="MemoryChat API",
@@ -107,7 +106,6 @@ app = FastAPI(
 )
 
 # Set up Rate Limiter
-limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 app.state.limiter = limiter
 
 @app.exception_handler(RateLimitExceeded)

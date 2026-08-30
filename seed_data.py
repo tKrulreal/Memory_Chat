@@ -761,6 +761,7 @@ def clean_and_seed_database():
         "notifications",
         "event_logs",
         "user_blocks",
+        "password_reset_tokens",
         "user_profiles",
         "settings",
         "users",

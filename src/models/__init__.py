@@ -11,7 +11,7 @@ from src.models.connection import ConnectionRequest
 from src.models.contact import Contact, ContactMemory
 
 # 4. Models that reference other models (User references Contact)
-from src.models.user import Notification, SearchHistory, Setting, User
+from src.models.user import Notification, PasswordResetToken, SearchHistory, Setting, User
 
 from src.models.tag import Tag, UserTag, AISystemConfig
 
@@ -20,6 +20,7 @@ __all__ = [
     "engine",
     "SessionLocal",
     "User",
+    "PasswordResetToken",
     "Setting",
     "SearchHistory",
     "Notification",

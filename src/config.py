@@ -24,6 +24,16 @@ class Settings(BaseSettings):
     # Auth
     jwt_secret: str = Field(default="local-dev-secret-change-in-production")
     jwt_expire_minutes: int = 60
+    frontend_url: str = "http://localhost:3000"
+    password_reset_token_minutes: int = Field(default=15, ge=1, le=1440)
+
+    # Email
+    smtp_host: str = ""
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_use_tls: bool = True
+    email_from: str = ""
 
     # LLM
     openai_api_key: str = ""

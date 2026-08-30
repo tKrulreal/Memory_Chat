@@ -12,11 +12,11 @@ import { useQuery } from "@tanstack/react-query";
 import { getUnreadNotificationsCount } from "@/lib/api/notifications";
 
 const NAV_ITEMS = [
-  { href: "/chats", label: "Chats", icon: MessageCircle },
-  { href: "/connections", label: "Connections", icon: Users },
+  { href: "/chats", label: "Trò chuyện", icon: MessageCircle },
+  { href: "/connections", label: "Kết nối", icon: Users },
   { href: "/ai-hub", label: "AI Hub", icon: Box },
   { href: "/copilot", label: "Copilot", icon: Sparkles },
-  { href: "/notifications", label: "Notifications", icon: Bell },
+  { href: "/notifications", label: "Thông báo", icon: Bell },
 ] as const;
 
 export function NavSidebar() {
@@ -127,7 +127,7 @@ export function NavSidebar() {
               "truncate transition-opacity duration-200 opacity-0 group-hover:opacity-100",
               isActive("/settings") ? "text-blue-400 font-semibold" : "text-slate-300 group-hover:text-white"
             )}>
-              Settings
+              Cài đặt
             </span>
           </Link>
 
@@ -145,14 +145,14 @@ export function NavSidebar() {
               <LogOut size={22} className="text-slate-400 transition-colors group-hover:text-red-400" />
             </div>
             <span className="truncate text-slate-300 transition-colors group-hover:text-red-400 transition-opacity duration-200 opacity-0 group-hover:opacity-100">
-              Logout
+              Đăng xuất
             </span>
           </Button>
 
           {/* Bottom User Info Card & Icon -> Opens Profile Page */}
           <Link
             href="/profile"
-            title="Hồ sơ cá nhân (Profile)"
+            title="Hồ sơ cá nhân"
             className={cn(
               "mt-2 flex items-center gap-3 rounded-xl p-2.5 w-[196px] cursor-pointer transition-all duration-200 border",
               isActive("/profile")

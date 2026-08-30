@@ -46,7 +46,7 @@ export default function LoginPage() {
               <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"></path>
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Social Network</h1>
+          <h1 className="text-2xl font-bold text-foreground">Mạng xã hội</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Đăng nhập để sử dụng AI Copilot và Chat
           </p>
@@ -80,6 +80,12 @@ export default function LoginPage() {
               placeholder="••••••••"
               className="h-11 w-full rounded-lg border border-gray-300 px-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             />
+          </div>
+
+          <div className="text-right">
+            <Link href="/forgot-password" className="text-sm font-medium text-accent hover:text-accent-hover">
+              Quên mật khẩu?
+            </Link>
           </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}
