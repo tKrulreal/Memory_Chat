@@ -2,6 +2,7 @@ import sys
 import os
 import uuid
 import logging
+import subprocess
 from datetime import datetime, timezone, timedelta
 
 # Add project root to sys.path
@@ -12,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from sqlalchemy.orm import Session
-from src.models.database import SessionLocal, engine
+from src.models.database import Base, SessionLocal, engine
 from src.models.user import User, UserProfile, Setting, UserBlock, Notification, SearchHistory
 from src.models.chat import Conversation, ConversationUserState, Message, MessageReaction
 from src.models.contact import Contact, ContactMemory
@@ -23,6 +24,23 @@ from src.core.security import get_password_hash
 from src.schemas.enums import MessageRole
 
 def seed_db():
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    logger.info("Applying database migrations...")
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            cwd=project_root,
+            check=True,
+        )
+    except subprocess.CalledProcessError:
+        if not str(engine.url).startswith("sqlite"):
+            raise
+        # This script is destructive by design. Recreate an old local SQLite
+        # schema instead of trying to seed tables with missing columns.
+        logger.warning("Alembic could not upgrade the local SQLite schema; creating missing tables from models.")
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+
     db = SessionLocal()
     try:
         logger.info("Starting database seed with 15 test users...")

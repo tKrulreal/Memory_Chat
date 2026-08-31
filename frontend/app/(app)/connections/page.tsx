@@ -49,6 +49,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { useLanguage } from "@/hooks/use-language";
 
 // ─── Relation action button ────────────────────────────────────────────────
 
@@ -70,6 +71,8 @@ function RelationButton({
   onUnfriend,
 }: RelationButtonProps) {
   const { relation, conversation_id } = user;
+  const { language } = useLanguage();
+  const l = (vi: string, en: string) => language === "en" ? en : vi;
 
   if (relation === "none") {
     return (
@@ -81,7 +84,7 @@ function RelationButton({
         className="rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3.5 transition-colors shadow-xs cursor-pointer"
       >
         <UserPlus size={13} className="mr-1.5" />
-        {loading ? "Đang gửi..." : "Kết bạn"}
+        {loading ? l("Đang gửi...", "Sending...") : l("Kết bạn", "Connect")}
       </Button>
     );
   }
@@ -96,7 +99,7 @@ function RelationButton({
         className="rounded-full text-xs font-semibold text-slate-400 bg-slate-100 hover:bg-slate-100 cursor-not-allowed"
       >
         <Clock size={13} className="mr-1.5 text-slate-400" />
-        Đã gửi lời mời
+        {l("Đã gửi lời mời", "Request sent")}
       </Button>
     );
   }
@@ -111,7 +114,7 @@ function RelationButton({
         className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 transition-colors shadow-xs cursor-pointer"
       >
         <Check size={13} className="mr-1.5" />
-        {loading ? "Đang xử lý..." : "Chấp nhận"}
+        {loading ? l("Đang xử lý...", "Processing...") : l("Chấp nhận", "Accept")}
       </Button>
     );
   }
@@ -128,23 +131,23 @@ function RelationButton({
         className="rounded-full border-blue-200 text-blue-700 hover:bg-blue-50 text-xs font-semibold px-3.5 shadow-2xs cursor-pointer"
       >
         <MessageSquare size={13} className="mr-1.5 text-blue-600" />
-        Nhắn tin
+        {l("Nhắn tin", "Message")}
       </Button>
       {onUnfriend && (
         <Button
           size="sm"
           variant="outline"
           onClick={() => {
-            if (confirm(`Bạn có chắc chắn muốn xóa bạn bè với ${user.full_name || user.email}?`)) {
+            if (confirm(language === "en" ? `Are you sure you want to unfriend ${user.full_name || user.email}?` : `Bạn có chắc chắn muốn xóa bạn bè với ${user.full_name || user.email}?`)) {
               onUnfriend(user.id);
             }
           }}
           id={`unfriend-${user.id}`}
           className="rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 text-xs font-semibold px-3 shadow-2xs cursor-pointer"
-          title="Xóa bạn"
+          title={l("Xóa bạn", "Unfriend")}
         >
           <UserMinus size={13} className="mr-1.5 text-red-500" />
-          Xóa bạn
+          {l("Xóa bạn", "Unfriend")}
         </Button>
       )}
     </div>
@@ -164,6 +167,8 @@ interface UserCardProps {
 
 function UserCard({ user, loadingId, onAddFriend, onAccept, onChat, onUnfriend }: UserCardProps) {
   const router = useRouter();
+  const { language, t } = useLanguage();
+  const l = (vi: string, en: string) => language === "en" ? en : vi;
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
   const isOnline = onlineUserIds.has(user.id);
 
@@ -183,9 +188,9 @@ function UserCard({ user, loadingId, onAddFriend, onAccept, onChat, onUnfriend }
             </AvatarFallback>
           </Avatar>
           {isOnline ? (
-            <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-2 ring-white" title="Đang hoạt động" />
+            <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-2 ring-white" title={t("online")} />
           ) : (
-            <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-slate-100 border-2 border-slate-400 ring-2 ring-white" title="Không hoạt động" />
+            <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-slate-100 border-2 border-slate-400 ring-2 ring-white" title={t("offline")} />
           )}
         </div>
         <div className="min-w-0 flex flex-col justify-center">
@@ -197,19 +202,19 @@ function UserCard({ user, loadingId, onAddFriend, onAccept, onChat, onUnfriend }
             <div className="flex items-center gap-1 shrink-0">
               {user.relation === "friend" ? (
                 <Badge variant="secondary" className="text-[10px] py-0 px-2 h-4 font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                  Bạn bè
+                  {l("Bạn bè", "Friends")}
                 </Badge>
               ) : user.relation === "pending_sent" ? (
                 <Badge variant="secondary" className="text-[10px] py-0 px-2 h-4 font-semibold bg-amber-50 text-amber-700 border border-amber-200/60">
-                  Đang chờ phản hồi
+                  {l("Đang chờ phản hồi", "Awaiting response")}
                 </Badge>
               ) : user.relation === "pending_received" ? (
                 <Badge variant="secondary" className="text-[10px] py-0 px-2 h-4 font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
-                  Đã gửi lời mời cho bạn
+                  {l("Đã gửi lời mời cho bạn", "Sent you a request")}
                 </Badge>
               ) : (
                 <Badge variant="secondary" className="text-[10px] py-0 px-2 h-4 font-normal bg-slate-100 text-slate-600">
-                  Người dùng
+                  {l("Người dùng", "User")}
                 </Badge>
               )}
             </div>
@@ -238,19 +243,19 @@ function UserCard({ user, loadingId, onAddFriend, onAccept, onChat, onUnfriend }
                 className="text-xs font-semibold cursor-pointer rounded-xl"
               >
                 <ExternalLink size={13} className="mr-2" />
-                Xem trang cá nhân
+                {t("viewProfile")}
               </DropdownMenuItem>
               <DropdownMenuSeparator className="my-1 bg-slate-100" />
               <DropdownMenuItem
                 onClick={() => {
-                  if (confirm(`Bạn có chắc chắn muốn hủy kết bạn với ${user.full_name || user.email}?`)) {
+                  if (confirm(language === "en" ? `Are you sure you want to unfriend ${user.full_name || user.email}?` : `Bạn có chắc chắn muốn hủy kết bạn với ${user.full_name || user.email}?`)) {
                     onUnfriend(user.id);
                   }
                 }}
                 className="text-xs font-semibold cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl"
               >
                 <UserMinus size={13} className="mr-2" />
-                Hủy kết bạn
+                {t("unfriend")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -277,6 +282,8 @@ function MyNetworkView() {
   const user = useAuthStore((s) => s.user);
   const setActiveConversation = useConversationStore((s) => s.setActiveConversation);
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
+  const { language, t } = useLanguage();
+  const l = useCallback((vi: string, en: string) => language === "en" ? en : vi, [language]);
 
   // ── Debounce search query ─────────────────────────────────────────────────
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -316,11 +323,11 @@ function MyNetworkView() {
       })
       .catch((err) => {
         if (!signal.aborted) {
-          setSearchError(err.message || "Search failed");
+          setSearchError(err.message || l("Tìm kiếm thất bại", "Search failed"));
           setIsSearching(false);
         }
       });
-  }, [debouncedQuery]);
+  }, [debouncedQuery, l]);
 
   // ── Connection requests ───────────────────────────────────────────────────
   const { data, isLoading: isLoadingReqs } = useQuery({
@@ -368,24 +375,24 @@ function MyNetworkView() {
         await sendConnectionRequest(targetUserId);
         updateUserRelation(targetUserId, { relation: "pending_sent" });
         queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
-        toast.success("Đã gửi lời mời kết bạn thành công!");
+        toast.success(l("Đã gửi lời mời kết bạn thành công!", "Connection request sent!"));
       } catch (err: any) {
         const msg: string = err.message || "";
         if (msg.includes("409") || msg.toLowerCase().includes("conflict") || msg.toLowerCase().includes("already") || msg.includes("đã")) {
-          toast.warning(msg || "Lời mời kết bạn đã tồn tại hoặc hai bạn đã là bạn bè.");
+          toast.warning(msg || l("Lời mời kết bạn đã tồn tại hoặc hai bạn đã là bạn bè.", "A request already exists or you are already friends."));
           // Refresh user relation
           searchUsers(debouncedQuery).then((res) => {
             const fresh = res.items.find((u) => u.id === targetUserId);
             if (fresh) updateUserRelation(targetUserId, fresh);
           });
         } else {
-          toast.error(msg || "Không thể gửi lời mời kết bạn.");
+          toast.error(msg || l("Không thể gửi lời mời kết bạn.", "Could not send the connection request."));
         }
       } finally {
         setLoadingUserId(null);
       }
     },
-    [debouncedQuery, updateUserRelation, queryClient]
+    [debouncedQuery, updateUserRelation, queryClient, l]
   );
 
   // ── Accept (from people list) ──────────────────────────────────────────────
@@ -403,19 +410,19 @@ function MyNetworkView() {
         queryClient.invalidateQueries({ queryKey: ["conversations"] });
         queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
         updateUserRelation(targetUserId, { relation: "friend" });
-        toast.success("Đã chấp nhận lời mời kết bạn!");
+        toast.success(l("Đã chấp nhận lời mời kết bạn!", "Connection request accepted!"));
         
         searchUsers(debouncedQuery).then((res) => {
           const fresh = res.items.find((u) => u.id === targetUserId);
           if (fresh) updateUserRelation(targetUserId, fresh);
         });
       } catch (err: any) {
-        toast.error(err.message || "Lỗi khi chấp nhận lời mời.");
+        toast.error(err.message || l("Lỗi khi chấp nhận lời mời.", "Could not accept the request."));
       } finally {
         setLoadingUserId(null);
       }
     },
-    [debouncedQuery, queryClient, updateUserRelation]
+    [debouncedQuery, queryClient, updateUserRelation, l]
   );
 
   // ── Chat navigation ───────────────────────────────────────────────────────
@@ -433,10 +440,10 @@ function MyNetworkView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
-      toast.success("Đã chấp nhận kết bạn!");
+      toast.success(l("Đã chấp nhận kết bạn!", "Connection accepted!"));
     },
     onError: (err: any) => {
-      toast.error(err?.message || "Không thể chấp nhận lời mời.");
+      toast.error(err?.message || l("Không thể chấp nhận lời mời.", "Could not accept the request."));
     },
   });
 
@@ -444,10 +451,10 @@ function MyNetworkView() {
     mutationFn: rejectConnectionRequest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
-      toast.info("Đã từ chối lời mời.");
+      toast.info(l("Đã từ chối lời mời.", "Request declined."));
     },
     onError: (err: any) => {
-      toast.error(err?.message || "Lỗi xử lý.");
+      toast.error(err?.message || l("Lỗi xử lý.", "Could not process the request."));
     },
   });
 
@@ -455,10 +462,10 @@ function MyNetworkView() {
     mutationFn: cancelConnectionRequest,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
-      toast.info("Đã hủy lời mời kết bạn.");
+      toast.info(l("Đã hủy lời mời kết bạn.", "Connection request canceled."));
     },
     onError: (err: any) => {
-      toast.error(err?.message || "Lỗi xử lý.");
+      toast.error(err?.message || l("Lỗi xử lý.", "Could not process the request."));
     },
   });
 
@@ -470,10 +477,10 @@ function MyNetworkView() {
       queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
       queryClient.invalidateQueries({ queryKey: ["connections"] });
       updateUserRelation(targetUserId, { relation: "none", conversation_id: undefined });
-      toast.success("Đã hủy kết bạn thành công.");
+      toast.success(t("unfriendSuccess"));
     },
     onError: (err: any) => {
-      toast.error(err.message || "Lỗi khi hủy kết bạn.");
+      toast.error(err.message || t("unfriendError"));
     },
   });
 
@@ -496,7 +503,7 @@ function MyNetworkView() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
               <Users size={16} className="text-blue-600" />
-              Lời mời kết bạn (Requests)
+              {l("Lời mời kết bạn (Requests)", "Connection Requests")}
             </h3>
           </div>
 
@@ -509,7 +516,7 @@ function MyNetworkView() {
               }
               onClick={() => setTab("incoming")}
             >
-              Lời mời đến
+              {l("Lời mời đến", "Incoming")}
             </button>
             <button
               className={
@@ -519,16 +526,16 @@ function MyNetworkView() {
               }
               onClick={() => setTab("outgoing")}
             >
-              Đã gửi
+              {l("Đã gửi", "Sent")}
             </button>
           </div>
 
           <div className="flex-1 overflow-y-auto scrollbar-thin pr-2">
             {isLoadingReqs ? (
-              <div className="text-xs text-slate-400 p-4">Đang tải danh sách...</div>
+              <div className="text-xs text-slate-400 p-4">{l("Đang tải danh sách...", "Loading requests...")}</div>
             ) : requests.length === 0 ? (
               <div className="text-xs text-slate-400 p-6 text-center">
-                {tab === "incoming" ? "Không có lời mời kết bạn nào đang chờ." : "Bạn chưa gửi lời mời kết bạn nào."}
+                {tab === "incoming" ? l("Không có lời mời kết bạn nào đang chờ.", "No pending connection requests.") : l("Bạn chưa gửi lời mời kết bạn nào.", "You have not sent any connection requests.")}
               </div>
             ) : (
               <div className="flex flex-col gap-3 w-full">
@@ -553,9 +560,9 @@ function MyNetworkView() {
                             </AvatarFallback>
                           </Avatar>
                           {isPeerOnline ? (
-                            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" title="Đang hoạt động" />
+                            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" title={t("online")} />
                           ) : (
-                            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-slate-100 border-2 border-slate-400 ring-2 ring-white" title="Không hoạt động" />
+                            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-slate-100 border-2 border-slate-400 ring-2 ring-white" title={t("offline")} />
                           )}
                         </div>
                         <div className="flex flex-col min-w-0 flex-1">
@@ -577,7 +584,7 @@ function MyNetworkView() {
                               id={`reject-req-${req.id}`}
                               className="h-7.5 text-[11px] px-2.5 rounded-xl border-slate-200 hover:bg-slate-100"
                             >
-                              Từ chối
+                              {l("Từ chối", "Decline")}
                             </Button>
                             <Button
                               size="sm"
@@ -586,7 +593,7 @@ function MyNetworkView() {
                               id={`accept-req-${req.id}`}
                               className="h-7.5 text-[11px] px-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-2xs"
                             >
-                              Chấp nhận
+                              {l("Chấp nhận", "Accept")}
                             </Button>
                           </>
                         ) : (
@@ -598,7 +605,7 @@ function MyNetworkView() {
                             id={`cancel-req-${req.id}`}
                             className="h-7.5 text-[11px] px-2.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50"
                           >
-                            Hủy
+                            {l("Hủy", "Cancel")}
                           </Button>
                         )}
                       </div>
@@ -615,14 +622,14 @@ function MyNetworkView() {
           <div className="mb-6 shrink-0 border-b border-slate-200/80 pb-4">
             <h2 className="text-base font-bold mb-3 flex items-center gap-2 text-slate-900">
               <Users size={16} className="text-blue-600" />
-              {isSearchMode ? "Kết quả tìm kiếm người dùng" : "Bạn bè & Mạng lưới của bạn"}
+              {isSearchMode ? l("Kết quả tìm kiếm người dùng", "People Search Results") : l("Bạn bè & Mạng lưới của bạn", "Your Friends & Network")}
             </h2>
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <Input
                 id="people-search-input"
                 type="search"
-                placeholder="Tìm kiếm theo tên, email hoặc số điện thoại..."
+                placeholder={l("Tìm kiếm theo tên, email hoặc số điện thoại...", "Search by name, email, or phone number...")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-4 h-10 rounded-2xl bg-white border-slate-200 text-xs focus:bg-white transition-colors"
@@ -632,14 +639,14 @@ function MyNetworkView() {
 
           <div className="flex-1 overflow-y-auto scrollbar-thin pr-2 pb-4">
             {isSearching ? (
-              <div className="text-xs text-slate-400 p-4">Đang tìm kiếm...</div>
+              <div className="text-xs text-slate-400 p-4">{l("Đang tìm kiếm...", "Searching...")}</div>
             ) : searchError ? (
               <div className="text-xs text-red-500 p-4">{searchError}</div>
             ) : displayPeople.length === 0 ? (
               <div className="text-xs text-slate-400 text-center py-12">
                 {isSearchMode
-                  ? "Không tìm thấy người dùng nào phù hợp."
-                  : "Chưa có bạn bè nào. Hãy tìm kiếm để kết nối cùng mọi người!"}
+                  ? l("Không tìm thấy người dùng nào phù hợp.", "No matching users found.")
+                  : l("Chưa có bạn bè nào. Hãy tìm kiếm để kết nối cùng mọi người!", "No friends yet. Search for people to start connecting!")}
               </div>
             ) : (
               <div className="flex flex-col gap-3 w-full max-w-4xl">
@@ -673,6 +680,8 @@ function AIMatchmakerView() {
   const [modalRecommendationId, setModalRecommendationId] = useState<string | null>(recIdParam || null);
   const { features, isLoading } = useAISettings();
   const router = useRouter();
+  const { language } = useLanguage();
+  const l = (vi: string, en: string) => language === "en" ? en : vi;
 
   useEffect(() => {
     if (recIdParam) {
@@ -686,15 +695,15 @@ function AIMatchmakerView() {
       <div className="flex h-full w-full flex-col bg-slate-50 items-center justify-center">
         <div className="flex flex-col items-center gap-4 p-8 text-center bg-white border border-slate-200 rounded-3xl max-w-md shadow-sm">
           <Lock className="text-slate-400" size={48} />
-          <h1 className="text-lg font-bold text-slate-800">Tính năng AI Matchmaker đang tắt</h1>
+          <h1 className="text-lg font-bold text-slate-800">{l("Tính năng AI Matchmaker đang tắt", "AI Matchmaker is disabled")}</h1>
           <p className="text-xs text-slate-500 leading-relaxed">
-            Gợi ý kết nối AI đã được tắt trong phần Cài đặt AI Hub. Bạn có thể bật lại để nhận các đề xuất ghép đôi.
+            {l("Gợi ý kết nối AI đã được tắt trong phần Cài đặt AI Hub. Bạn có thể bật lại để nhận các đề xuất ghép đôi.", "AI connection suggestions are disabled in AI Hub settings. Enable them to receive compatible matches.")}
           </p>
           <Button
             onClick={() => router.push("/ai-hub")}
             className="mt-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-5"
           >
-            Đi đến AI Hub
+            {l("Đi đến AI Hub", "Go to AI Hub")}
           </Button>
         </div>
       </div>
@@ -711,13 +720,13 @@ function AIMatchmakerView() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-sm font-bold text-slate-900">Gợi ý kết nối (AI Matchmaker)</h1>
+              <h1 className="text-sm font-bold text-slate-900">{l("Gợi ý kết nối (AI Matchmaker)", "Connection Suggestions (AI Matchmaker)")}</h1>
               <Badge variant="outline" className="text-[10px] font-bold text-blue-700 border-blue-200 bg-blue-50">
-                Sắp xếp theo điểm tương thích
+                {l("Sắp xếp theo điểm tương thích", "Sorted by compatibility")}
               </Badge>
             </div>
             <p className="text-[11px] text-slate-500">
-              AI đánh giá và xếp hạng người dùng thật có tiềm năng hợp tác cao nhất lên đầu.
+              {l("AI đánh giá và xếp hạng người dùng thật có tiềm năng hợp tác cao nhất lên đầu.", "AI evaluates and ranks real users with the highest collaboration potential first.")}
             </p>
           </div>
         </div>
@@ -737,10 +746,10 @@ function AIMatchmakerView() {
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="text-xs font-bold text-slate-900">
-                Cơ chế xếp hạng và đề xuất người dùng phù hợp
+                {l("Cơ chế xếp hạng và đề xuất người dùng phù hợp", "How Compatible Users Are Ranked")}
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                Hệ thống tự động so khớp hồ sơ của bạn với người dùng thật trong hệ thống, sắp xếp những người có <strong>điểm phù hợp cao nhất lên đầu</strong>. Bấm vào bất kỳ thẻ gợi ý nào để mở bảng so sánh chi tiết dạng pop-up và gửi lời mời kết bạn trực tiếp.
+                {language === "en" ? <>The system compares your profile with real users and ranks those with the <strong>highest compatibility first</strong>. Select any suggestion to open a detailed comparison and send a connection request.</> : <>Hệ thống tự động so khớp hồ sơ của bạn với người dùng thật trong hệ thống, sắp xếp những người có <strong>điểm phù hợp cao nhất lên đầu</strong>. Bấm vào bất kỳ thẻ gợi ý nào để mở bảng so sánh chi tiết dạng pop-up và gửi lời mời kết bạn trực tiếp.</>}
               </p>
             </div>
           </div>
@@ -771,6 +780,8 @@ function ConnectionsPageContent() {
   const searchParams = useSearchParams();
   const initialTab = searchParams?.get("tab") === "matchmaker" ? "matchmaker" : "network";
   const [activeTab, setActiveTab] = useState<"network" | "matchmaker">(initialTab);
+  const { language } = useLanguage();
+  const l = (vi: string, en: string) => language === "en" ? en : vi;
 
   const { data: incomingData } = useQuery({
     queryKey: ["connection-requests", "incoming"],
@@ -792,7 +803,7 @@ function ConnectionsPageContent() {
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
         <h1 className="text-lg font-bold tracking-tight text-slate-900 flex items-center gap-2">
           <Users className="text-blue-600" size={20} />
-          Kết nối & Mạng lưới (People)
+          {l("Kết nối & Mạng lưới (People)", "Connections & Network")}
         </h1>
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-auto">
           <TabsList className="h-10 bg-slate-100 p-1 rounded-2xl border border-slate-200/60">
@@ -801,7 +812,7 @@ function ConnectionsPageContent() {
               className="gap-2 rounded-xl text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-2xs transition-all cursor-pointer"
             >
               <Users size={14} />
-              Mạng lưới của tôi
+              {l("Mạng lưới của tôi", "My Network")}
               {incomingCount > 0 && (
                 <span className="ml-1 rounded-full bg-blue-600 px-1.5 py-0.2 text-[10px] font-bold text-white">
                   {incomingCount}
@@ -825,8 +836,9 @@ function ConnectionsPageContent() {
 }
 
 export default function ConnectionsPage() {
+  const { language } = useLanguage();
   return (
-    <Suspense fallback={<div className="p-8 text-slate-500 text-xs">Đang tải trang kết nối...</div>}>
+    <Suspense fallback={<div className="p-8 text-slate-500 text-xs">{language === "en" ? "Loading connections..." : "Đang tải trang kết nối..."}</div>}>
       <ConnectionsPageContent />
     </Suspense>
   );

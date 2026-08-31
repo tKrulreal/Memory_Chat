@@ -40,6 +40,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { usePresenceStore } from "@/lib/stores/presence-store";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ConnectionDetailModalProps {
   recommendationId: string;
@@ -54,6 +55,8 @@ export function ConnectionDetailModal({
 }: ConnectionDetailModalProps) {
   const queryClient = useQueryClient();
   const [customMessage, setCustomMessage] = useState("");
+  const { language, t } = useLanguage();
+  const l = (vi: string, en: string) => language === "en" ? en : vi;
 
   const {
     data: detail,
@@ -71,7 +74,7 @@ export function ConnectionDetailModal({
     }
   }, [detail?.suggested_intro]);
 
-  const targetName = detail?.target_user_name || detail?.contact_b_name || "Ứng viên";
+  const targetName = detail?.target_user_name || detail?.contact_b_name || l("Ứng viên", "Candidate");
   const targetInitials =
     targetName
       .split(" ")
@@ -80,7 +83,7 @@ export function ConnectionDetailModal({
       .slice(0, 2)
       .toUpperCase() || "U";
 
-  const myName = detail?.current_user_name || "Bạn";
+  const myName = detail?.current_user_name || l("Bạn", "You");
   const myInitials =
     myName
       .split(" ")
@@ -99,12 +102,12 @@ export function ConnectionDetailModal({
       queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
       onAccepted?.();
       onClose();
-      toast.success(`Đã gửi lời mời kết bạn đến ${targetName}`, {
-        description: "Bạn có thể nhắn tin ngay sau khi đối phương chấp nhận.",
+      toast.success(l(`Đã gửi lời mời kết bạn đến ${targetName}`, `Connection request sent to ${targetName}`), {
+        description: l("Bạn có thể nhắn tin ngay sau khi đối phương chấp nhận.", "You can message them as soon as they accept."),
       });
     },
     onError: (err: any) => {
-      toast.error(err?.message || "Không thể gửi lời mời. Vui lòng thử lại.");
+      toast.error(err?.message || l("Không thể gửi lời mời. Vui lòng thử lại.", "Could not send the request. Please try again."));
     },
   });
 
@@ -113,7 +116,7 @@ export function ConnectionDetailModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
       onClose();
-      toast.info("Đã bỏ qua gợi ý kết nối này.");
+      toast.info(l("Đã bỏ qua gợi ý kết nối này.", "Connection suggestion dismissed."));
     },
   });
 
@@ -143,10 +146,10 @@ export function ConnectionDetailModal({
               </div>
               <div>
                 <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  Bảng So Sánh & Ghép Đôi AI (Matchmaker Comparison)
+                   {l("Bảng So Sánh & Ghép Đôi AI (Matchmaker Comparison)", "AI Matchmaker Comparison")}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500 mt-0.5">
-                  Phân tích độ tương thích đa tiêu chí giữa Hồ sơ của bạn và Ứng viên tiềm năng.
+                   {l("Phân tích độ tương thích đa tiêu chí giữa Hồ sơ của bạn và Ứng viên tiềm năng.", "A multi-factor compatibility analysis of your profile and a potential connection.")}
                 </DialogDescription>
               </div>
             </div>
@@ -165,7 +168,7 @@ export function ConnectionDetailModal({
                   )}
                 >
                   <Sparkles size={13} className="text-blue-600" />
-                  {matchPercent}% Tương thích
+                   {matchPercent}% {l("Tương thích", "Compatible")}
                 </span>
               </div>
             )}
@@ -182,7 +185,7 @@ export function ConnectionDetailModal({
             </div>
           ) : isError ? (
             <div className="text-center py-12 text-slate-500">
-              Không thể tải thông tin so sánh chi tiết. Vui lòng thử lại sau.
+               {l("Không thể tải thông tin so sánh chi tiết. Vui lòng thử lại sau.", "Could not load the detailed comparison. Please try again later.")}
             </div>
           ) : detail ? (
             <>
@@ -191,7 +194,7 @@ export function ConnectionDetailModal({
                 {/* Column 1: Current User */}
                 <div className="rounded-3xl border border-blue-100 bg-white p-6 space-y-4 shadow-sm relative overflow-hidden">
                   <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
-                    Hồ sơ của bạn
+                     {l("Hồ sơ của bạn", "Your Profile")}
                   </div>
                   
                   <div className="flex items-center gap-3.5 pt-1">
@@ -204,7 +207,7 @@ export function ConnectionDetailModal({
                       <h4 className="text-base font-bold text-slate-900 truncate">{myName}</h4>
                       <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
                         <Briefcase size={12} className="text-blue-500 shrink-0" />
-                        {detail.current_user_profession || "Chuyên môn"}
+                         {detail.current_user_profession || l("Chuyên môn", "Profession")}
                         {detail.current_user_company && ` @ ${detail.current_user_company}`}
                       </p>
                       {detail.current_user_location && (
@@ -219,7 +222,7 @@ export function ConnectionDetailModal({
                   {/* Your Skills */}
                   <div>
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Kỹ năng của bạn
+                       {l("Kỹ năng của bạn", "Your Skills")}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {detail.current_user_skills && detail.current_user_skills.length > 0 ? (
@@ -242,7 +245,7 @@ export function ConnectionDetailModal({
                           );
                         })
                       ) : (
-                        <span className="text-xs text-slate-400 italic">Chưa cập nhật kỹ năng</span>
+                         <span className="text-xs text-slate-400 italic">{l("Chưa cập nhật kỹ năng", "No skills added")}</span>
                       )}
                     </div>
                   </div>
@@ -251,13 +254,13 @@ export function ConnectionDetailModal({
                   <div className="rounded-2xl bg-blue-50/60 border border-blue-100/80 p-3.5 space-y-1">
                     <p className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
                       <Target size={13} className="text-blue-600" />
-                      Nhu cầu tìm kiếm (Looking for):
+                       {l("Nhu cầu tìm kiếm (Looking for):", "Looking for:")}
                     </p>
                     <ul className="text-xs text-blue-800/80 space-y-0.5 pl-4 list-disc">
                       {detail.current_user_needs && detail.current_user_needs.length > 0 ? (
                         detail.current_user_needs.map((need, i) => <li key={i}>{need}</li>)
                       ) : (
-                        <li className="italic text-slate-400 list-none -ml-4">Mở rộng mạng lưới quan hệ chuyên môn</li>
+                         <li className="italic text-slate-400 list-none -ml-4">{l("Mở rộng mạng lưới quan hệ chuyên môn", "Expand a professional network")}</li>
                       )}
                     </ul>
                   </div>
@@ -266,7 +269,7 @@ export function ConnectionDetailModal({
                 {/* Column 2: Candidate */}
                 <div className="rounded-3xl border border-indigo-100 bg-white p-6 space-y-4 shadow-sm relative overflow-hidden">
                   <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl uppercase tracking-wider">
-                    Ứng viên được đề xuất
+                     {l("Ứng viên được đề xuất", "Suggested Connection")}
                   </div>
 
                   <div className="flex items-center gap-3.5 pt-1">
@@ -280,16 +283,16 @@ export function ConnectionDetailModal({
                         </AvatarFallback>
                       </Avatar>
                       {isTargetOnline ? (
-                        <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-2 ring-white" title="Đang hoạt động" />
+                         <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-2 ring-white" title={t("online")} />
                       ) : (
-                        <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-slate-100 border-2 border-slate-400 ring-2 ring-white" title="Không hoạt động" />
+                         <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-slate-100 border-2 border-slate-400 ring-2 ring-white" title={t("offline")} />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <h4 className="text-base font-bold text-slate-900 truncate">{targetName}</h4>
                       <p className="text-xs text-slate-500 truncate flex items-center gap-1 mt-0.5">
                         <Briefcase size={12} className="text-indigo-500 shrink-0" />
-                        {detail.target_user_profession || "Chuyên môn"}
+                         {detail.target_user_profession || l("Chuyên môn", "Profession")}
                         {detail.target_user_company && ` @ ${detail.target_user_company}`}
                       </p>
                       {detail.target_user_location && (
@@ -304,7 +307,7 @@ export function ConnectionDetailModal({
                   {/* Target Skills */}
                   <div>
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Kỹ năng của ứng viên
+                       {l("Kỹ năng của ứng viên", "Candidate Skills")}
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {detail.target_user_skills && detail.target_user_skills.length > 0 ? (
@@ -327,7 +330,7 @@ export function ConnectionDetailModal({
                           );
                         })
                       ) : (
-                        <span className="text-xs text-slate-400 italic">Chưa cập nhật kỹ năng</span>
+                         <span className="text-xs text-slate-400 italic">{l("Chưa cập nhật kỹ năng", "No skills added")}</span>
                       )}
                     </div>
                   </div>
@@ -336,13 +339,13 @@ export function ConnectionDetailModal({
                   <div className="rounded-2xl bg-emerald-50/60 border border-emerald-100/80 p-3.5 space-y-1">
                     <p className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
                       <Sparkles size={13} className="text-emerald-600" />
-                      Có thể chia sẻ (Offering):
+                       {l("Có thể chia sẻ (Offering):", "Offering:")}
                     </p>
                     <ul className="text-xs text-emerald-800/80 space-y-0.5 pl-4 list-disc">
                       {detail.target_user_offers && detail.target_user_offers.length > 0 ? (
                         detail.target_user_offers.map((offer, i) => <li key={i}>{offer}</li>)
                       ) : (
-                        <li className="italic text-slate-400 list-none -ml-4">Kinh nghiệm chuyên môn và hỗ trợ dự án</li>
+                         <li className="italic text-slate-400 list-none -ml-4">{l("Kinh nghiệm chuyên môn và hỗ trợ dự án", "Professional experience and project support")}</li>
                       )}
                     </ul>
                   </div>
@@ -354,7 +357,7 @@ export function ConnectionDetailModal({
                 <div className="flex items-center gap-2 text-blue-700">
                   <Workflow size={16} className="text-blue-600" />
                   <h4 className="text-xs font-bold uppercase tracking-wider">
-                    Phân tích & Lý do ghép đôi từ AI Matchmaker
+                     {l("Phân tích & Lý do ghép đôi từ AI Matchmaker", "AI Matchmaker Analysis & Rationale")}
                   </h4>
                 </div>
                 <p className="text-sm leading-relaxed text-slate-800 font-medium">
@@ -368,7 +371,7 @@ export function ConnectionDetailModal({
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <Send size={13} className="text-blue-600" />
-                      Lời chào mở đầu cuộc trò chuyện (Gửi cùng lời mời kết bạn):
+                       {l("Lời chào mở đầu cuộc trò chuyện (Gửi cùng lời mời kết bạn):", "Opening message (sent with your request):")}
                     </label>
                     <span className="text-[11px] text-slate-400 font-medium">
                       {customMessage.length}/500
@@ -377,13 +380,13 @@ export function ConnectionDetailModal({
                   <Textarea
                     value={customMessage}
                     onChange={(e) => setCustomMessage(e.target.value)}
-                    placeholder={`Chào ${targetName}, mình thấy bạn cũng quan tâm đến... Chúng ta kết nối nhé!`}
+                     placeholder={l(`Chào ${targetName}, mình thấy bạn cũng quan tâm đến... Chúng ta kết nối nhé!`, `Hi ${targetName}, I noticed we share an interest in... Let's connect!`)}
                     rows={3}
                     maxLength={500}
                     className="w-full rounded-2xl border-slate-200 bg-slate-50 text-sm focus:border-blue-500 focus:bg-white resize-none"
                   />
                   <p className="text-[11px] text-slate-400">
-                    💡 AI đã tự động tạo lời chào cá nhân hóa dựa trên điểm chung của hai bạn. Bạn có thể chỉnh sửa trước khi gửi.
+                     {l("AI đã tự động tạo lời chào cá nhân hóa dựa trên điểm chung của hai bạn. Bạn có thể chỉnh sửa trước khi gửi.", "AI created a personalized greeting based on your shared interests. You can edit it before sending.")}
                   </p>
                 </div>
               )}
@@ -399,7 +402,7 @@ export function ConnectionDetailModal({
             onClick={onClose}
             className="rounded-xl text-slate-500 hover:bg-slate-100"
           >
-            {isProcessed ? "Đóng" : "Để sau"}
+             {isProcessed ? l("Đóng", "Close") : l("Để sau", "Later")}
           </Button>
 
           {!isProcessed && (
@@ -411,7 +414,7 @@ export function ConnectionDetailModal({
                 disabled={rejectMutation.isPending || acceptMutation.isPending}
                 className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-100"
               >
-                {rejectMutation.isPending ? "Đang bỏ qua..." : "Bỏ qua"}
+                 {rejectMutation.isPending ? l("Đang bỏ qua...", "Dismissing...") : l("Bỏ qua", "Dismiss")}
               </Button>
 
               <Button
@@ -423,12 +426,12 @@ export function ConnectionDetailModal({
                 {acceptMutation.isPending ? (
                   <>
                     <Loader2 size={14} className="mr-1.5 animate-spin" />
-                    Đang gửi...
+                     {l("Đang gửi...", "Sending...")}
                   </>
                 ) : (
                   <>
                     <UserPlus size={14} className="mr-1.5" />
-                    Gửi lời mời & Mở Chat
+                     {l("Gửi lời mời & Mở Chat", "Send Request & Open Chat")}
                   </>
                 )}
               </Button>

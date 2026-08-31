@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { RecommendationStatus, ConnectionRecommendation } from "@/types/recommendation";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 interface ConnectionListProps {
   selectedId?: string | null;
@@ -22,16 +23,18 @@ interface ConnectionListProps {
 
 type TabValue = RecommendationStatus | "ALL";
 
-const TABS: { label: string; value: TabValue; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
-  { label: "Chờ duyệt", value: "PENDING", icon: Clock },
-  { label: "Đã kết nối", value: "ACCEPTED", icon: Check },
-  { label: "Đã từ chối", value: "REJECTED", icon: X },
-  { label: "Tất cả", value: "ALL", icon: Filter },
+const TABS: { vi: string; en: string; value: TabValue; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
+  { vi: "Chờ duyệt", en: "Pending", value: "PENDING", icon: Clock },
+  { vi: "Đã kết nối", en: "Connected", value: "ACCEPTED", icon: Check },
+  { vi: "Đã từ chối", en: "Declined", value: "REJECTED", icon: X },
+  { vi: "Tất cả", en: "All", value: "ALL", icon: Filter },
 ];
 
 export function ConnectionList({ selectedId, onViewDetails }: ConnectionListProps) {
   const [activeTab, setActiveTab] = useState<TabValue>("PENDING");
   const queryClient = useQueryClient();
+  const { language } = useLanguage();
+  const l = (vi: string, en: string) => language === "en" ? en : vi;
 
   const statusFilter: RecommendationStatus | undefined = activeTab === "ALL" ? undefined : activeTab;
 
@@ -53,10 +56,10 @@ export function ConnectionList({ selectedId, onViewDetails }: ConnectionListProp
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
       queryClient.invalidateQueries({ queryKey: ["user-profile"] });
-      toast.success(data?.message || "Đã phân tích hồ sơ và cập nhật danh sách gợi ý!");
+      toast.success(data?.message || l("Đã phân tích hồ sơ và cập nhật danh sách gợi ý!", "Profile analyzed and suggestions updated!"));
     },
     onError: (err: any) => {
-      toast.error(err?.message || "Không thể quét gợi ý mới.");
+      toast.error(err?.message || l("Không thể quét gợi ý mới.", "Could not scan for new suggestions."));
     },
   });
 
@@ -101,7 +104,7 @@ export function ConnectionList({ selectedId, onViewDetails }: ConnectionListProp
               return (
                 <TabsTrigger key={tab.value} value={tab.value} className="flex items-center gap-1.5 px-3">
                   <Icon size={13} />
-                  <span>{tab.label}</span>
+                  <span>{language === "en" ? tab.en : tab.vi}</span>
                   {tab.value === "PENDING" && pendingCount > 0 && (
                     <span className="ml-1 rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-bold text-accent">
                       {pendingCount}
@@ -117,7 +120,7 @@ export function ConnectionList({ selectedId, onViewDetails }: ConnectionListProp
         <div className="flex items-center gap-2">
           <div className="hidden xl:flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-lg border border-subtle/60">
             <TrendingUp size={12} className="text-accent" />
-            <span>Điểm cao nhất lên đầu</span>
+            <span>{l("Điểm cao nhất lên đầu", "Highest score first")}</span>
           </div>
 
           <Button
@@ -131,7 +134,7 @@ export function ConnectionList({ selectedId, onViewDetails }: ConnectionListProp
               size={13}
               className={cn("mr-1.5", generateMutation.isPending && "animate-spin")}
             />
-            {generateMutation.isPending ? "AI đang quét..." : "Quét gợi ý mới"}
+            {generateMutation.isPending ? l("AI đang quét...", "AI is scanning...") : l("Quét gợi ý mới", "Scan for Suggestions")}
           </Button>
         </div>
       </div>
@@ -155,7 +158,7 @@ export function ConnectionList({ selectedId, onViewDetails }: ConnectionListProp
         </div>
       ) : isError ? (
         <div className="rounded-2xl border border-subtle bg-card p-8 text-center">
-          <p className="text-sm font-medium text-foreground">Không thể tải danh sách gợi ý</p>
+          <p className="text-sm font-medium text-foreground">{l("Không thể tải danh sách gợi ý", "Could not load suggestions")}</p>
           <p className="mt-1 text-xs text-muted-foreground">{String(error)}</p>
           <Button
             variant="secondary"
@@ -163,7 +166,7 @@ export function ConnectionList({ selectedId, onViewDetails }: ConnectionListProp
             onClick={() => queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] })}
             className="mt-4"
           >
-            Thử lại
+            {l("Thử lại", "Try Again")}
           </Button>
         </div>
       ) : recommendations.length === 0 ? (
@@ -172,12 +175,12 @@ export function ConnectionList({ selectedId, onViewDetails }: ConnectionListProp
             <Sparkles size={22} />
           </div>
           <h3 className="text-sm font-semibold text-foreground mb-1">
-            Không có gợi ý nào trong mục này
+            {l("Không có gợi ý nào trong mục này", "No suggestions in this category")}
           </h3>
           <p className="mx-auto max-w-sm text-xs leading-relaxed text-muted-foreground mb-5">
             {activeTab === "PENDING"
-              ? "Hệ thống AI sẽ tự động phân tích kỹ năng và nhu cầu của bạn để tìm những người dùng thật trong hệ thống phù hợp nhất."
-              : `Bạn hiện không có gợi ý nào ở trạng thái ${activeTab.toLowerCase()}.`}
+              ? l("Hệ thống AI sẽ tự động phân tích kỹ năng và nhu cầu của bạn để tìm những người dùng thật trong hệ thống phù hợp nhất.", "AI will analyze your skills and needs to find the most compatible real users.")
+              : l(`Bạn hiện không có gợi ý nào trong mục ${language === "en" ? TABS.find((tab) => tab.value === activeTab)?.en : TABS.find((tab) => tab.value === activeTab)?.vi}.`, `You currently have no suggestions in the ${TABS.find((tab) => tab.value === activeTab)?.en.toLowerCase()} category.`)}
           </p>
           {activeTab === "PENDING" && (
             <Button
@@ -187,7 +190,7 @@ export function ConnectionList({ selectedId, onViewDetails }: ConnectionListProp
               disabled={generateMutation.isPending}
             >
               <RefreshCw size={13} className={cn("mr-1.5", generateMutation.isPending && "animate-spin")} />
-              {generateMutation.isPending ? "Đang quét..." : "Quét tìm người phù hợp ngay"}
+              {generateMutation.isPending ? l("Đang quét...", "Scanning...") : l("Quét tìm người phù hợp ngay", "Find Compatible People Now")}
             </Button>
           )}
         </div>

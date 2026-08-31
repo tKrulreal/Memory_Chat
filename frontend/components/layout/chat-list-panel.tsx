@@ -15,8 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/hooks/use-language";
 
-const FILTERS = ["Tất cả", "Chưa đọc"] as const;
+const FILTERS = ["all", "unread"] as const;
 
 type ChatListPanelProps = {
   onSelect?: (conversationId: string) => void;
@@ -30,9 +31,10 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
   const setActive = useConversationStore((s) => s.setActiveConversation);
   const queryClient = useQueryClient();
   const onlineUserIds = usePresenceStore((s) => s.onlineUserIds);
+  const { language, t } = useLanguage();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<typeof FILTERS[number]>("Tất cả");
+  const [activeFilter, setActiveFilter] = useState<typeof FILTERS[number]>("all");
 
   const handleSelect = (conversationId: string) => {
     setActive(conversationId);
@@ -50,7 +52,7 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
 
   // Local filtering for conversation items
   const items = conversations.filter((c) => {
-    if (activeFilter === "Chưa đọc" && (!c.unread_count || c.unread_count === 0)) {
+    if (activeFilter === "unread" && (!c.unread_count || c.unread_count === 0)) {
       return false;
     }
     if (!searchQuery) return true;
@@ -69,7 +71,7 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
               <MessageSquare size={16} />
             </div>
-            <h2 className="text-base font-bold text-slate-900">Đoạn chat (Chats)</h2>
+            <h2 className="text-base font-bold text-slate-900">{t("chatsTitle")}</h2>
           </div>
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">
             {conversations.length}
@@ -83,7 +85,7 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm kiếm cuộc trò chuyện..."
+            placeholder={t("searchChats")}
             className="h-9 w-full rounded-2xl bg-slate-50 pl-9 pr-3 text-xs border-slate-200 focus:bg-white transition-colors"
           />
         </div>
@@ -102,7 +104,7 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
                   : "text-slate-500 hover:text-slate-800"
               )}
             >
-              {filter}
+              {t(filter)}
             </button>
           ))}
         </div>
@@ -126,7 +128,7 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
 
         {!isLoading && items.length === 0 && (
           <li className="p-8 text-center text-xs text-slate-400">
-            {activeFilter === "Chưa đọc" ? "Không có tin nhắn chưa đọc." : "Chưa có cuộc trò chuyện nào."}
+            {activeFilter === "unread" ? t("noUnreadMessages") : t("noConversations")}
           </li>
         )}
 
@@ -146,7 +148,7 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
               peerShort = peer.email.substring(0, 2).toUpperCase();
             }
 
-            const dateStr = formatChatListTime(conversation.last_message_at);
+            const dateStr = formatChatListTime(conversation.last_message_at, language);
 
             return (
               <li key={conversation.id}>
@@ -178,9 +180,9 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
                       </AvatarFallback>
                     </Avatar>
                     {isOnline ? (
-                      <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-2 ring-white" title="Đang hoạt động" />
+                      <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-2 ring-white" title={t("online")} />
                     ) : (
-                      <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-slate-100 border-2 border-slate-400 ring-2 ring-white" title="Không hoạt động" />
+                      <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-slate-100 border-2 border-slate-400 ring-2 ring-white" title={t("offline")} />
                     )}
                   </div>
 
@@ -227,7 +229,7 @@ export function ChatListPanel({ onSelect }: ChatListPanelProps) {
                             : "text-slate-500"
                         )}
                       >
-                        {conversation.last_message || "Chưa có tin nhắn nào"}
+                        {conversation.last_message || t("noMessages")}
                       </p>
                       {conversation.unread_count && conversation.unread_count > 0 ? (
                         <span className="shrink-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white shadow-xs">

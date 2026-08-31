@@ -32,6 +32,7 @@ import { getSystemTags, createSystemTag, getAiConfigs, updateAiConfig } from "@/
 import { getSettings, updateSettings } from "@/lib/api/settings";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { cn } from "@/lib/utils";
+import { useLanguage } from "@/hooks/use-language";
 
 type AIHubTab = "overview" | "copilot" | "memory" | "recommendation" | "tags";
 
@@ -50,6 +51,8 @@ const POPULAR_TAGS = [
 export default function AIHubPage() {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
+  const { language } = useLanguage();
+  const l = (vi: string, en: string) => language === "en" ? en : vi;
 
   const [activeTab, setActiveTab] = useState<AIHubTab>("overview");
   const [newTagName, setNewTagName] = useState("");
@@ -84,10 +87,10 @@ export default function AIHubPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["system-tags"] });
       setNewTagName("");
-      showToast("Đã thêm thẻ mới thành công!");
+      showToast(l("Đã thêm thẻ mới thành công!", "Tag added successfully!"));
     },
     onError: () => {
-      showToast("Lỗi khi thêm thẻ. Vui lòng thử lại!");
+      showToast(l("Lỗi khi thêm thẻ. Vui lòng thử lại!", "Could not add the tag. Please try again!"));
     }
   });
 
@@ -99,7 +102,7 @@ export default function AIHubPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["system-tags"] });
-      showToast("Đã xóa thẻ!");
+      showToast(l("Đã xóa thẻ!", "Tag deleted!"));
     },
   });
 
@@ -107,10 +110,10 @@ export default function AIHubPage() {
     mutationFn: (data: any) => updateSettings(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-settings"] });
-      showToast("Cập nhật cài đặt AI thành công!");
+      showToast(l("Cập nhật cài đặt AI thành công!", "AI settings updated successfully!"));
     },
     onError: () => {
-      showToast("Lỗi khi lưu cài đặt. Vui lòng thử lại!");
+      showToast(l("Lỗi khi lưu cài đặt. Vui lòng thử lại!", "Could not save settings. Please try again!"));
     }
   });
 
@@ -119,7 +122,7 @@ export default function AIHubPage() {
       updateAiConfig(data.key, data.value, data.desc),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["system-configs"] });
-      showToast("Cập nhật cấu hình hệ thống AI thành công!");
+      showToast(l("Cập nhật cấu hình hệ thống AI thành công!", "AI system configuration updated successfully!"));
     },
   });
 
@@ -177,29 +180,29 @@ export default function AIHubPage() {
   );
 
   const TABS = [
-    { id: "overview", label: "Tổng quan & Quyền riêng tư", icon: Brain, desc: "Cài đặt chung, bảo mật & mô hình AI" },
-    { id: "copilot", label: "AI Copilot", icon: Sparkles, desc: "Trợ lý gợi ý câu trả lời trong hội thoại" },
-    { id: "memory", label: "Trí nhớ AI (Memory)", icon: Database, desc: "Tự động ghi nhớ và thấu hiểu người dùng" },
-    { id: "recommendation", label: "Gợi ý kết nối (Matchmaker)", icon: Users, desc: "Thuật toán tìm kiếm bạn bè & đối tác" },
-    { id: "tags", label: "Hệ thống Thẻ (Taxonomy)", icon: TagIcon, desc: "Quản lý nhãn phân loại người dùng" },
+    { id: "overview", label: l("Tổng quan & Quyền riêng tư", "Overview & Privacy"), icon: Brain, desc: l("Cài đặt chung, bảo mật & mô hình AI", "General, privacy, and AI model settings") },
+    { id: "copilot", label: "AI Copilot", icon: Sparkles, desc: l("Trợ lý gợi ý câu trả lời trong hội thoại", "Suggested replies and in-chat assistance") },
+    { id: "memory", label: l("Trí nhớ AI (Memory)", "AI Memory"), icon: Database, desc: l("Tự động ghi nhớ và thấu hiểu người dùng", "Automatically remember and understand users") },
+    { id: "recommendation", label: l("Gợi ý kết nối (Matchmaker)", "Connection Suggestions"), icon: Users, desc: l("Thuật toán tìm kiếm bạn bè & đối tác", "Find compatible friends and partners") },
+    { id: "tags", label: l("Hệ thống Thẻ (Taxonomy)", "Tag System (Taxonomy)"), icon: TagIcon, desc: l("Quản lý nhãn phân loại người dùng", "Manage user classification labels") },
   ] as const;
 
   return (
-    <main className="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-10">
+    <main className="ai-hub-page flex-1 overflow-y-auto bg-background p-6 md:p-10">
       <div className="mx-auto max-w-5xl space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-md shadow-blue-500/20 text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent shadow-md shadow-accent/20 text-accent-foreground">
                 <Brain className="h-6 w-6" />
               </div>
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                AI Hub & Trợ lý Thông minh
+                {l("AI Hub & Trợ lý Thông minh", "AI Hub & Intelligent Assistant")}
               </h1>
             </div>
             <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
-              Cấu hình chuyên sâu mô hình AI, Bộ nhớ Memory, Copilot, Gợi ý kết nối & Hệ thống phân loại dữ liệu.
+              {l("Cấu hình chuyên sâu mô hình AI, Bộ nhớ Memory, Copilot, Gợi ý kết nối & Hệ thống phân loại dữ liệu.", "Configure AI models, Memory, Copilot, connection suggestions, and data classification.")}
             </p>
           </div>
 
@@ -207,10 +210,10 @@ export default function AIHubPage() {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-2xs">
               <Activity size={12} className="text-emerald-600 animate-pulse" />
-              LangGraph Engine Active
+              {l("LangGraph Engine đang hoạt động", "LangGraph Engine Active")}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-700 shadow-2xs">
-              <Cpu size={12} className="text-blue-600" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 border border-accent/30 px-3 py-1 text-xs font-semibold text-accent shadow-2xs">
+              <Cpu size={12} className="text-accent" />
               Qdrant Vector DB
             </span>
           </div>
@@ -240,7 +243,7 @@ export default function AIHubPage() {
                     className={cn(
                       "w-full flex items-start gap-3.5 p-3 rounded-2xl text-left transition-all duration-200 cursor-pointer",
                       active
-                        ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                        ? "bg-accent text-accent-foreground shadow-md shadow-accent/20"
                         : "hover:bg-slate-100/80 text-slate-700"
                     )}
                   >
@@ -251,10 +254,10 @@ export default function AIHubPage() {
                       <Icon size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className={cn("text-sm font-bold truncate", active ? "text-white" : "text-slate-900")}>
+                      <p className={cn("text-sm font-bold truncate", active ? "text-accent-foreground" : "text-slate-900")}>
                         {tab.label}
                       </p>
-                      <p className={cn("text-xs truncate mt-0.5", active ? "text-blue-100" : "text-slate-500")}>
+                      <p className={cn("text-xs truncate mt-0.5", active ? "text-accent-foreground/80" : "text-slate-500")}>
                         {tab.desc}
                       </p>
                     </div>
@@ -265,16 +268,16 @@ export default function AIHubPage() {
 
             {/* Quick Engine Info Card */}
             <Card className="rounded-3xl border-slate-100 bg-gradient-to-br from-slate-900 to-slate-800 p-5 text-white shadow-sm space-y-3">
-              <div className="flex items-center gap-2 text-blue-400">
+              <div className="flex items-center gap-2 text-accent">
                 <Workflow size={16} />
-                <span className="text-xs font-bold uppercase tracking-wider">Kiến trúc AI 5 Bước</span>
+                <span className="text-xs font-bold uppercase tracking-wider">{l("Kiến trúc AI 5 Bước", "5-Step AI Architecture")}</span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Hệ thống kết hợp SQL Hard Filter, Vector Search (Qdrant), Feature Engineering 5 trọng số, và LLM Re-ranker để đưa ra gợi ý chuẩn xác nhất.
+                {l("Hệ thống kết hợp SQL Hard Filter, Vector Search (Qdrant), Feature Engineering 5 trọng số, và LLM Re-ranker để đưa ra gợi ý chuẩn xác nhất.", "The system combines SQL hard filters, Qdrant vector search, five-factor feature engineering, and an LLM re-ranker for precise suggestions.")}
               </p>
               <div className="pt-2 border-t border-slate-700/60 flex items-center justify-between text-[11px] text-slate-400">
-                <span>Trạng thái: Ổn định</span>
-                <span className="text-emerald-400 font-semibold">100% Sẵn sàng</span>
+                <span>{l("Trạng thái: Ổn định", "Status: Stable")}</span>
+                <span className="text-emerald-400 font-semibold">{l("100% Sẵn sàng", "100% Ready")}</span>
               </div>
             </Card>
           </div>
@@ -297,23 +300,23 @@ export default function AIHubPage() {
                 <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                     <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                      <Brain size={18} className="text-blue-600" />
-                      Quyền riêng tư & Kích hoạt AI Tổng
+                      <Brain size={18} className="text-accent" />
+                      {l("Quyền riêng tư & Kích hoạt AI Tổng", "Privacy & Master AI Controls")}
                     </h2>
-                    <Badge variant="outline" className="text-xs border-blue-200 text-blue-700 bg-blue-50">
+                    <Badge variant="outline" className="text-xs border-accent/30 text-accent bg-accent/10">
                       Core Privacy
                     </Badge>
                   </div>
 
                   {/* Master AI Assistant Toggle */}
-                  <div className="flex items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50/50 border border-blue-100">
+                  <div className="flex items-center justify-between gap-4 p-5 rounded-2xl bg-accent/5 border border-accent/20">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <Sparkles size={18} className="text-blue-600" />
-                        <p className="text-sm font-bold text-slate-900">Kích hoạt Trợ lý AI (Master AI Switch)</p>
+                        <Sparkles size={18} className="text-accent" />
+                        <p className="text-sm font-bold text-slate-900">{l("Kích hoạt Trợ lý AI (Master AI Switch)", "Enable AI Assistant (Master Switch)")}</p>
                       </div>
                       <p className="text-xs text-slate-600 leading-relaxed">
-                        Bật/tắt toàn bộ tính năng AI (Copilot, gợi ý tin nhắn, matchmaker, tự động phân tích trí nhớ).
+                        {l("Bật/tắt toàn bộ tính năng AI (Copilot, gợi ý tin nhắn, matchmaker, tự động phân tích trí nhớ).", "Enable or disable all AI features, including Copilot, reply suggestions, Matchmaker, and automatic memory analysis.")}
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -335,13 +338,13 @@ export default function AIHubPage() {
                           <div className="flex items-center gap-2">
                             <MessageSquare size={16} className="text-blue-600" />
                             <p className="text-sm font-bold text-slate-900">
-                              Cho phép AI trích xuất phân tích đoạn chat
+                              {l("Cho phép AI trích xuất phân tích đoạn chat", "Allow AI to analyze chat content")}
                             </p>
                           </div>
                           <p className="text-xs text-slate-500 leading-relaxed">
                             {settings?.ai_extract_chat !== false
-                              ? "BẬT: Trợ lý AI và Memory Worker sẽ học hỏi thông tin quan trọng từ hội thoại để trợ giúp bạn nhanh chóng."
-                              : "TẮT (Bảo mật tối đa): AI bị khóa hoàn toàn quyền đọc và trích xuất tin nhắn chat của bạn."}
+                              ? l("BẬT: Trợ lý AI và Memory Worker sẽ học hỏi thông tin quan trọng từ hội thoại để trợ giúp bạn nhanh chóng.", "ON: The AI Assistant and Memory Worker can learn important information from conversations to assist you faster.")
+                              : l("TẮT (Bảo mật tối đa): AI bị khóa hoàn toàn quyền đọc và trích xuất tin nhắn chat của bạn.", "OFF (Maximum privacy): AI cannot read or extract content from your chat messages.")}
                           </p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -358,9 +361,9 @@ export default function AIHubPage() {
                       {/* Allow AI to Read Profile */}
                       <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-100 hover:border-slate-200 transition-colors">
                         <div className="space-y-0.5">
-                          <p className="text-sm font-semibold text-slate-800">Cho phép AI đọc Hồ sơ cá nhân (Profile Matching)</p>
+                          <p className="text-sm font-semibold text-slate-800">{l("Cho phép AI đọc Hồ sơ cá nhân (Profile Matching)", "Allow AI to read your profile (Profile Matching)")}</p>
                           <p className="text-xs text-slate-500">
-                            Cho phép thuật toán AI Matchmaker đọc kỹ năng, kinh nghiệm để gợi ý bạn bè và đối tác phù hợp.
+                            {l("Cho phép thuật toán AI Matchmaker đọc kỹ năng, kinh nghiệm để gợi ý bạn bè và đối tác phù hợp.", "Allow AI Matchmaker to use your skills and experience to suggest compatible friends and partners.")}
                           </p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -388,7 +391,7 @@ export default function AIHubPage() {
                   <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                     <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
                       <Sparkles size={18} className="text-blue-600" />
-                      Cấu hình AI Copilot (Trợ lý trò chuyện)
+                      {l("Cấu hình AI Copilot (Trợ lý trò chuyện)", "AI Copilot Configuration")}
                     </h2>
                     <Badge variant="outline" className="text-xs border-indigo-200 text-indigo-700 bg-indigo-50">
                       In-chat Assistant
@@ -398,9 +401,9 @@ export default function AIHubPage() {
                   {/* Enable AI Copilot Feature */}
                   <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-bold text-slate-900">Bật AI Copilot trong cửa sổ chat</p>
+                      <p className="text-sm font-bold text-slate-900">{l("Bật AI Copilot trong cửa sổ chat", "Enable AI Copilot in chats")}</p>
                       <p className="text-xs text-slate-500">
-                        Hiển thị thanh công cụ Copilot bên cạnh khung trò chuyện để tóm tắt và hỗ trợ phản hồi.
+                        {l("Hiển thị thanh công cụ Copilot bên cạnh khung trò chuyện để tóm tắt và hỗ trợ phản hồi.", "Show Copilot beside conversations for summaries and reply assistance.")}
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -419,9 +422,9 @@ export default function AIHubPage() {
                       {/* Context Turns */}
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-2xl bg-white border border-slate-100">
                         <div className="space-y-0.5">
-                          <p className="text-sm font-semibold text-slate-800">Số tin nhắn ngữ cảnh (Context Turns)</p>
+                          <p className="text-sm font-semibold text-slate-800">{l("Số tin nhắn ngữ cảnh (Context Turns)", "Context Messages")}</p>
                           <p className="text-xs text-slate-500">
-                            Số lượng tin nhắn gần nhất AI Copilot tham khảo để hiểu ngữ cảnh cuộc trò chuyện.
+                            {l("Số lượng tin nhắn gần nhất AI Copilot tham khảo để hiểu ngữ cảnh cuộc trò chuyện.", "The number of recent messages AI Copilot uses to understand the conversation.")}
                           </p>
                         </div>
                         <select
@@ -429,20 +432,20 @@ export default function AIHubPage() {
                           onChange={(e) => handleUpdateSetting("ai_copilot_context_turns", parseInt(e.target.value))}
                           className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none shadow-xs"
                         >
-                          <option value="5">5 tin nhắn gần nhất</option>
-                          <option value="10">10 tin nhắn (Mặc định)</option>
-                          <option value="20">20 tin nhắn</option>
-                          <option value="50">50 tin nhắn</option>
-                          <option value="0">Toàn bộ cuộc trò chuyện</option>
+                          <option value="5">{l("5 tin nhắn gần nhất", "5 recent messages")}</option>
+                          <option value="10">{l("10 tin nhắn (Mặc định)", "10 messages (Default)")}</option>
+                          <option value="20">{l("20 tin nhắn", "20 messages")}</option>
+                          <option value="50">{l("50 tin nhắn", "50 messages")}</option>
+                          <option value="0">{l("Toàn bộ cuộc trò chuyện", "Entire conversation")}</option>
                         </select>
                       </div>
 
                       {/* Smart Reply Suggestion */}
                       <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-100">
                         <div className="space-y-0.5">
-                          <p className="text-sm font-semibold text-slate-800">Gợi ý câu trả lời thông minh (Smart Reply)</p>
+                          <p className="text-sm font-semibold text-slate-800">{l("Gợi ý câu trả lời thông minh (Smart Reply)", "Smart Reply Suggestions")}</p>
                           <p className="text-xs text-slate-500">
-                            Tự động đưa ra các câu trả lời ngắn phù hợp ngay khi nhận tin nhắn mới.
+                            {l("Tự động đưa ra các câu trả lời ngắn phù hợp ngay khi nhận tin nhắn mới.", "Automatically suggest short, relevant replies when new messages arrive.")}
                           </p>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -470,7 +473,7 @@ export default function AIHubPage() {
                   <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                     <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
                       <Database size={18} className="text-blue-600" />
-                      Cấu hình Bộ nhớ AI (Memory Engine)
+                      {l("Cấu hình Bộ nhớ AI (Memory Engine)", "AI Memory Configuration")}
                     </h2>
                     <Badge variant="outline" className="text-xs border-amber-200 text-amber-700 bg-amber-50">
                       Long-term Memory
@@ -480,9 +483,9 @@ export default function AIHubPage() {
                   {/* Enable AI Memory */}
                   <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-bold text-slate-900">Kích hoạt AI Memory</p>
+                      <p className="text-sm font-bold text-slate-900">{l("Kích hoạt AI Memory", "Enable AI Memory")}</p>
                       <p className="text-xs text-slate-500">
-                        Cho phép hệ thống lưu trữ và trích xuất thực thể, điểm quan tâm, thông tin liên lạc.
+                        {l("Cho phép hệ thống lưu trữ và trích xuất thực thể, điểm quan tâm, thông tin liên lạc.", "Allow the system to store and retrieve entities, interests, and contact information.")}
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -501,39 +504,39 @@ export default function AIHubPage() {
                       {/* Memory Refresh Interval */}
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-2xl bg-white border border-slate-100">
                         <div className="space-y-0.5">
-                          <p className="text-sm font-semibold text-slate-800">Chu kỳ cập nhật Trí nhớ (Refresh Interval)</p>
-                          <p className="text-xs text-slate-500">Tần suất hệ thống tổng hợp thông tin mới từ tin nhắn.</p>
+                          <p className="text-sm font-semibold text-slate-800">{l("Chu kỳ cập nhật Trí nhớ (Refresh Interval)", "Memory Refresh Interval")}</p>
+                          <p className="text-xs text-slate-500">{l("Tần suất hệ thống tổng hợp thông tin mới từ tin nhắn.", "How often the system extracts new information from messages.")}</p>
                         </div>
                         <select
                           value={settings?.ai_memory_refresh_interval || "realtime"}
                           onChange={(e) => handleUpdateSetting("ai_memory_refresh_interval", e.target.value)}
                           className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none shadow-xs"
                         >
-                          <option value="realtime">Tức thì (Realtime)</option>
-                          <option value="5_mins">Mỗi 5 phút sau khi chat</option>
-                          <option value="hourly">Hàng giờ</option>
-                          <option value="daily">Hàng ngày</option>
-                          <option value="weekly">Hàng tuần</option>
+                          <option value="realtime">{l("Tức thì (Realtime)", "Immediately (Real-time)")}</option>
+                          <option value="5_mins">{l("Mỗi 5 phút sau khi chat", "Every 5 minutes after chatting")}</option>
+                          <option value="hourly">{l("Hàng giờ", "Hourly")}</option>
+                          <option value="daily">{l("Hàng ngày", "Daily")}</option>
+                          <option value="weekly">{l("Hàng tuần", "Weekly")}</option>
                         </select>
                       </div>
 
                       {/* Analysis Window */}
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-2xl bg-white border border-slate-100">
                         <div className="space-y-0.5">
-                          <p className="text-sm font-semibold text-slate-800">Cửa sổ thời gian phân tích (Analysis Window)</p>
-                          <p className="text-xs text-slate-500">Khoảng thời gian tin nhắn tối đa được AI phân tích vào bộ nhớ.</p>
+                          <p className="text-sm font-semibold text-slate-800">{l("Cửa sổ thời gian phân tích (Analysis Window)", "Analysis Window")}</p>
+                          <p className="text-xs text-slate-500">{l("Khoảng thời gian tin nhắn tối đa được AI phân tích vào bộ nhớ.", "The maximum message history period analyzed for memory.")}</p>
                         </div>
                         <select
                           value={settings?.ai_memory_window || "1m"}
                           onChange={(e) => handleUpdateSetting("ai_memory_window", e.target.value)}
                           className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none shadow-xs"
                         >
-                          <option value="1d">1 ngày gần nhất</option>
-                          <option value="1w">1 tuần gần nhất</option>
-                          <option value="1m">1 tháng gần nhất (Mặc định)</option>
-                          <option value="3m">3 tháng gần nhất</option>
-                          <option value="6m">6 tháng gần nhất</option>
-                          <option value="1y">1 năm gần nhất</option>
+                          <option value="1d">{l("1 ngày gần nhất", "Last day")}</option>
+                          <option value="1w">{l("1 tuần gần nhất", "Last week")}</option>
+                          <option value="1m">{l("1 tháng gần nhất (Mặc định)", "Last month (Default)")}</option>
+                          <option value="3m">{l("3 tháng gần nhất", "Last 3 months")}</option>
+                          <option value="6m">{l("6 tháng gần nhất", "Last 6 months")}</option>
+                          <option value="1y">{l("1 năm gần nhất", "Last year")}</option>
                         </select>
                       </div>
                     </>
@@ -551,7 +554,7 @@ export default function AIHubPage() {
                   <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                     <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
                       <Users size={18} className="text-blue-600" />
-                      Gợi ý kết nối thông minh (AI Matchmaker)
+                      {l("Gợi ý kết nối thông minh (AI Matchmaker)", "Intelligent Connection Suggestions (AI Matchmaker)")}
                     </h2>
                     <Badge variant="outline" className="text-xs border-emerald-200 text-emerald-700 bg-emerald-50">
                       Multi-Stage Pipeline
@@ -561,9 +564,9 @@ export default function AIHubPage() {
                   {/* Enable AI Recommendation */}
                   <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-bold text-slate-900">Kích hoạt AI Recommendation</p>
+                      <p className="text-sm font-bold text-slate-900">{l("Kích hoạt AI Recommendation", "Enable AI Recommendations")}</p>
                       <p className="text-xs text-slate-500">
-                        Tự động tìm kiếm và gợi ý bạn bè, đối tác phù hợp dựa trên kỹ năng, sở thích và vị trí.
+                        {l("Tự động tìm kiếm và gợi ý bạn bè, đối tác phù hợp dựa trên kỹ năng, sở thích và vị trí.", "Automatically suggest compatible friends and partners based on skills, interests, and location.")}
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -582,8 +585,8 @@ export default function AIHubPage() {
                       {/* Notification Interval */}
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-2xl bg-white border border-slate-100">
                         <div className="space-y-0.5">
-                          <p className="text-sm font-semibold text-slate-800">Tần suất thông báo gợi ý kết nối</p>
-                          <p className="text-xs text-slate-500">Khoảng thời gian cách nhau giữa các lần thông báo matching.</p>
+                          <p className="text-sm font-semibold text-slate-800">{l("Tần suất thông báo gợi ý kết nối", "Connection Suggestion Frequency")}</p>
+                          <p className="text-xs text-slate-500">{l("Khoảng thời gian cách nhau giữa các lần thông báo matching.", "Time between Matchmaker notifications.")}</p>
                         </div>
                         <select
                           value={currentConfigs.notification_interval || "24h"}
@@ -593,32 +596,32 @@ export default function AIHubPage() {
                           }}
                           className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none shadow-xs"
                         >
-                          <option value="realtime">Ngay khi phát hiện (Realtime)</option>
-                          <option value="1h">Mỗi 1 giờ</option>
-                          <option value="6h">Mỗi 6 giờ</option>
-                          <option value="12h">Mỗi 12 giờ</option>
-                          <option value="24h">Hàng ngày (24 giờ - Đề xuất)</option>
-                          <option value="weekly">Hàng tuần</option>
-                          <option value="off">Tắt thông báo</option>
+                          <option value="realtime">{l("Ngay khi phát hiện (Realtime)", "As detected (Real-time)")}</option>
+                          <option value="1h">{l("Mỗi 1 giờ", "Every hour")}</option>
+                          <option value="6h">{l("Mỗi 6 giờ", "Every 6 hours")}</option>
+                          <option value="12h">{l("Mỗi 12 giờ", "Every 12 hours")}</option>
+                          <option value="24h">{l("Hàng ngày (24 giờ - Đề xuất)", "Daily (24 hours - Recommended)")}</option>
+                          <option value="weekly">{l("Hàng tuần", "Weekly")}</option>
+                          <option value="off">{l("Tắt thông báo", "Notifications off")}</option>
                         </select>
                       </div>
 
                       {/* Minimum Matching Score */}
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-2xl bg-white border border-slate-100">
                         <div className="space-y-0.5">
-                          <p className="text-sm font-semibold text-slate-800">Ngưỡng % tương thích tối thiểu</p>
-                          <p className="text-xs text-slate-500">Chỉ gửi thông báo kết nối khi độ tương thích đạt từ mức này.</p>
+                          <p className="text-sm font-semibold text-slate-800">{l("Ngưỡng % tương thích tối thiểu", "Minimum Compatibility Score")}</p>
+                          <p className="text-xs text-slate-500">{l("Chỉ gửi thông báo kết nối khi độ tương thích đạt từ mức này.", "Only notify you when compatibility meets this threshold.")}</p>
                         </div>
                         <select
                           value={currentConfigs.min_matching_score || 50}
                           onChange={(e) => updateConfigSetting("min_matching_score", parseInt(e.target.value))}
                           className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none shadow-xs"
                         >
-                          <option value="50">50% (Tiêu chuẩn)</option>
-                          <option value="60">60% (Phù hợp khá)</option>
-                          <option value="70">70% (Tương thích cao)</option>
-                          <option value="80">80% (Rất cao)</option>
-                          <option value="90">90% (Tuyệt đối)</option>
+                          <option value="50">{l("50% (Tiêu chuẩn)", "50% (Standard)")}</option>
+                          <option value="60">{l("60% (Phù hợp khá)", "60% (Good fit)")}</option>
+                          <option value="70">{l("70% (Tương thích cao)", "70% (High compatibility)")}</option>
+                          <option value="80">{l("80% (Rất cao)", "80% (Very high)")}</option>
+                          <option value="90">{l("90% (Tuyệt đối)", "90% (Exceptional)")}</option>
                         </select>
                       </div>
                     </>
@@ -636,10 +639,10 @@ export default function AIHubPage() {
                   <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                     <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
                       <TagIcon size={18} className="text-blue-600" />
-                      Quản lý Thẻ phân loại (AI Taxonomy & Tags)
+                      {l("Quản lý Thẻ phân loại (AI Taxonomy & Tags)", "Classification Tags (AI Taxonomy & Tags)")}
                     </h2>
                     <Badge variant="outline" className="text-xs border-purple-200 text-purple-700 bg-purple-50">
-                      {tags.length} Thẻ hoạt động
+                      {tags.length} {l("Thẻ hoạt động", "Active Tags")}
                     </Badge>
                   </div>
 
@@ -647,9 +650,9 @@ export default function AIHubPage() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
                       <div className="space-y-0.5">
-                        <p className="text-sm font-bold text-slate-900">Kích hoạt AI Tagging tự động</p>
+                        <p className="text-sm font-bold text-slate-900">{l("Kích hoạt AI Tagging tự động", "Enable Automatic AI Tagging")}</p>
                         <p className="text-xs text-slate-500">
-                          Tự động gắn thẻ phân loại cho cuộc trò chuyện và hồ sơ.
+                          {l("Tự động gắn thẻ phân loại cho cuộc trò chuyện và hồ sơ.", "Automatically classify conversations and profiles with tags.")}
                         </p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -666,8 +669,8 @@ export default function AIHubPage() {
                     {currentConfigs.features.tagging && (
                       <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-100">
                         <div className="space-y-0.5">
-                          <p className="text-sm font-semibold text-slate-800">Số lượng thẻ đề xuất tối đa</p>
-                          <p className="text-xs text-slate-500">Giới hạn số tag AI gắn cho mỗi đối tượng.</p>
+                          <p className="text-sm font-semibold text-slate-800">{l("Số lượng thẻ đề xuất tối đa", "Maximum Suggested Tags")}</p>
+                          <p className="text-xs text-slate-500">{l("Giới hạn số tag AI gắn cho mỗi đối tượng.", "Limit the number of AI tags assigned to each item.")}</p>
                         </div>
                         <input
                           type="number"
@@ -685,11 +688,11 @@ export default function AIHubPage() {
 
                   {/* Add Tag Form */}
                   <div className="space-y-3">
-                    <p className="text-sm font-bold text-slate-900">Thêm thẻ mới (Create Tag)</p>
+                    <p className="text-sm font-bold text-slate-900">{l("Thêm thẻ mới (Create Tag)", "Create Tag")}</p>
                     <form onSubmit={handleCreateTag} className="flex flex-col sm:flex-row gap-3">
                       <Input
                         type="text"
-                        placeholder="Tên thẻ mới (vd: Frontend, AI Engineer, Blockchain...)"
+                        placeholder={l("Tên thẻ mới (vd: Frontend, AI Engineer, Blockchain...)", "New tag name (e.g. Frontend, AI Engineer, Blockchain...)")}
                         value={newTagName}
                         onChange={(e) => setNewTagName(e.target.value)}
                         className="h-11 rounded-2xl border-slate-200 bg-slate-50 text-sm focus:border-blue-500"
@@ -700,13 +703,13 @@ export default function AIHubPage() {
                         className="h-11 rounded-2xl px-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold shrink-0 shadow-sm"
                       >
                         <Plus size={16} className="mr-1.5" />
-                        {createTagMutation.isPending ? "Đang thêm..." : "Thêm thẻ"}
+                        {createTagMutation.isPending ? l("Đang thêm...", "Adding...") : l("Thêm thẻ", "Add Tag")}
                       </Button>
                     </form>
 
                     {/* Popular Quick Suggestions */}
                     <div className="pt-2">
-                      <p className="text-xs font-semibold text-slate-400 mb-2">Gợi ý thẻ phổ biến:</p>
+                      <p className="text-xs font-semibold text-slate-400 mb-2">{l("Gợi ý thẻ phổ biến:", "Popular tag suggestions:")}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {POPULAR_TAGS.map((popTag) => (
                           <button
@@ -727,12 +730,12 @@ export default function AIHubPage() {
                   {/* Tag List & Search */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-bold text-slate-900">Danh sách thẻ của bạn</p>
+                      <p className="text-sm font-bold text-slate-900">{l("Danh sách thẻ của bạn", "Your Tags")}</p>
                       <div className="relative w-48 sm:w-64">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <Input
                           type="search"
-                          placeholder="Tìm thẻ..."
+                          placeholder={l("Tìm thẻ...", "Search tags...")}
                           value={tagSearchQuery}
                           onChange={(e) => setTagSearchQuery(e.target.value)}
                           className="h-8.5 pl-8 text-xs rounded-xl bg-slate-50 border-slate-200"
@@ -748,7 +751,7 @@ export default function AIHubPage() {
                       </div>
                     ) : filteredTags.length === 0 ? (
                       <p className="text-xs text-slate-400 italic py-3 text-center">
-                        {tagSearchQuery ? "Không tìm thấy thẻ phù hợp." : "Chưa có thẻ nào. Hãy tạo thẻ đầu tiên!"}
+                        {tagSearchQuery ? l("Không tìm thấy thẻ phù hợp.", "No matching tags found.") : l("Chưa có thẻ nào. Hãy tạo thẻ đầu tiên!", "No tags yet. Create your first tag!")}
                       </p>
                     ) : (
                       <div className="flex flex-wrap gap-2.5 pt-1">
@@ -764,7 +767,7 @@ export default function AIHubPage() {
                               onClick={() => deleteTagMutation.mutate(tag.id)}
                               disabled={deleteTagMutation.isPending}
                               className="rounded-full p-0.5 text-blue-400 hover:text-red-600 hover:bg-blue-200/60 transition-colors"
-                              title="Xóa thẻ"
+                              title={l("Xóa thẻ", "Delete tag")}
                             >
                               <X size={13} />
                             </button>

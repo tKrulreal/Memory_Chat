@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   if (!upstream.ok) {
     const error = await upstream.json().catch(() => ({ detail: "Login failed" }));
     return NextResponse.json(
-      { error: error.detail ?? "Login failed" },
+      { error: error.detail ?? error.message ?? "Login failed" },
       { status: upstream.status },
     );
   }

@@ -7,6 +7,7 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [phone, setPhone] = useState("");
   const [gender, setGender] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -16,6 +17,12 @@ export default function RegisterPage() {
     event.preventDefault();
     setLoading(true);
     setError(null);
+
+    if (password !== passwordConfirmation) {
+      setError("Mật khẩu xác nhận không khớp");
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch("/api/auth/register", {
@@ -88,6 +95,21 @@ export default function RegisterPage() {
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="h-11 w-full rounded-button bg-input px-3 text-sm outline-none ring-accent focus:ring-1"
+            />
+          </div>
+          <div>
+            <label htmlFor="passwordConfirmation" className="mb-1 block text-sm text-muted-foreground">
+              Nhập lại mật khẩu
+            </label>
+            <input
+              id="passwordConfirmation"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={passwordConfirmation}
+              onChange={(e) => setPasswordConfirmation(e.target.value)}
               className="h-11 w-full rounded-button bg-input px-3 text-sm outline-none ring-accent focus:ring-1"
             />
           </div>

@@ -9,11 +9,14 @@
   --bg-elevated: #f1f5f9;
   --bg-input: #e2e8f0;
 
-  /* Accent - Blue theme from social-network-module */
+  /* Active accent. ThemeBootstrap updates these through data-accent-color. */
   --accent-primary: #2563eb;
   --accent-primary-hover: #1d4ed8;
   --accent-warning: #f97316;
   --accent-ai: #dbeafe;
+
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
 
   /* Text */
   --text-primary: #0f172a;
@@ -33,6 +36,42 @@
   --width-nav-collapsed: 72px;
   --width-chat-list: 320px;
   --width-info-panel: 300px;
+}
+
+:root[data-accent-color="emerald"] {
+  --accent-primary: #059669;
+  --accent-primary-hover: #047857;
+  --primary: #059669;
+}
+
+:root[data-accent-color="purple"] {
+  --accent-primary: #9333ea;
+  --accent-primary-hover: #7e22ce;
+  --primary: #9333ea;
+}
+
+:root[data-accent-color="indigo"] {
+  --accent-primary: #4f46e5;
+  --accent-primary-hover: #4338ca;
+  --primary: #4f46e5;
+}
+
+:root[data-accent-color="amber"] {
+  --accent-primary: #d97706;
+  --accent-primary-hover: #b45309;
+  --primary: #d97706;
+}
+
+/* Keep these outside @layer so they can override the unlayered light tokens. */
+:root.dark,
+:root[data-theme="dark"] {
+  --bg-app: #0f172a;
+  --bg-surface: #1e293b;
+  --bg-elevated: #334155;
+  --bg-input: #1e293b;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --border-subtle: #475569;
 }
 
 @layer base {
@@ -78,14 +117,20 @@
     --sidebar-ring: oklch(0.708 0 0);
   }
   .dark {
+    --bg-app: #0f172a;
+    --bg-surface: #1e293b;
+    --bg-elevated: #334155;
+    --bg-input: #1e293b;
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --border-subtle: #475569;
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.205 0 0);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.488 0.243 264.376);
-    --primary-foreground: oklch(0.985 0 0);
+    --primary-foreground: #ffffff;
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.269 0 0);
@@ -138,6 +183,113 @@
 }
 
 @layer utilities {
+  /* Legacy screens still use literal blue utilities. Keep those surfaces
+     connected to the user's selected accent until they are tokenized. */
+  :root[data-accent-color] .app-shell .bg-blue-600,
+  :root[data-accent-color] .app-shell .bg-blue-500,
+  :root[data-accent-color] .settings-page .bg-blue-600 {
+    background-color: var(--accent-primary) !important;
+  }
+
+  :root[data-accent-color] .app-shell .text-blue-600,
+  :root[data-accent-color] .app-shell .text-blue-700,
+  :root[data-accent-color] .app-shell .text-blue-500,
+  :root[data-accent-color] .app-shell .text-blue-400,
+  :root[data-accent-color] .settings-page .text-blue-600,
+  :root[data-accent-color] .settings-page .text-blue-700 {
+    color: var(--accent-primary) !important;
+  }
+
+  :root[data-accent-color] .app-shell .border-blue-200,
+  :root[data-accent-color] .app-shell .border-blue-100,
+  :root[data-accent-color] .app-shell .border-blue-500,
+  :root[data-accent-color] .settings-page .border-blue-200,
+  :root[data-accent-color] .settings-page .border-blue-100 {
+    border-color: color-mix(in srgb, var(--accent-primary) 25%, transparent) !important;
+  }
+
+  :root[data-accent-color] .app-shell .ring-blue-500,
+  :root[data-accent-color] .settings-page .ring-blue-500 {
+    --tw-ring-color: var(--accent-primary) !important;
+  }
+
+  :root[data-accent-color] .app-shell .bg-blue-600\/10,
+  :root[data-accent-color] .app-shell .bg-blue-600\/15,
+  :root[data-accent-color] .app-shell .bg-blue-600\/20,
+  :root[data-accent-color] .app-shell .bg-blue-500\/20 {
+    background-color: color-mix(in srgb, var(--accent-primary) 18%, transparent) !important;
+  }
+
+  :root[data-accent-color] .app-shell .border-blue-500\/50 {
+    border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent) !important;
+  }
+
+  :root[data-accent-color] .app-shell .ring-blue-500\/40 {
+    --tw-ring-color: color-mix(in srgb, var(--accent-primary) 40%, transparent) !important;
+  }
+
+  :root[data-accent-color] .app-shell .hover\:bg-blue-50:hover,
+  :root[data-accent-color] .settings-page .hover\:bg-blue-50:hover {
+    background-color: color-mix(in srgb, var(--accent-primary) 10%, transparent) !important;
+  }
+
+  :root[data-accent-color] .app-shell .hover\:bg-blue-700:hover,
+  :root[data-accent-color] .settings-page .hover\:bg-blue-700:hover {
+    background-color: var(--accent-primary-hover) !important;
+  }
+
+  /* Normalize literal light utilities when the root is in dark mode. */
+  .dark .app-shell .bg-white,
+  .dark .settings-page .bg-white {
+    background-color: var(--bg-surface) !important;
+  }
+
+  .dark .app-shell .bg-slate-50,
+  .dark .app-shell .bg-slate-100,
+  .dark .app-shell .bg-gray-50,
+  .dark .app-shell .bg-gray-100,
+  .dark .settings-page .bg-slate-50,
+  .dark .settings-page .bg-slate-100 {
+    background-color: var(--bg-elevated) !important;
+  }
+
+  .dark .app-shell .text-slate-900,
+  .dark .app-shell .text-slate-800,
+  .dark .settings-page .text-slate-900,
+  .dark .settings-page .text-slate-800 {
+    color: var(--text-primary) !important;
+  }
+
+  .dark .app-shell .text-slate-700,
+  .dark .app-shell .text-slate-600,
+  .dark .settings-page .text-slate-700,
+  .dark .settings-page .text-slate-600 {
+    color: var(--text-secondary) !important;
+  }
+
+  .dark .app-shell .text-slate-500,
+  .dark .app-shell .text-slate-400,
+  .dark .settings-page .text-slate-500,
+  .dark .settings-page .text-slate-400 {
+    color: #94a3b8 !important;
+  }
+
+  .dark .app-shell .border-slate-100,
+  .dark .app-shell .border-slate-200,
+  .dark .settings-page .border-slate-100,
+  .dark .settings-page .border-slate-200 {
+    border-color: var(--border-subtle) !important;
+  }
+
+  .settings-page [data-slot="card"] {
+    border-color: var(--border-subtle) !important;
+    box-shadow: none;
+  }
+
+  .ai-hub-page [data-slot="card"] {
+    border-color: var(--border-subtle) !important;
+  }
+
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 transparent;
