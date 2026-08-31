@@ -32,6 +32,9 @@ class ChangePasswordRequest(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email: str
+    full_name: str
+    phone: str | None = None
+    new_password: str
 
 
 class ResetPasswordRequest(BaseModel):
@@ -62,8 +65,9 @@ def change_password(
 @router.post("/forgot-password")
 @limiter.limit("5/hour")
 def forgot_password(request: Request, req: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    AuthService.request_password_reset(db, req.email)
-    return {"message": "Nếu email tồn tại, chúng tôi đã gửi hướng dẫn đặt lại mật khẩu."}
+    return AuthService.reset_password_by_identity(
+        db, req.email, req.full_name, req.phone, req.new_password
+    )
 
 
 @router.post("/reset-password")

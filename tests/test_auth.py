@@ -146,3 +146,42 @@ def test_password_reset_rejects_expired_token(db_session: Session):
     with pytest.raises(HTTPException) as excinfo:
         AuthService.reset_password(db_session, "expired-token", "newpassword")
     assert excinfo.value.status_code == 400
+
+
+def test_password_reset_by_identity_requires_phone_when_account_has_one(db_session: Session):
+    user = AuthService.register(
+        db_session,
+        UserCreate(
+            email="identity@example.com",
+            password="oldpassword",
+            full_name="Identity User",
+            phone="0900000000",
+        ),
+    )
+
+    with pytest.raises(HTTPException) as excinfo:
+        AuthService.reset_password_by_identity(
+            db_session, user.email, user.full_name, None, "newpassword"
+        )
+    assert excinfo.value.status_code == 400
+
+    AuthService.reset_password_by_identity(
+        db_session, user.email, user.full_name, user.phone, "newpassword"
+    )
+    assert verify_password("newpassword", user.password_hash)
+
+
+def test_password_reset_by_identity_allows_accounts_without_phone(db_session: Session):
+    user = AuthService.register(
+        db_session,
+        UserCreate(
+            email="no-phone@example.com",
+            password="oldpassword",
+            full_name="No Phone User",
+        ),
+    )
+
+    AuthService.reset_password_by_identity(
+        db_session, user.email, user.full_name, None, "newpassword"
+    )
+    assert verify_password("newpassword", user.password_hash)

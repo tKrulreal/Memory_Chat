@@ -112,8 +112,33 @@ class AuthService:
         try:
             send_password_reset_email(user.email, reset_url)
         except (OSError, smtplib.SMTPException):
-            # Keep this response indistinguishable to prevent account enumeration.
             return
+
+    @staticmethod
+    def reset_password_by_identity(
+        db: Session,
+        email: str,
+        full_name: str,
+        phone: str | None,
+        new_password: str,
+    ) -> dict[str, str]:
+        if len(new_password) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Mật khẩu mới phải có tối thiểu 8 ký tự",
+            )
+
+        user = user_repo.get_for_password_reset(db, email=email, full_name=full_name)
+        if not user or (user.phone and user.phone != phone):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Thông tin xác minh không chính xác",
+            )
+
+        user.password_hash = get_password_hash(new_password)
+        user.token_version += 1
+        db.commit()
+        return {"message": "Đặt lại mật khẩu thành công"}
 
     @staticmethod
     def reset_password(db: Session, token: str, new_password: str) -> dict[str, str]:

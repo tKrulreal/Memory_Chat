@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   const data = await upstream.json().catch(() => ({}));
   if (!upstream.ok) {
     return NextResponse.json(
-      { error: data.detail ?? "Không thể gửi yêu cầu đặt lại mật khẩu" },
+      { error: data.detail ?? "Thông tin xác minh không chính xác" },
       { status: upstream.status },
     );
   }
