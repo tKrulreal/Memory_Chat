@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { getAiConfigs } from "@/lib/api/tags";
 
-export function useAISettings() {
+export function useAISettings(enabled = true) {
   const { data: configs = [], isLoading } = useQuery({
     queryKey: ["system-configs"],
     queryFn: getAiConfigs,
+    enabled,
   });
 
   const aiConfig = configs.find(c => c.key === "ai_settings");

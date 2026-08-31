@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -130,9 +129,9 @@ export default function RegisterPage() {
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Đã có tài khoản?{" "}
-          <Link href="/login" className="text-accent hover:underline">
+          <a href="/login" className="text-accent hover:underline">
             Đăng nhập
-          </Link>
+          </a>
         </p>
       </div>
     </div>

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -83,9 +82,9 @@ export default function LoginPage() {
           </div>
 
           <div className="text-right">
-            <Link href="/forgot-password" className="text-sm font-medium text-accent hover:text-accent-hover">
+            <a href="/forgot-password" className="text-sm font-medium text-accent hover:text-accent-hover">
               Quên mật khẩu?
-            </Link>
+            </a>
           </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}
@@ -97,9 +96,9 @@ export default function LoginPage() {
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Chưa có tài khoản?{" "}
-          <Link href="/register" className="font-medium text-accent hover:text-accent-hover">
+          <a href="/register" className="font-medium text-accent hover:text-accent-hover">
             Đăng ký
-          </Link>
+          </a>
         </p>
       </div>
     </div>

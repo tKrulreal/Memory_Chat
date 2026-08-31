@@ -5,3 +5,9 @@ npm-debug.log
 README.md
 .next
 .git
+.env
+.env.*
+dist
+tests
+playwright-report
+test-results

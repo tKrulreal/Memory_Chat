@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -69,7 +68,7 @@ export default function ForgotPasswordPage() {
         )}
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          <Link href="/login" className="font-medium text-accent hover:text-accent-hover">Quay lại đăng nhập</Link>
+          <a href="/login" className="font-medium text-accent hover:text-accent-hover">Quay lại đăng nhập</a>
         </p>
       </div>
     </div>
