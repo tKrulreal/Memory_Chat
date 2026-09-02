@@ -89,20 +89,25 @@ def get_contact_memory(
             interests_list = memory.interest if isinstance(memory.interest, list) else list(memory.interest)
             lines.append(f"\n🎯 Sở thích: {', '.join(interests_list)}")
 
-        if memory.timeline:
-            lines.append(f"\n📅 Timeline: {memory.timeline}")
+        facts = memory.facts if isinstance(memory.facts, dict) else {}
 
-        if memory.relationship_score is not None:
-            score = memory.relationship_score
-            emoji = "❤️" if score >= 80 else "🤝" if score >= 50 else "👋"
-            lines.append(f"\n{emoji} Điểm quan hệ: {score}/100")
+        timeline = facts.get("timeline") or getattr(memory, "timeline", None)
+        if timeline:
+            lines.append(f"\n📅 Timeline: {timeline}")
 
-        if memory.last_discussion:
-            lines.append(f"\n💬 Cuộc trò chuyện gần nhất:\n{memory.last_discussion}")
+        rel_score = facts.get("relationship_score") if facts.get("relationship_score") is not None else getattr(memory, "relationship_score", None)
+        if rel_score is not None:
+            emoji = "❤️" if rel_score >= 80 else "🤝" if rel_score >= 50 else "👋"
+            lines.append(f"\n{emoji} Điểm quan hệ: {rel_score}/100")
 
-        if memory.insights:
+        last_discussion = facts.get("last_discussion") or getattr(memory, "last_discussion", None)
+        if last_discussion:
+            lines.append(f"\n💬 Cuộc trò chuyện gần nhất:\n{last_discussion}")
+
+        insights = facts.get("insights") or getattr(memory, "insights", None)
+        if insights:
             lines.append("\n💡 Insights:")
-            for insight in (memory.insights if isinstance(memory.insights, list) else [memory.insights]):
+            for insight in (insights if isinstance(insights, list) else [insights]):
                 if isinstance(insight, dict):
                     lines.append(f"  - [{insight.get('type', 'INFO')}] {insight.get('description', '')}")
 
@@ -149,11 +154,11 @@ def get_recent_messages(
         except ValueError:
             return f"Invalid conversation_id: {conversation_id}"
 
-        # Verify ownership
+        # Verify ownership: user is either user_a or user_b
         conv = db.get(Conversation, cid)
         if not conv:
             return f"Không tìm thấy conversation {conversation_id}"
-        if conv.user_id != uid:
+        if conv.user_a_id != uid and conv.user_b_id != uid:
             return f"Không có quyền truy cập conversation {conversation_id}"
 
         # Fetch messages
@@ -171,11 +176,18 @@ def get_recent_messages(
         # Reverse to show oldest first
         messages = list(reversed(messages))
 
-        lines = [f"=== {len(messages)} tin nhắn gần nhất ==="]
+        # Get peer name if possible
+        peer_id = conv.user_b_id if conv.user_a_id == uid else conv.user_a_id
+        from src.models.user import User
+        peer_user = db.get(User, peer_id)
+        peer_name = peer_user.full_name if (peer_user and peer_user.full_name) else (peer_user.email if peer_user else "Đối tác")
+
+        lines = [f"=== {len(messages)} tin nhắn gần nhất trong đoạn chat ==="]
         for msg in messages:
-            sender = "👤 USER" if msg.sender_type == "USER" else "🤖 CONTACT"
+            is_me = (msg.sender_user_id == uid)
+            sender = "👤 BẠN (Tôi)" if is_me else f"💬 {peer_name}"
             time_str = msg.created_at.strftime("%d/%m %H:%M") if msg.created_at else ""
-            content_preview = msg.content[:200] + "..." if len(msg.content) > 200 else msg.content
+            content_preview = msg.content[:300] + "..." if len(msg.content) > 300 else msg.content
             lines.append(f"\n{sender} [{time_str}]:\n{content_preview}")
 
         return "\n".join(lines)

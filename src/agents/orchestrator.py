@@ -405,15 +405,44 @@ async def run_copilot(
             return "Không xác định được cuộc trò chuyện."
 
         from src.api.deps import SessionLocal
-        from src.models.chat import Message
+        from src.models.chat import Conversation, Message
+        from src.models.user import User
         db = SessionLocal()
         try:
             if conversation_id:
                 conv_uuid = uuid.UUID(conversation_id) if isinstance(conversation_id, str) else conversation_id
-                last_msg = db.query(Message).filter(Message.conversation_id == conv_uuid).order_by(Message.created_at.desc()).first()
-                if last_msg:
-                    return f"Gợi ý phản hồi theo phong cách {tone} cho tin nhắn gần nhất ('{last_msg.content}'): Xác nhận tiếp nhận thông tin và phản hồi ngắn gọn, thiện chí."
-                return "Chưa có tin nhắn nào trong hội thoại để gợi ý trả lời."
+                conv = db.get(Conversation, conv_uuid)
+                if not conv:
+                    return "Không tìm thấy cuộc trò chuyện."
+
+                recent_msgs = (
+                    db.query(Message)
+                    .filter(Message.conversation_id == conv_uuid)
+                    .order_by(Message.created_at.desc())
+                    .limit(6)
+                    .all()
+                )
+                if not recent_msgs:
+                    return "Chưa có tin nhắn nào trong hội thoại để gợi ý trả lời."
+
+                recent_msgs = list(reversed(recent_msgs))
+                peer_id = conv.user_b_id if str(conv.user_a_id) == str(user_id) else conv.user_a_id
+                peer = db.get(User, peer_id)
+                peer_name = peer.full_name if (peer and peer.full_name) else "đối tác"
+
+                conv_history_text = "\n".join([
+                    f"{'Bạn' if str(m.sender_user_id) == str(user_id) else peer_name}: {m.content}"
+                    for m in recent_msgs
+                ])
+
+                llm = LLMGateway()
+                prompt = (
+                    f"Dưới đây là các tin nhắn gần nhất trong cuộc trò chuyện giữa bạn và {peer_name}:\n"
+                    f"{conv_history_text}\n\n"
+                    f"Hãy gợi ý 2-3 câu trả lời ngắn gọn (dưới 50 từ/câu) theo phong cách {tone} để người dùng có thể gửi lại ngay."
+                )
+                suggestions = llm.chat("Bạn là chuyên gia gợi ý tin nhắn thông minh, lịch sự và súc tích.", prompt)
+                return suggestions
 
             if contact_id:
                 from src.agents.tools.recommendation_tools import recommend_reply
