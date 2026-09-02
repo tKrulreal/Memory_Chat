@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -8,6 +7,7 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [phone, setPhone] = useState("");
   const [gender, setGender] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -17,6 +17,12 @@ export default function RegisterPage() {
     event.preventDefault();
     setLoading(true);
     setError(null);
+
+    if (password !== passwordConfirmation) {
+      setError("Mật khẩu xác nhận không khớp");
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch("/api/auth/register", {
@@ -49,13 +55,13 @@ export default function RegisterPage() {
       <div className="w-full max-w-md rounded-button border border-subtle bg-card p-8">
         <div className="mb-8 text-center">
           <p className="text-sm font-semibold text-accent">MemoryChat</p>
-          <h1 className="mt-2 text-2xl font-bold">Create account</h1>
+          <h1 className="mt-2 text-2xl font-bold">Tạo tài khoản</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="fullName" className="mb-1 block text-sm text-muted-foreground">
-              Full name
+              Họ và tên
             </label>
             <input
               id="fullName"
@@ -80,7 +86,7 @@ export default function RegisterPage() {
           </div>
           <div>
             <label htmlFor="password" className="mb-1 block text-sm text-muted-foreground">
-              Password
+              Mật khẩu
             </label>
             <input
               id="password"
@@ -93,8 +99,23 @@ export default function RegisterPage() {
             />
           </div>
           <div>
+            <label htmlFor="passwordConfirmation" className="mb-1 block text-sm text-muted-foreground">
+              Nhập lại mật khẩu
+            </label>
+            <input
+              id="passwordConfirmation"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={passwordConfirmation}
+              onChange={(e) => setPasswordConfirmation(e.target.value)}
+              className="h-11 w-full rounded-button bg-input px-3 text-sm outline-none ring-accent focus:ring-1"
+            />
+          </div>
+          <div>
             <label htmlFor="phone" className="mb-1 block text-sm text-muted-foreground">
-              Phone (optional)
+              Số điện thoại (không bắt buộc)
             </label>
             <input
               id="phone"
@@ -106,7 +127,7 @@ export default function RegisterPage() {
           </div>
           <div>
             <label htmlFor="gender" className="mb-1 block text-sm text-muted-foreground">
-              Gender (optional)
+              Giới tính (không bắt buộc)
             </label>
             <select
               id="gender"
@@ -114,25 +135,25 @@ export default function RegisterPage() {
               onChange={(e) => setGender(e.target.value)}
               className="h-11 w-full rounded-button bg-input px-3 text-sm outline-none ring-accent focus:ring-1"
             >
-              <option value="">Select gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
+              <option value="">Chọn giới tính</option>
+              <option value="male">Nam</option>
+              <option value="female">Nữ</option>
+              <option value="other">Khác</option>
             </select>
           </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating..." : "Create account"}
+            {loading ? "Đang tạo tài khoản..." : "Tạo tài khoản"}
           </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          Already have an account?{" "}
-          <Link href="/login" className="text-accent hover:underline">
-            Sign in
-          </Link>
+          Đã có tài khoản?{" "}
+          <a href="/login" className="text-accent hover:underline">
+            Đăng nhập
+          </a>
         </p>
       </div>
     </div>

@@ -293,13 +293,12 @@ CONNECTION_REQUESTS = [
     },
 ]
 
-# ============================================================
-# Sample Copilot Messages (User 1 - Tran Minh)
-# ============================================================
 COPILOT_MESSAGES = [
+    # Global Copilot Messages (conversation_id = None)
     {
         "id": "cccc1111-1111-1111-1111-111111111111",
         "user_id": "11111111-1111-1111-1111-111111111111",
+        "conversation_id": None,
         "role": "user",
         "content": "Tìm giúp tôi người làm về UI/UX hoặc Design System trong mạng lưới.",
         "tools_used": [],
@@ -310,6 +309,7 @@ COPILOT_MESSAGES = [
     {
         "id": "cccc2222-2222-2222-2222-222222222222",
         "user_id": "11111111-1111-1111-1111-111111111111",
+        "conversation_id": None,
         "role": "assistant",
         "content": "Dựa trên hồ sơ của các thành viên, tôi tìm thấy **Lê Mai** (Lead UI/UX Designer tại Design Studio).\n\n- **Chuyên môn:** UI Design, Design Systems, Gamification, Figma, Tailwind CSS.\n- **Kinh nghiệm:** Thiết kế Design System SaaS đa nền tảng.\n- **Nhu cầu:** Đang tìm kiếm Backend Developer và Frontend Developer để hợp tác.\n\nBạn có thể gửi lời mời kết nối với Mai từ trang Kết nối!",
         "tools_used": ["semantic_search"],
@@ -317,9 +317,11 @@ COPILOT_MESSAGES = [
         "intent": "SEARCH",
         "minutes_ago": 119,
     },
+    # In-Chat Copilot Messages for Conversation 1 (conversation_id = aaaa1111-1111-1111-1111-111111111111)
     {
         "id": "cccc3333-3333-3333-3333-333333333333",
         "user_id": "11111111-1111-1111-1111-111111111111",
+        "conversation_id": "aaaa1111-1111-1111-1111-111111111111",
         "role": "user",
         "content": "Tôi và Lan đã hẹn gặp nhau khi nào nhỉ?",
         "tools_used": [],
@@ -330,9 +332,10 @@ COPILOT_MESSAGES = [
     {
         "id": "cccc4444-4444-4444-4444-444444444444",
         "user_id": "11111111-1111-1111-1111-111111111111",
+        "conversation_id": "aaaa1111-1111-1111-1111-111111111111",
         "role": "assistant",
         "content": "Theo ghi nhận từ cuộc trò chuyện gần nhất giữa bạn và **Nguyễn Thị Lan**, hai bạn đã thống nhất lịch hẹn cafe vào **Chiều Thứ 7 lúc 3h** để trao đổi về hợp tác sản phẩm EdTech và AI Agent.",
-        "tools_used": ["get_peer_info"],
+        "tools_used": ["get_recent_messages", "get_peer_info"],
         "sources": ["assistant_memories", "direct_conversations"],
         "intent": "MEMORY",
         "minutes_ago": 44,
@@ -485,9 +488,13 @@ INSERT INTO user_profiles (
                 "tagging": True,
                 "memory": True,
                 "copilot": True,
+                "chat_copilot": True,
                 "reply_suggestions": True,
                 "recommendation": True
             },
+            "chat_copilot_context_mode": "scoped_chat",
+            "chat_copilot_message_limit": 20,
+            "chat_copilot_quick_actions": True,
             "tag_whitelist": ["Python", "FastAPI", "Go", "Backend", "DevOps", "UI/UX", "Product", "AI/ML", "Kubernetes", "EdTech"],
             "max_tags_per_contact": 10,
             "min_matching_score": 0.5
@@ -604,11 +611,13 @@ VALUES (
         content_escaped = cmsg["content"].replace("'", "''")
         intent_val = f"'{cmsg['intent']}'" if cmsg.get("intent") else "NULL"
 
+        conv_id_val = f"'{cmsg['conversation_id']}'" if cmsg.get("conversation_id") else "NULL"
         copilot_sql = f"""
-INSERT INTO copilot_messages (id, user_id, role, content, tools_used, sources, intent, created_at, updated_at)
+INSERT INTO copilot_messages (id, user_id, conversation_id, role, content, tools_used, sources, intent, created_at, updated_at)
 VALUES (
     '{cmsg["id"]}',
     '{cmsg["user_id"]}',
+    {conv_id_val},
     '{cmsg["role"]}',
     '{content_escaped}',
     '{tools_json}'::json,
@@ -761,6 +770,7 @@ def clean_and_seed_database():
         "notifications",
         "event_logs",
         "user_blocks",
+        "password_reset_tokens",
         "user_profiles",
         "settings",
         "users",

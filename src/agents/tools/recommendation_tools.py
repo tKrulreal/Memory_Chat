@@ -149,18 +149,21 @@ def recommend_reply(
 
         from src.models.chat import Conversation, Message
 
-        stmt = (
-            select(Message)
-            .join(Conversation, Conversation.id == Message.conversation_id)
-            .where(Conversation.contact_id == cid)
-            .order_by(Message.created_at.desc())
-            .limit(10)
-        )
-        messages = list(reversed(db.scalars(stmt).all()))
+        ua_id, ub_id = sorted([contact.user_id, contact.contact_user_id])
+        conv = db.query(Conversation).filter(Conversation.user_a_id == ua_id, Conversation.user_b_id == ub_id).first()
+        messages = []
+        if conv:
+            stmt = (
+                select(Message)
+                .where(Message.conversation_id == conv.id)
+                .order_by(Message.created_at.desc())
+                .limit(10)
+            )
+            messages = list(reversed(db.scalars(stmt).all()))
 
         # Build context string
         conversation_text = "\n".join([
-            f"{'[USER]' if m.sender_type == 'USER' else '[CONTACT]'} {m.content}"
+            f"{'[BẠN]' if m.sender_user_id == contact.user_id else f'[{contact.display_name}]'} {m.content}"
             for m in messages
         ])
 

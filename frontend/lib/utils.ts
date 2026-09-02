@@ -40,7 +40,7 @@ export function formatMessageTime(dateString: string | Date | undefined | null):
 /**
  * Format conversation preview time for the left chat list panel
  */
-export function formatChatListTime(dateString: string | Date | undefined | null): string {
+export function formatChatListTime(dateString: string | Date | undefined | null, language: "vi" | "en" = "vi"): string {
   const d = parseServerDate(dateString);
   if (!d) return "";
 
@@ -57,7 +57,7 @@ export function formatChatListTime(dateString: string | Date | undefined | null)
     return timeStr;
   }
   if (isYesterday) {
-    return "Hôm qua";
+    return language === "en" ? "Yesterday" : "Hôm qua";
   }
   const isSameYear = now.getFullYear() === d.getFullYear();
   if (isSameYear) {
@@ -65,28 +65,27 @@ export function formatChatListTime(dateString: string | Date | undefined | null)
     const month = String(d.getMonth() + 1).padStart(2, "0");
     return `${day}/${month}`;
   }
-  return d.toLocaleDateString("vi-VN");
+  return d.toLocaleDateString(language === "en" ? "en-US" : "vi-VN");
 }
 
 /**
  * Get date divider label for separating message days in chat window
  */
-export function getDateDividerLabel(date: Date | null): string {
+export function getDateDividerLabel(date: Date | null, language: "vi" | "en" = "vi"): string {
   if (!date) return "";
   const now = new Date();
   if (now.toDateString() === date.toDateString()) {
-    return "Hôm nay";
+    return language === "en" ? "Today" : "Hôm nay";
   }
   const yesterday = new Date();
   yesterday.setDate(now.getDate() - 1);
   if (yesterday.toDateString() === date.toDateString()) {
-    return "Hôm qua";
+    return language === "en" ? "Yesterday" : "Hôm qua";
   }
-  return date.toLocaleDateString("vi-VN", {
+  return date.toLocaleDateString(language === "en" ? "en-US" : "vi-VN", {
     weekday: "short",
     day: "numeric",
     month: "numeric",
     year: "numeric",
   });
 }
-

@@ -35,8 +35,8 @@ export default function CopilotPage() {
 
   // Load chat history from backend database
   const { data: dbMessages, isLoading: historyLoading } = useQuery({
-    queryKey: ["copilot-messages"],
-    queryFn: () => getCopilotMessages(100),
+    queryKey: ["copilot-messages", "global"],
+    queryFn: () => getCopilotMessages(100, null),
   });
 
   useEffect(() => {
@@ -59,10 +59,10 @@ export default function CopilotPage() {
 
   // Mutation to clear history
   const clearMutation = useMutation({
-    mutationFn: () => clearCopilotMessages(),
+    mutationFn: () => clearCopilotMessages(null),
     onSuccess: () => {
       setLocalMessages([DEFAULT_WELCOME_MESSAGE]);
-      queryClient.setQueryData(["copilot-messages"], []);
+      queryClient.setQueryData(["copilot-messages", "global"], []);
       toast.success("Đã xóa toàn bộ lịch sử trò chuyện Copilot");
     },
     onError: () => {
@@ -83,10 +83,11 @@ export default function CopilotPage() {
         tools_used: data.tools_used,
         sources: data.sources,
         intent: data.intent,
+        conversation_id: null,
         created_at: new Date().toISOString(),
       };
       setLocalMessages((prev) => [...prev, assistantMsg]);
-      queryClient.invalidateQueries({ queryKey: ["copilot-messages"] });
+      queryClient.invalidateQueries({ queryKey: ["copilot-messages", "global"] });
     },
     onError: (err) => {
       console.error("Copilot error:", err);

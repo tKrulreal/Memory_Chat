@@ -1,10 +1,11 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from src.api.deps import get_db
+from src.core.rate_limit import limiter
 from src.core.security import get_current_user
 from src.models.user import User
 from src.services.auth import AuthService, UserCreate, UserLogin
@@ -28,6 +29,18 @@ class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
 
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+    full_name: str
+    phone: str | None = None
+    new_password: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
 @router.post("/register", response_model=UserResponse)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
     return AuthService.register(db, user_in)
@@ -47,6 +60,20 @@ def change_password(
     db: Session = Depends(get_db),
 ):
     return AuthService.change_password(db, current_user, req.current_password, req.new_password)
+
+
+@router.post("/forgot-password")
+@limiter.limit("5/hour")
+def forgot_password(request: Request, req: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    return AuthService.reset_password_by_identity(
+        db, req.email, req.full_name, req.phone, req.new_password
+    )
+
+
+@router.post("/reset-password")
+@limiter.limit("5/hour")
+def reset_password(request: Request, req: ResetPasswordRequest, db: Session = Depends(get_db)):
+    return AuthService.reset_password(db, req.token, req.new_password)
 
 class WSTicketResponse(BaseModel):
     ticket: str

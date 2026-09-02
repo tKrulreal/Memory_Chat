@@ -29,6 +29,9 @@ import {
   ChevronRight,
   RefreshCw,
   LogOut,
+  Sun,
+  Moon,
+  Monitor,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +49,7 @@ import { getMyProfile, updateMyProfile } from "@/lib/api/profile";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useRouter } from "next/navigation";
 import type { Setting, BlockedUser } from "@/types";
+import { getLanguage, translate } from "@/lib/i18n";
 
 type SettingTab =
   | "account"
@@ -100,20 +104,43 @@ export default function SettingsPage() {
   // Mutations
   const updateSettingsMutation = useMutation({
     mutationFn: (data: Partial<Setting>) => updateSettings(data),
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: ["my-settings"] });
+      const previousSettings = queryClient.getQueryData<Setting>(["my-settings"]);
+      queryClient.setQueryData<Setting>(["my-settings"], (current) =>
+        current ? { ...current, ...data } : current,
+      );
+      return { previousSettings };
+    },
     onSuccess: (newSettings) => {
       queryClient.setQueryData(["my-settings"], newSettings);
       showToast("Cài đặt đã được cập nhật thành công!");
     },
-    onError: (err: any) => {
+    onError: (err: any, _data, context) => {
+      if (context?.previousSettings) queryClient.setQueryData(["my-settings"], context.previousSettings);
+      queryClient.invalidateQueries({ queryKey: ["my-settings"] });
       showToast(err.message || "Không thể lưu cài đặt. Vui lòng thử lại.");
     },
   });
 
   const updateProfileMutation = useMutation({
     mutationFn: (payload: any) => updateMyProfile(payload),
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: ["my-profile"] });
+      const previousProfile = queryClient.getQueryData(["my-profile"]);
+      queryClient.setQueryData(["my-profile"], (current: any) =>
+        current ? { ...current, ...payload } : current,
+      );
+      return { previousProfile };
+    },
     onSuccess: (data) => {
       queryClient.setQueryData(["my-profile"], data);
       showToast("Hồ sơ đã được cập nhật!");
+    },
+    onError: (err: any, _data, context) => {
+      if (context?.previousProfile) queryClient.setQueryData(["my-profile"], context.previousProfile);
+      queryClient.invalidateQueries({ queryKey: ["my-profile"] });
+      showToast(err.message || "Không thể cập nhật hồ sơ.");
     },
   });
 
@@ -180,7 +207,7 @@ export default function SettingsPage() {
 
   if (isLoadingSettings || isLoadingProfile) {
     return (
-      <main className="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-10">
+      <main className="settings-page flex-1 overflow-y-auto bg-background p-6 md:p-10">
         <div className="mx-auto max-w-5xl space-y-6">
           <Skeleton className="h-10 w-64 rounded-xl" />
           <Skeleton className="h-48 w-full rounded-2xl" />
@@ -190,27 +217,29 @@ export default function SettingsPage() {
     );
   }
 
+  const language = getLanguage(settings?.language);
+  const t = (key: Parameters<typeof translate>[1]) => translate(language, key);
   const TABS = [
-    { id: "account", label: "Tài khoản & Bảo mật", icon: Shield },
-    { id: "chat", label: "Trò chuyện & Media", icon: MessageSquare },
-    { id: "privacy", label: "Quyền riêng tư", icon: Lock },
-    { id: "notifications", label: "Thông báo & Âm thanh", icon: Bell },
-    { id: "appearance", label: "Giao diện & Ngôn ngữ", icon: Palette },
-    { id: "about", label: "Về ứng dụng", icon: Info },
+    { id: "account", label: t("accountSecurity"), icon: Shield },
+    { id: "chat", label: t("chatsMedia"), icon: MessageSquare },
+    { id: "privacy", label: t("privacy"), icon: Lock },
+    { id: "notifications", label: t("notifications"), icon: Bell },
+    { id: "appearance", label: t("appearance"), icon: Palette },
+    { id: "about", label: t("about"), icon: Info },
   ] as const;
 
   return (
-    <main className="flex-1 overflow-y-auto bg-slate-50 p-6 md:p-10">
+    <main className="settings-page flex-1 overflow-y-auto bg-background p-6 md:p-10">
       <div className="mx-auto max-w-5xl space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
-              <SettingsIcon className="h-7 w-7 text-blue-600" />
-              Cài đặt Hệ thống (Settings)
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2.5">
+              <SettingsIcon className="h-7 w-7 text-accent" />
+              {t("settings")}
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Quản lý tài khoản, trải nghiệm trò chuyện, quyền riêng tư, thông báo và giao diện ứng dụng.
+            <p className="text-sm text-muted-foreground mt-1">
+              {t("settingsDescription")}
             </p>
           </div>
 
@@ -219,10 +248,10 @@ export default function SettingsPage() {
               variant="outline"
               size="sm"
               onClick={() => router.push("/ai-hub")}
-              className="flex items-center gap-1.5 rounded-xl shadow-xs text-blue-600 border-blue-200 hover:bg-blue-50"
+              className="flex items-center gap-1.5 rounded-xl shadow-xs text-accent border-accent/30 hover:bg-accent/10"
             >
               <Sparkles size={14} />
-              Cấu hình AI Hub
+              {t("configureAi")}
             </Button>
             <Button
               variant="outline"
@@ -231,7 +260,7 @@ export default function SettingsPage() {
               className="flex items-center gap-1.5 rounded-xl shadow-xs"
             >
               <ExternalLink size={14} />
-              Chỉnh sửa Hồ sơ cá nhân
+              {t("editProfile")}
             </Button>
           </div>
         </div>
@@ -247,7 +276,7 @@ export default function SettingsPage() {
         {/* Layout Grid: Sidebar Tabs + Content Panel */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
           {/* Navigation Sidebar */}
-          <Card className="md:col-span-4 rounded-3xl border-slate-100 bg-white p-3 shadow-sm space-y-1">
+          <Card className="md:col-span-4 rounded-3xl border-border bg-card p-3 shadow-sm space-y-1">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -257,12 +286,12 @@ export default function SettingsPage() {
                   onClick={() => setActiveTab(tab.id as SettingTab)}
                   className={`w-full flex items-center justify-between p-3.5 rounded-2xl text-sm font-semibold transition-all cursor-pointer ${
                     isActive
-                      ? "bg-blue-600 text-white shadow-sm shadow-blue-500/20"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      ? "bg-accent text-accent-foreground shadow-sm shadow-accent/20"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon size={18} className={isActive ? "text-white" : "text-slate-400"} />
+                    <Icon size={18} className={isActive ? "text-accent-foreground" : "text-muted-foreground"} />
                     <span>{tab.label}</span>
                   </div>
                   <ChevronRight size={15} className={isActive ? "text-white/80" : "text-slate-300"} />
@@ -283,29 +312,29 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                     <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
                       <Shield size={18} className="text-blue-600" />
-                      Thông tin Tài khoản
+                       {t("accountInfo")}
                     </h2>
                     <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                      Đang hoạt động
+                       {t("active")}
                     </Badge>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-xs text-slate-400 font-medium">Họ và tên</span>
-                      <p className="font-semibold text-slate-800 mt-0.5">{user?.full_name || profile?.full_name || "Chưa đặt tên"}</p>
+                       <span className="text-xs text-slate-400 font-medium">{t("fullName")}</span>
+                       <p className="font-semibold text-slate-800 mt-0.5">{user?.full_name || profile?.full_name || t("unnamed")}</p>
                     </div>
                     <div>
-                      <span className="text-xs text-slate-400 font-medium">Email đăng nhập</span>
+                       <span className="text-xs text-slate-400 font-medium">{t("loginEmail")}</span>
                       <p className="font-semibold text-slate-800 mt-0.5">{user?.email || profile?.email}</p>
                     </div>
                     <div>
-                      <span className="text-xs text-slate-400 font-medium">Số điện thoại</span>
-                      <p className="font-semibold text-slate-800 mt-0.5">{profile?.phone || "Chưa liên kết"}</p>
+                       <span className="text-xs text-slate-400 font-medium">{t("phone")}</span>
+                       <p className="font-semibold text-slate-800 mt-0.5">{profile?.phone || t("notLinked")}</p>
                     </div>
                     <div>
-                      <span className="text-xs text-slate-400 font-medium">Chức danh / Vị trí</span>
-                      <p className="font-semibold text-slate-800 mt-0.5">{profile?.profession || "Chưa cập nhật"}</p>
+                       <span className="text-xs text-slate-400 font-medium">{t("profession")}</span>
+                       <p className="font-semibold text-slate-800 mt-0.5">{profile?.profession || t("notUpdated")}</p>
                     </div>
                   </div>
 
@@ -316,7 +345,7 @@ export default function SettingsPage() {
                       onClick={() => router.push("/profile")}
                       className="rounded-xl text-xs font-semibold"
                     >
-                      Chỉnh sửa hồ sơ tại trang Profile →
+                       {t("editProfilePage")}
                     </Button>
                   </div>
                 </Card>
@@ -325,7 +354,7 @@ export default function SettingsPage() {
                 <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-5 shadow-sm">
                   <h2 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-4 flex items-center gap-2">
                     <KeyRound size={18} className="text-blue-600" />
-                    Đổi Mật khẩu
+                     {t("changePassword")}
                   </h2>
 
                   {passwordSuccess && (
@@ -345,14 +374,14 @@ export default function SettingsPage() {
                   <form onSubmit={handlePasswordSubmit} className="space-y-4">
                     <div>
                       <label className="block text-xs font-medium text-slate-600 mb-1">
-                        Mật khẩu hiện tại
+                         {t("currentPassword")}
                       </label>
                       <div className="relative">
                         <Input
                           type={showCurrentPw ? "text" : "password"}
                           value={currentPassword}
                           onChange={(e) => setCurrentPassword(e.target.value)}
-                          placeholder="Nhập mật khẩu đang dùng"
+                           placeholder={t("currentPasswordPlaceholder")}
                           className="bg-slate-50 pr-10"
                         />
                         <button
@@ -368,14 +397,14 @@ export default function SettingsPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1">
-                          Mật khẩu mới
+                           {t("newPassword")}
                         </label>
                         <div className="relative">
                           <Input
                             type={showNewPw ? "text" : "password"}
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="Tối thiểu 6 ký tự"
+                             placeholder={t("minimumSix")}
                             className="bg-slate-50 pr-10"
                           />
                           <button
@@ -390,13 +419,13 @@ export default function SettingsPage() {
 
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1">
-                          Xác nhận mật khẩu mới
+                           {t("confirmPassword")}
                         </label>
                         <Input
                           type={showNewPw ? "text" : "password"}
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
-                          placeholder="Nhập lại mật khẩu mới"
+                           placeholder={t("confirmPasswordPlaceholder")}
                           className="bg-slate-50"
                         />
                       </div>
@@ -408,7 +437,7 @@ export default function SettingsPage() {
                         disabled={changePwMutation.isPending || !currentPassword || !newPassword}
                         className="rounded-xl shadow-sm bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-5"
                       >
-                        {changePwMutation.isPending ? "Đang xử lý..." : "Cập nhật Mật khẩu"}
+                         {changePwMutation.isPending ? t("processing") : t("updatePassword")}
                       </Button>
                     </div>
                   </form>
@@ -418,7 +447,7 @@ export default function SettingsPage() {
                 <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-4 shadow-sm">
                   <h2 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
                     <Smartphone size={18} className="text-blue-600" />
-                    Phiên Đăng nhập & Thiết bị
+                     {t("sessions")}
                   </h2>
 
                   <div className="space-y-3">
@@ -428,12 +457,12 @@ export default function SettingsPage() {
                           💻
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-slate-800">Trình duyệt Hiện tại (Web Browser)</p>
-                          <p className="text-[11px] text-slate-400">Đang trực tuyến • Địa chỉ IP mạng nội bộ</p>
+                           <p className="text-xs font-bold text-slate-800">{t("currentBrowser")}</p>
+                           <p className="text-[11px] text-slate-400">{t("onlineLocal")}</p>
                         </div>
                       </div>
                       <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">
-                        Thiết bị này
+                         {t("thisDevice")}
                       </Badge>
                     </div>
                   </div>
@@ -449,15 +478,15 @@ export default function SettingsPage() {
                 <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
                   <h2 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-4 flex items-center gap-2">
                     <MessageSquare size={18} className="text-blue-600" />
-                    Hành vi Trò chuyện (Chat Behavior)
+                     {t("chatBehavior")}
                   </h2>
 
                   {/* Enter to Send */}
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-semibold text-slate-800">Bấm phím Enter để gửi tin nhắn</p>
+                       <p className="text-sm font-semibold text-slate-800">{t("enterSend")}</p>
                       <p className="text-xs text-slate-400">
-                        Khi bật: Bấm Enter để gửi ngay, Shift + Enter để xuống dòng mới.
+                         {t("enterHelp")}
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -476,9 +505,9 @@ export default function SettingsPage() {
                   {/* Auto Download Media */}
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-semibold text-slate-800">Tự động tải phương tiện (Media)</p>
+                       <p className="text-sm font-semibold text-slate-800">{t("autoMedia")}</p>
                       <p className="text-xs text-slate-400">
-                        Tự động hiển thị trước và tải hình ảnh, tài liệu đính kèm trong phòng chat.
+                         {t("autoMediaHelp")}
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -497,17 +526,17 @@ export default function SettingsPage() {
                   {/* Font Size */}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-semibold text-slate-800">Cỡ chữ trong khung chat</p>
-                      <p className="text-xs text-slate-400">Điều chỉnh kích thước hiển thị của bong bóng tin nhắn.</p>
+                       <p className="text-sm font-semibold text-slate-800">{t("chatFont")}</p>
+                       <p className="text-xs text-slate-400">{t("chatFontHelp")}</p>
                     </div>
                     <select
                       value={settings?.font_size || "medium"}
                       onChange={(e) => handleToggleSetting("font_size", e.target.value)}
                       className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none"
                     >
-                      <option value="small">Nhỏ (13px)</option>
-                      <option value="medium">Tiêu chuẩn (14px)</option>
-                      <option value="large">Lớn (16px)</option>
+                       <option value="small">{t("small")}</option>
+                       <option value="medium">{t("standard")}</option>
+                       <option value="large">{t("large")}</option>
                     </select>
                   </div>
                 </Card>
@@ -516,14 +545,14 @@ export default function SettingsPage() {
                 <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-4 shadow-sm">
                   <h2 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-3 flex items-center gap-2">
                     <HardDrive size={18} className="text-blue-600" />
-                    Dữ liệu & Bộ nhớ tạm
+                     {t("storage")}
                   </h2>
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-slate-800">Xóa bộ nhớ đệm trò chuyện trên máy</p>
+                       <p className="text-sm font-semibold text-slate-800">{t("clearLocalCache")}</p>
                       <p className="text-xs text-slate-400">
-                        Giải phóng dung lượng bản nháp và bộ đệm tin nhắn cục bộ.
+                         {t("clearCacheHelp")}
                       </p>
                     </div>
                     <Button
@@ -533,7 +562,7 @@ export default function SettingsPage() {
                       className="text-red-600 hover:bg-red-50 hover:border-red-200 rounded-xl text-xs"
                     >
                       <Trash2 size={14} className="mr-1" />
-                      Xóa Cache
+                       {t("clearCache")}
                     </Button>
                   </div>
                 </Card>
@@ -545,18 +574,18 @@ export default function SettingsPage() {
             {/* ================================================================= */}
             {activeTab === "privacy" && (
               <div className="space-y-6">
-                <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
-                  <h2 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-4 flex items-center gap-2">
-                    <Lock size={18} className="text-blue-600" />
-                    Quyền Riêng tư & Hiển thị
+                <Card className="rounded-3xl border-border bg-card p-6 md:p-8 space-y-6 shadow-sm">
+                  <h2 className="text-base font-bold text-foreground border-b border-border pb-4 flex items-center gap-2">
+                    <Lock size={18} className="text-accent" />
+                     {t("privacyVisibility")}
                   </h2>
 
                   {/* Public Profile */}
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-semibold text-slate-800">Chế độ Công khai Hồ sơ (Public Profile)</p>
-                      <p className="text-xs text-slate-400">
-                        Cho phép người dùng khác tìm kiếm hồ sơ và gửi lời mời kết nối tới bạn.
+                       <p className="text-sm font-semibold text-foreground">{t("publicProfile")}</p>
+                      <p className="text-xs text-muted-foreground">
+                         {t("publicProfileHelp")}
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -566,18 +595,18 @@ export default function SettingsPage() {
                         checked={profile?.is_public !== false}
                         onChange={(e) => updateProfileMutation.mutate({ is_public: e.target.checked })}
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                      <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                     </label>
                   </div>
 
-                  <hr className="border-slate-100" />
+                  <hr className="border-border" />
 
                   {/* Read Receipts */}
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-semibold text-slate-800">Hiển thị trạng thái &quot;Đã xem&quot; (Read Receipts)</p>
-                      <p className="text-xs text-slate-400">
-                        Cho phép đối phương biết khi bạn đã đọc tin nhắn của họ.
+                       <p className="text-sm font-semibold text-foreground">{t("readReceipts")}</p>
+                      <p className="text-xs text-muted-foreground">
+                         {t("readReceiptsHelp")}
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -587,18 +616,18 @@ export default function SettingsPage() {
                         checked={settings?.read_receipts !== false}
                         onChange={(e) => handleToggleSetting("read_receipts", e.target.checked)}
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                     </label>
                   </div>
 
-                  <hr className="border-slate-100" />
+                  <hr className="border-border" />
 
                   {/* Online Status */}
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-semibold text-slate-800">Trạng thái Hoạt động (Online Status)</p>
-                      <p className="text-xs text-slate-400">
-                        Hiển thị chấm xanh báo hiệu bạn đang trực tuyến hoặc vừa mới truy cập.
+                       <p className="text-sm font-semibold text-foreground">{t("onlineStatus")}</p>
+                      <p className="text-xs text-muted-foreground">
+                         {t("onlineStatusHelp")}
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -608,22 +637,22 @@ export default function SettingsPage() {
                         checked={settings?.online_status !== false}
                         onChange={(e) => handleToggleSetting("online_status", e.target.checked)}
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                     </label>
                   </div>
                 </Card>
 
                 {/* Blocked Users Card */}
-                <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-4 shadow-sm">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                <Card className="rounded-3xl border-border bg-card p-6 md:p-8 space-y-4 shadow-sm">
+                  <div className="flex items-center justify-between border-b border-border pb-3">
+                    <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                       <UserX size={18} className="text-red-500" />
-                      Danh sách Người dùng đã Chặn ({blockedUsers.length})
+                       {t("blockedUsers")} ({blockedUsers.length})
                     </h2>
                   </div>
 
                   {blockedUsers.length === 0 ? (
-                    <p className="text-xs text-slate-400 py-3">Bạn chưa chặn người dùng nào.</p>
+                     <p className="text-xs text-muted-foreground py-3">{t("noBlockedUsers")}</p>
                   ) : (
                     <div className="space-y-2">
                       {blockedUsers.map((bu) => (
@@ -642,7 +671,7 @@ export default function SettingsPage() {
                             disabled={unblockMutation.isPending}
                             className="rounded-xl text-xs text-blue-600 hover:bg-blue-50"
                           >
-                            Bỏ chặn
+                             {t("unblock")}
                           </Button>
                         </div>
                       ))}
@@ -657,41 +686,41 @@ export default function SettingsPage() {
             {/* ================================================================= */}
             {activeTab === "notifications" && (
               <div className="space-y-6">
-                <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
-                  <h2 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-4 flex items-center gap-2">
-                    <Bell size={18} className="text-blue-600" />
-                    Thông báo & Âm báo (Notifications)
+                <Card className="rounded-3xl border-border bg-card ring-0 p-6 md:p-8 space-y-6 shadow-sm">
+                  <h2 className="text-base font-bold text-foreground border-b border-border pb-4 flex items-center gap-2">
+                    <Bell size={18} className="text-accent" />
+                     {t("notificationsTitle")}
                   </h2>
 
                   {/* Push Notifications */}
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-semibold text-slate-800">Bật thông báo đẩy (Push Notifications)</p>
-                      <p className="text-xs text-slate-400">
-                        Nhận thông báo khi có tin nhắn mới, lời mời kết nối hoặc gợi ý AI.
+                       <p className="text-sm font-semibold text-foreground">{t("pushNotifications")}</p>
+                      <p className="text-xs text-muted-foreground">
+                         {t("pushHelp")}
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
                         className="sr-only peer"
-                        checked={settings?.notifications_enabled !== false && settings?.notification !== false}
-                        onChange={(e) => handleToggleSetting("notifications_enabled", e.target.checked)}
+                        checked={settings?.notification !== false}
+                        onChange={(e) => handleToggleSetting("notification", e.target.checked)}
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                     </label>
                   </div>
 
-                  <hr className="border-slate-100" />
+                  <hr className="border-border" />
 
                   {/* Sound Alerts */}
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5">
-                        {settings?.sound_enabled !== false ? <Volume2 size={16} className="text-blue-600" /> : <VolumeX size={16} className="text-slate-400" />}
-                        <p className="text-sm font-semibold text-slate-800">Âm thanh Tin nhắn đến</p>
+                          {settings?.sound_enabled !== false ? <Volume2 size={16} className="text-accent" /> : <VolumeX size={16} className="text-muted-foreground" />}
+                           <p className="text-sm font-semibold text-foreground">{t("incomingSound")}</p>
                       </div>
-                      <p className="text-xs text-slate-400">Phát âm thanh thông báo chuông khi nhận được tin nhắn mới.</p>
+                       <p className="text-xs text-muted-foreground">{t("soundHelp")}</p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
@@ -700,18 +729,18 @@ export default function SettingsPage() {
                         checked={settings?.sound_enabled !== false}
                         onChange={(e) => handleToggleSetting("sound_enabled", e.target.checked)}
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                     </label>
                   </div>
 
-                  <hr className="border-slate-100" />
+                  <hr className="border-border" />
 
                   {/* Message Preview */}
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-semibold text-slate-800">Hiển thị trước Nội dung tin nhắn</p>
-                      <p className="text-xs text-slate-400">
-                        Hiển thị tên người gửi và đoạn trích tin nhắn trong cửa sổ thông báo pop-up.
+                       <p className="text-sm font-semibold text-foreground">{t("messagePreview")}</p>
+                      <p className="text-xs text-muted-foreground">
+                         {t("previewHelp")}
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
@@ -721,7 +750,7 @@ export default function SettingsPage() {
                         checked={settings?.message_preview !== false}
                         onChange={(e) => handleToggleSetting("message_preview", e.target.checked)}
                       />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                     </label>
                   </div>
                 </Card>
@@ -733,20 +762,20 @@ export default function SettingsPage() {
             {/* ================================================================= */}
             {activeTab === "appearance" && (
               <div className="space-y-6">
-                <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
-                  <h2 className="text-base font-bold text-slate-800 border-b border-slate-100 pb-4 flex items-center gap-2">
-                    <Palette size={18} className="text-blue-600" />
-                    Giao diện & Ngôn ngữ (Appearance)
+                <Card className="rounded-3xl border-border bg-card p-6 md:p-8 space-y-6 shadow-sm">
+                  <h2 className="text-base font-bold text-foreground border-b border-border pb-4 flex items-center gap-2">
+                    <Palette size={18} className="text-accent" />
+                    {t("appearanceTitle")}
                   </h2>
 
                   {/* Theme Selector */}
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-slate-800">Chế độ hiển thị (Theme Mode)</p>
+                    <p className="text-sm font-semibold text-foreground">{t("themeMode")}</p>
                     <div className="grid grid-cols-3 gap-3 pt-1">
                       {[
-                        { id: "light", label: "Sáng", icon: "☀️" },
-                        { id: "dark", label: "Tối", icon: "🌙" },
-                        { id: "system", label: "Hệ thống", icon: "💻" },
+                        { id: "light", label: t("light"), icon: Sun },
+                        { id: "dark", label: t("dark"), icon: Moon },
+                        { id: "system", label: t("system"), icon: Monitor },
                       ].map((th) => (
                         <button
                           key={th.id}
@@ -754,29 +783,29 @@ export default function SettingsPage() {
                           onClick={() => handleToggleSetting("theme", th.id)}
                           className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-xs font-bold transition-all cursor-pointer ${
                             (settings?.theme || "system") === th.id
-                              ? "border-blue-600 bg-blue-50 text-blue-700 shadow-xs"
-                              : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                              ? "border-accent bg-accent/10 text-accent shadow-xs"
+                              : "border-border bg-muted text-muted-foreground hover:bg-accent/10"
                           }`}
                         >
-                          <span className="text-lg mb-1">{th.icon}</span>
+                          <th.icon size={20} className="mb-1" aria-hidden="true" />
                           <span>{th.label}</span>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <hr className="border-slate-100" />
+                  <hr className="border-border" />
 
                   {/* Accent Color */}
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-slate-800">Màu sắc chủ đạo (Accent Color)</p>
+                    <p className="text-sm font-semibold text-foreground">{t("accentColor")}</p>
                     <div className="flex flex-wrap gap-2.5 pt-1">
                       {[
-                        { id: "blue", label: "Xanh dương", color: "bg-blue-600" },
-                        { id: "emerald", label: "Xanh lục", color: "bg-emerald-600" },
-                        { id: "purple", label: "Tím", color: "bg-purple-600" },
-                        { id: "indigo", label: "Chàm", color: "bg-indigo-600" },
-                        { id: "amber", label: "Hổ phách", color: "bg-amber-600" },
+                        { id: "blue", label: t("blue"), color: "#2563eb" },
+                        { id: "emerald", label: t("emerald"), color: "#059669" },
+                        { id: "purple", label: t("purple"), color: "#9333ea" },
+                        { id: "indigo", label: t("indigo"), color: "#4f46e5" },
+                        { id: "amber", label: t("amber"), color: "#d97706" },
                       ].map((col) => (
                         <button
                           key={col.id}
@@ -784,32 +813,32 @@ export default function SettingsPage() {
                           onClick={() => handleToggleSetting("accent_color", col.id)}
                           className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
                             (settings?.accent_color || "blue") === col.id
-                              ? "border-slate-800 bg-slate-900 text-white shadow-xs"
-                              : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                              ? "border-accent bg-accent text-accent-foreground shadow-xs"
+                              : "border-border bg-muted text-foreground hover:bg-accent/10"
                           }`}
                         >
-                          <span className={`h-3 w-3 rounded-full ${col.color}`} />
+                          <span className="h-3 w-3 rounded-full" style={{ backgroundColor: col.color }} />
                           <span>{col.label}</span>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <hr className="border-slate-100" />
+                  <hr className="border-border" />
 
                   {/* Language */}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-semibold text-slate-800">Ngôn ngữ hiển thị (Language)</p>
-                      <p className="text-xs text-slate-400">Chọn ngôn ngữ cho toàn bộ ứng dụng.</p>
+                      <p className="text-sm font-semibold text-foreground">{t("displayLanguage")}</p>
+                      <p className="text-xs text-muted-foreground">{t("languageHelp")}</p>
                     </div>
                     <select
                       value={settings?.language || "vi"}
                       onChange={(e) => handleToggleSetting("language", e.target.value)}
-                      className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none"
+                      className="h-9 rounded-xl border border-border bg-muted px-3 py-1 text-xs font-semibold text-foreground focus:border-ring focus:outline-none"
                     >
-                      <option value="vi">Tiếng Việt (Mặc định)</option>
-                      <option value="en">English (US)</option>
+                      <option value="vi">{t("vietnamese")}</option>
+                      <option value="en">{t("english")}</option>
                     </select>
                   </div>
                 </Card>
@@ -828,27 +857,27 @@ export default function SettingsPage() {
                     </div>
                     <div>
                       <h2 className="text-base font-bold text-slate-800">MemoryChat App</h2>
-                      <p className="text-xs text-slate-400">Nền tảng nhắn tin thông minh tích hợp Trợ lý AI Multi-Agent</p>
+                       <p className="text-xs text-slate-400">{t("appTagline")}</p>
                     </div>
                   </div>
 
                   <div className="space-y-3 text-xs">
                     <div className="flex justify-between py-2 border-b border-slate-50">
-                      <span className="text-slate-400">Phiên bản ứng dụng</span>
+                       <span className="text-slate-400">{t("appVersion")}</span>
                       <span className="font-semibold text-slate-800">v2.2.0 (Stable Production)</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-slate-50">
-                      <span className="text-slate-400">Kiến trúc AI</span>
+                       <span className="text-slate-400">{t("aiArchitecture")}</span>
                       <span className="font-semibold text-slate-800">LangGraph Multi-Agent + Vector Qdrant</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-slate-50">
-                      <span className="text-slate-400">Cơ sở dữ liệu</span>
+                       <span className="text-slate-400">{t("database")}</span>
                       <span className="font-semibold text-slate-800">PostgreSQL (SQLAlchemy 2.0)</span>
                     </div>
                   </div>
 
                   <div className="pt-2 text-xs text-slate-400 leading-relaxed">
-                    © 2026 MemoryChat Platform. Được thiết kế và bảo vệ theo tiêu chuẩn bảo mật dữ liệu người dùng.
+                     {t("copyright")}
                   </div>
                 </Card>
               </div>

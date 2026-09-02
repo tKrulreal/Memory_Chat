@@ -8,11 +8,11 @@ FROM python:3.11-slim-bookworm AS builder
 
 WORKDIR /app
 
-# Copy only requirements first for better caching
-COPY requirements.txt .
+# Copy only runtime requirements first for better caching
+COPY requirements-prod.txt .
 
 # Install Python packages with --prefix so bin/ and lib/ are structured correctly
-RUN pip install --no-cache-dir --prefer-binary --prefix=/install -r requirements.txt
+RUN pip install --no-cache-dir --no-compile --prefer-binary --prefix=/install -r requirements-prod.txt
 
 # ---- Stage 2: Production ----
 FROM python:3.11-slim-bookworm AS runtime

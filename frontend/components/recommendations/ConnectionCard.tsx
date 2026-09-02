@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { usePresenceStore } from "@/lib/stores/presence-store";
+import { useLanguage } from "@/hooks/use-language";
 
 type Priority = "HIGH" | "MEDIUM" | "LOW";
 
@@ -49,6 +50,8 @@ export function ConnectionCard({
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   const [action, setAction] = useState<"accept" | "reject" | null>(null);
+  const { language, t } = useLanguage();
+  const l = (vi: string, en: string) => language === "en" ? en : vi;
 
   const priorityStyles: Record<Priority, string> = {
     HIGH: "bg-accent/15 border-accent/30 text-accent",
@@ -59,7 +62,7 @@ export function ConnectionCard({
   const targetName =
     recommendation.target_user_name ||
     recommendation.target_contact_name ||
-    "Người dùng";
+    l("Người dùng", "User");
   const targetEmail = recommendation.target_user_email || "";
   const targetInitials =
     targetName
@@ -83,11 +86,11 @@ export function ConnectionCard({
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
       onAccept?.(recommendation.id);
-      toast.success(`Đã gửi lời mời kết bạn đến ${targetName}`, {
-        description: "Bạn có thể nhắn tin sau khi lời mời được chấp nhận.",
+      toast.success(l(`Đã gửi lời mời kết bạn đến ${targetName}`, `Connection request sent to ${targetName}`), {
+        description: l("Bạn có thể nhắn tin sau khi lời mời được chấp nhận.", "You can message them after they accept the request."),
       });
     } catch (error: any) {
-      toast.error(error?.message || "Không thể gửi lời mời. Vui lòng thử lại.");
+      toast.error(error?.message || l("Không thể gửi lời mời. Vui lòng thử lại.", "Could not send the request. Please try again."));
     } finally {
       setIsLoading(false);
       setAction(null);
@@ -152,14 +155,14 @@ export function ConnectionCard({
             )}
           >
             <Sparkles size={11} />
-            {matchPercent}% Match
+            {matchPercent}% {l("Phù hợp", "Match")}
           </span>
           <span className="text-[11px] font-medium text-muted-foreground">
             {recommendation.priority === "HIGH"
-              ? "Rất phù hợp"
+              ? l("Rất phù hợp", "Excellent match")
               : recommendation.priority === "MEDIUM"
-              ? "Tương thích tốt"
-              : "Có tiềm năng"}
+              ? l("Tương thích tốt", "Good match")
+              : l("Có tiềm năng", "Potential match")}
           </span>
         </div>
 
@@ -169,7 +172,7 @@ export function ConnectionCard({
             onClick={handleDismiss}
             disabled={isLoading}
             className="rounded-lg p-1 text-muted-foreground/60 hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-            title="Bỏ qua gợi ý này"
+            title={l("Bỏ qua gợi ý này", "Dismiss this suggestion")}
           >
             <X size={15} />
           </Button>
@@ -189,9 +192,9 @@ export function ConnectionCard({
               </AvatarFallback>
             </Avatar>
             {recommendation.target_user_id && usePresenceStore.getState().isUserOnline(recommendation.target_user_id) ? (
-              <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-white" title="Đang hoạt động" />
+              <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-white" title={t("online")} />
             ) : (
-              <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-slate-100 border-2 border-slate-400 ring-2 ring-white" title="Không hoạt động" />
+              <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-slate-100 border-2 border-slate-400 ring-2 ring-white" title={t("offline")} />
             )}
           </div>
           <div className="min-w-0 flex-1">
@@ -209,7 +212,7 @@ export function ConnectionCard({
             <p className="truncate text-sm font-medium text-slate-500 flex items-center gap-1.5">
               <Briefcase size={14} className="shrink-0 text-blue-600/80" />
               <span className="text-slate-700">
-                {recommendation.target_user_profession || "Chuyên môn"}
+                {recommendation.target_user_profession || l("Chuyên môn", "Profession")}
               </span>
               {recommendation.target_user_company && (
                 <span className="text-slate-400">
@@ -273,12 +276,12 @@ export function ConnectionCard({
             {action === "accept" ? (
               <>
                 <Loader2 size={16} className="mr-2 animate-spin" />
-                Đang gửi lời mời...
+                {l("Đang gửi lời mời...", "Sending request...")}
               </>
             ) : (
               <>
                 <UserPlus size={16} className="mr-2" />
-                Gửi lời mời kết bạn
+                {l("Gửi lời mời kết bạn", "Send Connection Request")}
               </>
             )}
           </Button>
@@ -290,7 +293,7 @@ export function ConnectionCard({
             disabled={isLoading}
             className="text-sm font-semibold rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800"
           >
-            Để sau
+            {l("Để sau", "Later")}
           </Button>
 
           <Button
@@ -302,7 +305,7 @@ export function ConnectionCard({
             }}
             className="text-sm font-semibold text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-full px-4"
           >
-            Chi tiết
+            {l("Chi tiết", "Details")}
           </Button>
         </div>
       ) : (
@@ -310,18 +313,18 @@ export function ConnectionCard({
           <span className="flex items-center gap-1.5 font-medium">
             {recommendation.status === "ACCEPTED" ? (
               <span className="text-accent flex items-center gap-1">
-                <Check size={13} /> Đã kết nối
+                <Check size={13} /> {l("Đã kết nối", "Connected")}
               </span>
             ) : recommendation.status === "REJECTED" ? (
               <span className="text-muted-foreground flex items-center gap-1">
-                <X size={13} /> Đã từ chối
+                <X size={13} /> {l("Đã từ chối", "Declined")}
               </span>
             ) : (
-              "Đã ẩn"
+              l("Đã ẩn", "Hidden")
             )}
           </span>
           <span className="text-xs text-accent hover:underline flex items-center gap-0.5">
-            Xem chi tiết
+            {l("Xem chi tiết", "View details")}
           </span>
         </div>
       )}

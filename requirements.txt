@@ -1,40 +1,8 @@
-# Core
-fastapi>=0.115.0
-uvicorn[standard]>=0.34.0
-pydantic>=2.10.0
-pydantic-settings>=2.7.0
-python-dotenv>=1.0.0
+# Runtime dependencies
+-r requirements-prod.txt
 
-# AI / LangChain
-langchain>=0.3.0
-langchain-openai>=0.3.0
-langgraph>=0.2.0
-
-# Database (uncomment as needed)
-sqlalchemy>=2.0.0
-alembic>=1.14.0
-psycopg2-binary>=2.9.0
-
-# Vector Store (uncomment as needed)
-qdrant-client>=1.9.0
-
-# Structured Logging
-structlog>=24.0.0
-
-# Dev tools
+# Development and test tools
 ruff>=0.8.0
 pytest>=8.0.0
 pytest-asyncio>=0.24.0
 pytest-cov>=5.0.0
-apscheduler==3.11.3
-httpx>=0.28.0
-
-# Security & Utilities
-passlib[bcrypt]>=1.7.4
-python-jose[cryptography]>=3.3.0
-bcrypt
-tenacity>=8.2.0
-slowapi>=0.1.9
-
-prometheus_client
-prometheus-fastapi-instrumentator

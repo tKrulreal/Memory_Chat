@@ -9,6 +9,7 @@
 # Virtual environments
 venv/
 .venv/
+.venv-1/
 env/
 
 # Python
@@ -17,6 +18,7 @@ __pycache__
 *.pyo
 .pytest_cache
 .ruff_cache
+.mypy_cache/
 
 # Documentation
 docs/
@@ -52,3 +54,24 @@ docker-compose.override.yml
 
 # AI logs (content ignored, structure tracked)
 .ai-log/
+
+# Not required by the backend image
+frontend/
+social-network-module/
+tests/
+.agents/
+app-mobile/
+mobile/
+mobile_flutter/
+.agent/
+.opencode/
+.claude/
+.codex/
+.cursor/
+.gemini/
+.vibe/
+.coverage
+coverage.xml
+archived_logs/
+backup/
+latest_logs/

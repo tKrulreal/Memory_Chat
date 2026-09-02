@@ -63,6 +63,7 @@ class CopilotMessageItem(BaseModel):
     tools_used: list[str] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
     intent: str | None = None
+    conversation_id: uuid.UUID | None = None
     created_at: str
 
     model_config = {"from_attributes": True}
@@ -198,15 +199,24 @@ def get_copilot_messages(
     current_user: CurrentUserDep,
     db: DatabaseDep,
     limit: int = 100,
+    conversation_id: uuid.UUID | None = None,
 ) -> list[CopilotMessageItem]:
     """
     Lấy danh sách tin nhắn đã chat với Copilot của user hiện tại.
+    - Nếu conversation_id được cung cấp: Trả về tin nhắn Copilot riêng cho cuộc hội thoại đó.
+    - Nếu conversation_id là None: Trả về tin nhắn Copilot toàn cục (Global Copilot).
     """
     from src.models.ai import CopilotMessage
 
+    query = db.query(CopilotMessage).filter(CopilotMessage.user_id == current_user.id)
+    if conversation_id:
+        _verify_conversation_access(db, current_user.id, conversation_id)
+        query = query.filter(CopilotMessage.conversation_id == conversation_id)
+    else:
+        query = query.filter(CopilotMessage.conversation_id.is_(None))
+
     messages = (
-        db.query(CopilotMessage)
-        .filter(CopilotMessage.user_id == current_user.id)
+        query
         .order_by(CopilotMessage.created_at.asc())
         .limit(limit)
         .all()
@@ -220,6 +230,7 @@ def get_copilot_messages(
             tools_used=m.tools_used or [],
             sources=m.sources or [],
             intent=m.intent,
+            conversation_id=m.conversation_id,
             created_at=m.created_at.isoformat() if m.created_at else "",
         )
         for m in messages
@@ -230,13 +241,21 @@ def get_copilot_messages(
 def clear_copilot_messages(
     current_user: CurrentUserDep,
     db: DatabaseDep,
+    conversation_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     """
-    Xóa toàn bộ lịch sử tin nhắn Copilot của user hiện tại.
+    Xóa lịch sử tin nhắn Copilot của user hiện tại (riêng cho conversation_id hoặc toàn cục).
     """
     from src.models.ai import CopilotMessage
 
-    deleted = db.query(CopilotMessage).filter(CopilotMessage.user_id == current_user.id).delete()
+    query = db.query(CopilotMessage).filter(CopilotMessage.user_id == current_user.id)
+    if conversation_id:
+        _verify_conversation_access(db, current_user.id, conversation_id)
+        query = query.filter(CopilotMessage.conversation_id == conversation_id)
+    else:
+        query = query.filter(CopilotMessage.conversation_id.is_(None))
+
+    deleted = query.delete(synchronize_session=False)
     db.commit()
     return {"status": "success", "deleted_count": deleted}
 
@@ -250,29 +269,73 @@ async def copilot_chat(
 ) -> CopilotResponse:
     """
     Hỏi AI Copilot.
-
-    Lưu tin nhắn vào copilot_messages, lấy lịch sử hội thoại dựa theo cài đặt AI Hub (ai_memory_window)
-    và gọi Assistant Orchestrator để xử lý query của user.
+    Tách biệt ngữ cảnh hoàn toàn:
+    - Nếu payload.context.conversation_id được cung cấp: In-Chat Copilot chỉ phân tích hội thoại cụ thể.
+    - Nếu không có conversation_id: Global AI Copilot hỗ trợ tìm kiếm toàn hệ thống.
     """
     import re
     from datetime import datetime, timedelta, timezone
     from src.models.ai import CopilotMessage
     from src.models.user import Setting
+    from src.models.tag import AISystemConfig
     from src.agents import run_copilot
+    from src.core.guardrails import (
+        validate_input_query,
+        verify_in_chat_access,
+        sanitize_output_response,
+        GuardrailException,
+    )
 
-    # 1. Lưu tin nhắn người dùng gửi vào database
+    try:
+        clean_query = validate_input_query(payload.query)
+    except GuardrailException as ge:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ge.message,
+        )
+
+    conv_id_obj: uuid.UUID | None = None
+    if payload.context and payload.context.conversation_id:
+        try:
+            verify_in_chat_access(db, current_user.id, payload.context.conversation_id)
+            conv_id_obj = uuid.UUID(payload.context.conversation_id)
+        except GuardrailException as ge:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN if ge.code == "UNAUTHORIZED_ACCESS" else status.HTTP_400_BAD_REQUEST,
+                detail=ge.message,
+            )
+
+    # 1. Lưu tin nhắn người dùng gửi vào database với conversation_id tương ứng
     user_msg_db = CopilotMessage(
         id=uuid.uuid4(),
         user_id=current_user.id,
+        conversation_id=conv_id_obj,
         role="user",
-        content=payload.query,
+        content=clean_query,
     )
     db.add(user_msg_db)
     db.commit()
     db.refresh(user_msg_db)
 
     try:
-        # 2. Đọc cài đặt AI Hub (ai_memory_window & ai_copilot_context_turns)
+        # 2. Đọc cài đặt AI Hub (ai_settings & setting)
+        ai_config = db.query(AISystemConfig).filter(
+            AISystemConfig.user_id == current_user.id,
+            AISystemConfig.key == "ai_settings"
+        ).first()
+
+        features = {}
+        if ai_config and isinstance(ai_config.value, dict):
+            features = ai_config.value.get("features", {})
+            
+        # Kiểm tra toggle tính năng
+        if conv_id_obj:
+            if features.get("chat_copilot") is False or features.get("copilot") is False:
+                raise HTTPException(status_code=400, detail="Tính năng In-Chat Copilot đã bị tắt trong AI Hub.")
+        else:
+            if features.get("copilot") is False:
+                raise HTTPException(status_code=400, detail="Tính năng AI Copilot đã bị tắt trong AI Hub.")
+
         setting = db.query(Setting).filter(Setting.user_id == current_user.id).first()
         context_turns = 10
         if setting and setting.ai_copilot_context_turns:
@@ -287,11 +350,16 @@ async def copilot_chat(
             except Exception:
                 pass
 
-        # Lấy lịch sử hội thoại trước đó để đưa vào ngữ cảnh AI
+        # Lấy lịch sử hội thoại Copilot tương ứng (cùng conversation_id hoặc cùng None)
         hist_query = db.query(CopilotMessage).filter(
             CopilotMessage.user_id == current_user.id,
             CopilotMessage.id != user_msg_db.id,
         )
+        if conv_id_obj:
+            hist_query = hist_query.filter(CopilotMessage.conversation_id == conv_id_obj)
+        else:
+            hist_query = hist_query.filter(CopilotMessage.conversation_id.is_(None))
+
         if memory_window_days:
             cutoff = datetime.now(timezone.utc) - timedelta(days=memory_window_days)
             hist_query = hist_query.filter(CopilotMessage.created_at >= cutoff)
@@ -313,8 +381,6 @@ async def copilot_chat(
             if payload.context.contact_id:
                 context_kwargs["contact_id"] = payload.context.contact_id
             if payload.context.conversation_id:
-                conv_id_obj = uuid.UUID(payload.context.conversation_id)
-                _verify_conversation_access(db, current_user.id, conv_id_obj)
                 context_kwargs["conversation_id"] = payload.context.conversation_id
 
         # Run orchestrator
@@ -332,6 +398,7 @@ async def copilot_chat(
         ai_msg_db = CopilotMessage(
             id=uuid.uuid4(),
             user_id=current_user.id,
+            conversation_id=conv_id_obj,
             role="assistant",
             content=response_content,
             tools_used=tools_used,
@@ -351,12 +418,11 @@ async def copilot_chat(
         )
 
         # Emit event for background processing
-        conv_id = payload.context.conversation_id if payload.context else None
         contact_id = payload.context.contact_id if payload.context else None
         _emit_open_ai_event(
             request,
             current_user.id,
-            uuid.UUID(conv_id) if conv_id else None,
+            conv_id_obj,
             uuid.UUID(contact_id) if contact_id else None,
         )
 
@@ -369,12 +435,15 @@ async def copilot_chat(
             is_valid=result.get("is_valid", True),
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Copilot chat failed: {e}")
         err_msg = "Xin lỗi, hệ thống đang bận. Vui lòng thử lại sau."
         ai_msg_db = CopilotMessage(
             id=uuid.uuid4(),
             user_id=current_user.id,
+            conversation_id=conv_id_obj,
             role="assistant",
             content=err_msg,
             tools_used=[],

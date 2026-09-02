@@ -105,6 +105,11 @@ class CopilotMessage(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         index=True
     )
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("direct_conversations.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True
+    )
     role: Mapped[str] = mapped_column(String(20))  # "user" | "assistant"
     content: Mapped[str] = mapped_column(String)
     tools_used: Mapped[list | None] = mapped_column(JSON, nullable=True)
@@ -115,3 +120,4 @@ class CopilotMessage(Base):
     updated_at: Mapped[updated_at_col]
 
     user = relationship("User")
+    conversation = relationship("Conversation")

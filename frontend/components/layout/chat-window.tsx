@@ -39,6 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { useLanguage } from "@/hooks/use-language";
 
 export function ChatWindow() {
   const router = useRouter();
@@ -52,6 +53,7 @@ export function ChatWindow() {
 
   const sendMessageMutation = useSendMessage(activeId || "");
   const { features } = useAISettings();
+  const { language, t } = useLanguage();
 
   const { data: activeConversations = [] } = useQuery({
     queryKey: ["conversations"],
@@ -76,10 +78,10 @@ export function ChatWindow() {
       queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
       queryClient.invalidateQueries({ queryKey: ["connections"] });
       setActiveConversation(null);
-      toast.success("Đã hủy kết bạn thành công.");
+      toast.success(t("unfriendSuccess"));
     },
     onError: (err: any) => {
-      toast.error(err.message || "Lỗi khi hủy kết bạn.");
+      toast.error(err.message || t("unfriendError"));
     },
   });
 
@@ -153,9 +155,9 @@ export function ChatWindow() {
             <MessageSquare size={36} />
           </div>
           <div className="space-y-1.5">
-            <h2 className="text-lg font-bold text-slate-900">Cuộc trò chuyện của bạn</h2>
+            <h2 className="text-lg font-bold text-slate-900">{t("yourConversations")}</h2>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Chọn một người bạn từ danh sách bên trái hoặc khám phá các gợi ý kết nối để bắt đầu trò chuyện.
+              {t("selectConversationHelp")}
             </p>
           </div>
         </div>
@@ -172,7 +174,7 @@ export function ChatWindow() {
         <div
           className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity"
           onClick={toggleInfoPanel}
-          title="Xem thông tin đối phương"
+          title={t("viewPeerInfo")}
         >
           <div className="relative shrink-0">
             <Avatar className="h-10 w-10 border border-slate-200 shadow-2xs">
@@ -182,9 +184,9 @@ export function ChatWindow() {
               </AvatarFallback>
             </Avatar>
             {isPeerOnline ? (
-              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" title="Đang hoạt động" />
+              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" title={t("online")} />
             ) : (
-              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-slate-100 border-2 border-slate-400 ring-2 ring-white" title="Không hoạt động" />
+              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-slate-100 border-2 border-slate-400 ring-2 ring-white" title={t("offline")} />
             )}
           </div>
           <div>
@@ -197,12 +199,12 @@ export function ChatWindow() {
             {isPeerOnline ? (
               <p className="flex items-center gap-1 text-[11px] font-medium text-emerald-600">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Đang hoạt động</span>
+                <span>{t("online")}</span>
               </p>
             ) : (
               <p className="flex items-center gap-1 text-[11px] font-medium text-slate-400">
                 <span className="h-2 w-2 rounded-full border border-slate-400" />
-                <span>Không hoạt động</span>
+                <span>{t("offline")}</span>
               </p>
             )}
           </div>
@@ -210,13 +212,13 @@ export function ChatWindow() {
 
         {/* Header Action Buttons */}
         <div className="flex items-center gap-1.5">
-          {features.copilot && (
+          {features.chat_copilot !== false && features.copilot !== false && (
             <Button
               variant="ghost"
               type="button"
               onClick={toggleCopilot}
               className="h-9 w-9 p-0 rounded-xl text-blue-600 hover:bg-blue-50 cursor-pointer"
-              title="Mở AI Copilot"
+              title="Mở AI Copilot cho đoạn chat này"
             >
               <Sparkles size={17} />
             </Button>
@@ -226,7 +228,7 @@ export function ChatWindow() {
             type="button"
             onClick={toggleInfoPanel}
             className="h-9 w-9 p-0 rounded-xl text-slate-600 hover:bg-slate-100 cursor-pointer"
-            title={infoPanelOpen ? "Đóng thông tin" : "Mở thông tin"}
+            title={infoPanelOpen ? t("closeInfo") : t("openInfo")}
           >
             {infoPanelOpen ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}
           </Button>
@@ -234,7 +236,7 @@ export function ChatWindow() {
           <DropdownMenu>
             <DropdownMenuTrigger
               className="h-9 w-9 inline-flex items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors focus:outline-none"
-              title="Tùy chọn khác"
+              title={t("moreOptions")}
             >
               <MoreVertical size={17} />
             </DropdownMenuTrigger>
@@ -244,14 +246,16 @@ export function ChatWindow() {
                 className="text-xs font-semibold cursor-pointer rounded-xl"
               >
                 <ExternalLink size={13} className="mr-2" />
-                Xem trang cá nhân
+                {t("viewProfile")}
               </DropdownMenuItem>
               <DropdownMenuSeparator className="my-1 bg-slate-100" />
               <DropdownMenuItem
                 onClick={() => {
                   if (
                     peerId &&
-                    confirm(`Bạn có chắc chắn muốn hủy kết bạn với ${peerName}? Cuộc trò chuyện này sẽ kết thúc.`)
+                    confirm(language === "en"
+                      ? `Are you sure you want to unfriend ${peerName}? This conversation will end.`
+                      : `Bạn có chắc chắn muốn hủy kết bạn với ${peerName}? Cuộc trò chuyện này sẽ kết thúc.`)
                   ) {
                     unfriendMutation.mutate(peerId);
                   }
@@ -260,7 +264,7 @@ export function ChatWindow() {
                 className="text-xs font-semibold cursor-pointer text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl"
               >
                 <UserMinus size={13} className="mr-2" />
-                Hủy kết bạn
+                {t("unfriend")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -291,14 +295,14 @@ export function ChatWindow() {
 
           {!isLoading && messages.length === 0 && (
             <div className="text-center py-12 text-xs text-slate-400">
-              Chưa có tin nhắn nào trong cuộc trò chuyện này. Hãy gửi lời chào đầu tiên!
+              {t("emptyConversation")}
             </div>
           )}
 
           {hasNextPage && (
             <div ref={ref} className="flex justify-center w-full py-2">
               <span className="text-xs text-slate-400 opacity-70">
-                {isFetchingNextPage ? "Đang tải thêm tin nhắn..." : "Cuộn để xem thêm"}
+                {isFetchingNextPage ? t("loadingMore") : t("scrollForMore")}
               </span>
             </div>
           )}
@@ -332,7 +336,7 @@ export function ChatWindow() {
                 {isFirstOfNewDay && msgDate && (
                   <div className="my-3 flex items-center justify-center">
                     <span className="rounded-full bg-white border border-slate-200 px-3.5 py-0.5 text-[10px] font-bold text-slate-500 shadow-2xs">
-                      {getDateDividerLabel(msgDate)}
+                      {getDateDividerLabel(msgDate, language)}
                     </span>
                   </div>
                 )}

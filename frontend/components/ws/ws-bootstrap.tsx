@@ -38,7 +38,7 @@ function playNotificationChime() {
 export function WSBootstrap({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
-  const { features } = useAISettings();
+  const { features } = useAISettings(!!user);
   const featuresRef = useRef(features);
 
   const { data: settings } = useQuery<Setting>({
