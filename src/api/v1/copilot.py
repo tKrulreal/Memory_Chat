@@ -279,11 +279,31 @@ async def copilot_chat(
     from src.models.user import Setting
     from src.models.tag import AISystemConfig
     from src.agents import run_copilot
+    from src.core.guardrails import (
+        validate_input_query,
+        verify_in_chat_access,
+        sanitize_output_response,
+        GuardrailException,
+    )
+
+    try:
+        clean_query = validate_input_query(payload.query)
+    except GuardrailException as ge:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ge.message,
+        )
 
     conv_id_obj: uuid.UUID | None = None
     if payload.context and payload.context.conversation_id:
-        conv_id_obj = uuid.UUID(payload.context.conversation_id)
-        _verify_conversation_access(db, current_user.id, conv_id_obj)
+        try:
+            verify_in_chat_access(db, current_user.id, payload.context.conversation_id)
+            conv_id_obj = uuid.UUID(payload.context.conversation_id)
+        except GuardrailException as ge:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN if ge.code == "UNAUTHORIZED_ACCESS" else status.HTTP_400_BAD_REQUEST,
+                detail=ge.message,
+            )
 
     # 1. Lưu tin nhắn người dùng gửi vào database với conversation_id tương ứng
     user_msg_db = CopilotMessage(
@@ -291,7 +311,7 @@ async def copilot_chat(
         user_id=current_user.id,
         conversation_id=conv_id_obj,
         role="user",
-        content=payload.query,
+        content=clean_query,
     )
     db.add(user_msg_db)
     db.commit()

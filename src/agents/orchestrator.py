@@ -53,11 +53,14 @@ Bạn có thể trả về nhiều thẻ <card> nếu tìm thấy nhiều ngư�
 IN_CHAT_SYSTEM_PROMPT = """Bạn là Trợ lý AI Copilot chuyên biệt cho cuộc trò chuyện này trong ứng dụng MemoryChat.
 Nhiệm vụ chính:
 1. Phân tích, tóm tắt nội dung và các ý chính đã trao đổi TRONG CUỘC TRÒ CHUYỆN NÀY.
-2. Gợi ý câu trả lời thông minh, tinh tế và phù hợp với diễn biến trao đổi giữa hai người.
-3. Hỗ trợ tìm lại các chi tiết, điểm hẹn, thỏa thuận, tài liệu hoặc thông tin mà hai bên đã nhắn với nhau.
-4. Sử dụng các công cụ `get_recent_messages` (đọc tin nhắn trong chat), `get_peer_info` (thông tin người đang chat), `suggest_reply` (gợi ý phản hồi) để lấy dữ liệu thực tế.
-5. Luôn chỉ tập trung vào ngữ cảnh cuộc hội thoại hiện tại này.
-Trả lời bằng tiếng Việt, ngắn gọn, súc tích, thân thiện và hữu ích.
+2. Hướng dẫn xử lý các yêu cầu phổ biến:
+   - "Tóm tắt đoạn chat": Tóm tắt các chủ đề chính, mục tiêu dự án và thỏa thuận hai bên đã trao đổi một cách súc tích, dễ nhìn.
+   - "Gợi ý trả lời": Đọc các tin nhắn gần nhất bằng `get_recent_messages` hoặc dùng `suggest_reply`, đưa ra 2–3 phương án trả lời hoàn chỉnh, ngắn gọn, tự nhiên và lịch sự (ví dụ: Phương án 1 Thân thiện, Phương án 2 Chuyên nghiệp, Phương án 3 Hẹn lịch/Trao đổi).
+   - "Điểm cần lưu ý": Rà soát các mốc thời gian, deadline, công việc được giao, công nghệ đã thống nhất hoặc cam kết giữa hai bên.
+   - "Thông tin đối tác": Dùng `get_peer_info` để hiển thị chuyên môn, kỹ năng, công ty và tóm tắt trí nhớ về người đang trò chuyện.
+3. Nguyên tắc bảo mật & Guardrails:
+   - Tuyệt đối chỉ tập trung vào dữ liệu trong cuộc hội thoại này. Không bịa đặt thông tin nếu trong đoạn chat chưa từng đề cập.
+   - Trả lời bằng tiếng Việt, trình bày markdown rõ ràng, sử dụng bullet points để người dùng dễ đọc.
 """
 
 
@@ -241,6 +244,23 @@ async def run_copilot(
                 "is_valid": mock_res.get("is_valid", True),
             }
 
+    from src.core.guardrails import (
+        validate_input_query,
+        verify_in_chat_access,
+        sanitize_output_response,
+        GuardrailException,
+    )
+
+    try:
+        query = validate_input_query(query)
+    except GuardrailException as ge:
+        return {
+            "response": ge.message,
+            "intent": "GUARDRAIL_BLOCKED",
+            "tools_used": [],
+            "is_valid": False,
+        }
+
     if not user_id:
         intent, _ = _classify_intent(query)
         if intent == Intent.CHITCHAT:
@@ -257,15 +277,28 @@ async def run_copilot(
             "is_valid": False,
         }
 
+    from src.api.deps import SessionLocal
+    from src.models.user import Setting
 
-    from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+    if conversation_id:
+        db_guard = SessionLocal()
+        try:
+            verify_in_chat_access(db_guard, user_id, conversation_id)
+        except GuardrailException as ge:
+            return {
+                "response": ge.message,
+                "intent": "GUARDRAIL_BLOCKED",
+                "tools_used": [],
+                "is_valid": False,
+            }
+        finally:
+            db_guard.close()
+
+    from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AIMessage
     from langchain_core.tools import tool
 
     llm_gateway = LLMGateway()
     chat_model = llm_gateway.llm
-
-    from src.api.deps import SessionLocal
-    from src.models.user import Setting
 
     context_turns = 10
     db_settings = SessionLocal()
@@ -326,11 +359,11 @@ async def run_copilot(
             return "Đã xảy ra lỗi khi tìm kiếm."
 
     @tool
-    def get_recent_messages(limit: int | None = None) -> str:
+    def get_recent_messages(limit: int = 10) -> str:
         """Retrieve the most recent messages in the current conversation within the configured context turns."""
         if not conversation_id:
             return "Bạn không ở trong một cuộc hội thoại nào."
-        eff_limit = limit if (limit is not None and limit > 0) else context_turns
+        eff_limit = limit if (limit > 0) else context_turns
         if eff_limit <= 0:
             eff_limit = 100  # Unlimited setting
         from src.agents.tools.memory_tools import get_recent_messages as get_recent_msgs_tool
@@ -464,8 +497,6 @@ async def run_copilot(
 
     llm_with_tools = chat_model.bind_tools(tools)
 
-    from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AIMessage
-
     messages = [
         SystemMessage(content=system_content),
     ]
@@ -482,34 +513,64 @@ async def run_copilot(
     messages.append(HumanMessage(content=query))
 
     tools_used: list[str] = []
-    try:
-        response = llm_with_tools.invoke(messages)
+    accumulated_tool_outputs: list[str] = []
+    response_content = ""
 
-        if response.tool_calls:
+    try:
+        max_turns = 3
+        turn = 0
+        while turn < max_turns:
+            turn += 1
+            response = llm_with_tools.invoke(messages)
+
+            if not response.tool_calls:
+                if response.content and str(response.content).strip():
+                    response_content = str(response.content).strip()
+                break
+
             messages.append(response)
             for tool_call in response.tool_calls:
-                tool_name = tool_call["name"]
-                tools_used.append(tool_name)
+                tool_name = tool_call.get("name", "")
+                if tool_name and tool_name not in tools_used:
+                    tools_used.append(tool_name)
 
-                # Execute the matched tool
-                if tool_name == "semantic_search":
-                    tool_result = semantic_search.invoke(tool_call["args"])
-                elif tool_name == "get_recent_messages":
-                    tool_result = get_recent_messages.invoke(tool_call["args"])
-                elif tool_name == "get_peer_info":
-                    tool_result = get_peer_info.invoke(tool_call["args"])
-                elif tool_name == "suggest_reply":
-                    tool_result = suggest_reply.invoke(tool_call["args"])
-                else:
-                    tool_result = "Tool not found."
+                tool_args = tool_call.get("args", {})
+                try:
+                    if tool_name == "semantic_search":
+                        tool_result = semantic_search.invoke(tool_args)
+                    elif tool_name == "get_recent_messages":
+                        tool_result = get_recent_messages.invoke(tool_args)
+                    elif tool_name == "get_peer_info":
+                        tool_result = get_peer_info.invoke(tool_args)
+                    elif tool_name == "suggest_reply":
+                        tool_result = suggest_reply.invoke(tool_args)
+                    else:
+                        tool_result = "Công cụ không tồn tại."
+                except Exception as tool_err:
+                    logger.error(f"Error executing tool {tool_name}: {tool_err}")
+                    tool_result = f"Lỗi khi thực hiện công cụ {tool_name}: {str(tool_err)}"
 
+                accumulated_tool_outputs.append(f"{tool_name}: {tool_result}")
                 messages.append(ToolMessage(content=str(tool_result), tool_call_id=tool_call["id"]))
 
-            # Call LLM again with tool outputs
-            final_response = llm_with_tools.invoke(messages)
-            response_content = str(final_response.content)
-        else:
-            response_content = str(response.content)
+        # If after tool calls response_content is still empty, call base chat_model to synthesize final text
+        if not response_content:
+            try:
+                final_ai = chat_model.invoke(messages)
+                if final_ai.content and str(final_ai.content).strip():
+                    response_content = str(final_ai.content).strip()
+            except Exception as synth_err:
+                logger.error(f"Synthesis call failed: {synth_err}")
+
+        # Fallback if still empty
+        if not response_content:
+            if accumulated_tool_outputs:
+                response_content = "Dưới đây là thông tin phân tích từ cuộc hội thoại:\n\n" + "\n\n".join(accumulated_tool_outputs)
+            else:
+                response_content = "Tôi đã tiếp nhận yêu cầu nhưng chưa tìm thấy dữ liệu phù hợp trong cuộc trò chuyện này."
+
+        # Apply Output Guardrail
+        response_content = sanitize_output_response(response_content)
 
         intent_val, _ = _classify_intent(query, llm_gateway)
         if tools_used:
@@ -524,9 +585,12 @@ async def run_copilot(
 
     except Exception as e:
         logger.error(f"LLM tool calling failed: {e}")
+        fallback_msg = "Xin lỗi, đã xảy ra lỗi trong quá trình xử lý yêu cầu. Vui lòng thử lại sau."
+        if accumulated_tool_outputs:
+            fallback_msg = sanitize_output_response("\n\n".join(accumulated_tool_outputs))
         return {
-            "response": "Xin lỗi, hệ thống đang bận. Vui lòng thử lại sau.",
+            "response": fallback_msg,
             "intent": "ERROR",
-            "tools_used": [],
+            "tools_used": tools_used,
             "is_valid": False,
         }
