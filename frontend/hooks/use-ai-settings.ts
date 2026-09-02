@@ -11,6 +11,7 @@ export function useAISettings(enabled = true) {
   const aiConfig = configs.find(c => c.key === "ai_settings");
   let features = {
     copilot: true,
+    chat_copilot: true,
     recommendation: true,
     memory: true,
     tagging: true,
@@ -23,9 +24,16 @@ export function useAISettings(enabled = true) {
     };
   }
 
+  const chatCopilotSettings = {
+    contextMode: aiConfig?.value?.chat_copilot_context_mode ?? "scoped_chat",
+    messageLimit: aiConfig?.value?.chat_copilot_message_limit ?? 20,
+    quickActions: aiConfig?.value?.chat_copilot_quick_actions !== false,
+  };
+
   return {
     features,
     isLoading,
     rawConfig: aiConfig,
+    chatCopilotSettings,
   };
 }

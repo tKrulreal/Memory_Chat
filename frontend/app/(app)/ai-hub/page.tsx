@@ -142,10 +142,15 @@ export default function AIHubPage() {
   const defaultSettings = {
     features: {
       copilot: true,
+      chat_copilot: true,
       recommendation: true,
       memory: true,
       tagging: true,
+      reply_suggestions: true,
     },
+    chat_copilot_context_mode: "scoped_chat",
+    chat_copilot_message_limit: 20,
+    chat_copilot_quick_actions: true,
     tag_limit: 3,
     min_matching_score: 50,
   };
@@ -387,23 +392,127 @@ export default function AIHubPage() {
             {/* ================================================================= */}
             {!loadingSettings && !loadingConfigs && activeTab === "copilot" && (
               <div className="space-y-6">
+                {/* Section 1: In-Chat Copilot (Copilot riêng cho từng đoạn chat) */}
                 <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                    <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                      <Sparkles size={18} className="text-blue-600" />
-                      {l("Cấu hình AI Copilot (Trợ lý trò chuyện)", "AI Copilot Configuration")}
-                    </h2>
-                    <Badge variant="outline" className="text-xs border-indigo-200 text-indigo-700 bg-indigo-50">
-                      In-chat Assistant
+                    <div>
+                      <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <Sparkles size={18} className="text-blue-600" />
+                        {l("Copilot Riêng Trong Đoạn Chat (In-Chat Copilot)", "In-Chat AI Copilot")}
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {l("Trợ lý AI mở từ thanh tiêu đề phía trên đoạn chat, hoạt động độc lập và chỉ tập trung vào ngữ cảnh cuộc hội thoại hiện tại.", "AI assistant opened from the chat header, isolated and focused strictly on the current conversation context.")}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-xs border-blue-200 text-blue-700 bg-blue-50">
+                      Scoped Context
                     </Badge>
                   </div>
 
-                  {/* Enable AI Copilot Feature */}
+                  {/* Enable In-Chat Copilot Feature */}
                   <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
                     <div className="space-y-0.5">
-                      <p className="text-sm font-bold text-slate-900">{l("Bật AI Copilot trong cửa sổ chat", "Enable AI Copilot in chats")}</p>
+                      <p className="text-sm font-bold text-slate-900">{l("Kích hoạt Copilot trong cửa sổ đoạn chat", "Enable Copilot inside chat window")}</p>
                       <p className="text-xs text-slate-500">
-                        {l("Hiển thị thanh công cụ Copilot bên cạnh khung trò chuyện để tóm tắt và hỗ trợ phản hồi.", "Show Copilot beside conversations for summaries and reply assistance.")}
+                        {l("Hiển thị nút icon Copilot ở thanh tiêu đề trên cùng đoạn chat (gần nút thông tin) để mở bảng trợ lý riêng.", "Show Copilot button in the top chat header to open a dedicated conversation assistant.")}
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={currentConfigs.features.chat_copilot !== false}
+                        onChange={(e) => updateConfigSetting("chat_copilot", e.target.checked, true)}
+                      />
+                      <div className="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
+                    </label>
+                  </div>
+
+                  {currentConfigs.features.chat_copilot !== false && (
+                    <>
+                      {/* Context Scope Mode */}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-2xl bg-white border border-slate-100">
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-semibold text-slate-800">{l("Phạm vi ngữ cảnh phân tích", "Context Analysis Scope")}</p>
+                          <p className="text-xs text-slate-500">
+                            {l("Quy định nguồn dữ liệu In-Chat Copilot được phép truy cập khi trả lời câu hỏi.", "Define which data In-Chat Copilot is permitted to access when generating responses.")}
+                          </p>
+                        </div>
+                        <select
+                          value={currentConfigs.chat_copilot_context_mode ?? "scoped_chat"}
+                          onChange={(e) => updateConfigSetting("chat_copilot_context_mode", e.target.value)}
+                          className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none shadow-xs"
+                        >
+                          <option value="scoped_chat">{l("Chỉ tin nhắn trong đoạn chat này (Bảo mật tối đa)", "Only messages in this chat (Max Privacy)")}</option>
+                          <option value="scoped_with_memory">{l("Tin nhắn chat + Tóm tắt trí nhớ đối tác", "Chat messages + Partner memory summary")}</option>
+                        </select>
+                      </div>
+
+                      {/* In-Chat Message Limit */}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-2xl bg-white border border-slate-100">
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-semibold text-slate-800">{l("Giới hạn tin nhắn đưa vào phân tích", "Message Analysis Depth")}</p>
+                          <p className="text-xs text-slate-500">
+                            {l("Số lượng tin nhắn hội thoại gần nhất đưa vào bộ nhớ đệm phân tích của In-Chat Copilot.", "Number of recent conversation messages passed to In-Chat Copilot.")}
+                          </p>
+                        </div>
+                        <select
+                          value={currentConfigs.chat_copilot_message_limit ?? 20}
+                          onChange={(e) => updateConfigSetting("chat_copilot_message_limit", parseInt(e.target.value))}
+                          className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none shadow-xs"
+                        >
+                          <option value="10">{l("10 tin nhắn gần nhất", "10 recent messages")}</option>
+                          <option value="20">{l("20 tin nhắn (Khuyên dùng)", "20 messages (Recommended)")}</option>
+                          <option value="50">{l("50 tin nhắn", "50 messages")}</option>
+                          <option value="0">{l("Toàn bộ tin nhắn trong đoạn chat", "Entire chat history")}</option>
+                        </select>
+                      </div>
+
+                      {/* In-Chat Quick Action Buttons */}
+                      <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-100">
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-semibold text-slate-800">{l("Thanh thao tác nhanh (Quick Action Prompts)", "Quick Action Prompts")}</p>
+                          <p className="text-xs text-slate-500">
+                            {l("Hiển thị các nút tắt: Tóm tắt đoạn chat, Gợi ý câu trả lời, Điểm cần lưu ý và Thông tin đối tác.", "Show quick buttons: Summarize chat, Suggest reply, Key points, and Partner info.")}
+                          </p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={currentConfigs.chat_copilot_quick_actions !== false}
+                            onChange={(e) => updateConfigSetting("chat_copilot_quick_actions", e.target.checked)}
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
+                        </label>
+                      </div>
+                    </>
+                  )}
+                </Card>
+
+                {/* Section 2: Global AI Copilot (Trang AI Copilot tổng) */}
+                <Card className="rounded-3xl border-slate-100 bg-white p-6 md:p-8 space-y-6 shadow-sm">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <Bot size={18} className="text-indigo-600" />
+                        {l("Trang AI Copilot Tổng Hợp (Global Copilot)", "Global AI Copilot Page")}
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {l("Trợ lý tra cứu trí nhớ toàn diện, tìm kiếm liên hệ và tìm kiếm người dùng mới trên toàn hệ thống (/copilot).", "Global assistant for cross-chat memory retrieval, finding contacts, and finding new users (/copilot).")}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="text-xs border-indigo-200 text-indigo-700 bg-indigo-50">
+                      Global Assistant
+                    </Badge>
+                  </div>
+
+                  {/* Enable Global AI Copilot */}
+                  <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-bold text-slate-900">{l("Kích hoạt trang AI Copilot tổng hợp (/copilot)", "Enable Global AI Copilot Page (/copilot)")}</p>
+                      <p className="text-xs text-slate-500">
+                        {l("Cho phép người dùng truy cập trang Copilot để tra cứu trí nhớ đa đoạn chat và tìm bạn bè.", "Allow access to the Copilot page for global search and multi-chat memory retrieval.")}
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0">
@@ -419,12 +528,12 @@ export default function AIHubPage() {
 
                   {currentConfigs.features.copilot && (
                     <>
-                      {/* Context Turns */}
+                      {/* Context Turns for Global Copilot */}
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-2xl bg-white border border-slate-100">
                         <div className="space-y-0.5">
-                          <p className="text-sm font-semibold text-slate-800">{l("Số tin nhắn ngữ cảnh (Context Turns)", "Context Messages")}</p>
+                          <p className="text-sm font-semibold text-slate-800">{l("Số tin nhắn lịch sử tham khảo", "Historical Turns Depth")}</p>
                           <p className="text-xs text-slate-500">
-                            {l("Số lượng tin nhắn gần nhất AI Copilot tham khảo để hiểu ngữ cảnh cuộc trò chuyện.", "The number of recent messages AI Copilot uses to understand the conversation.")}
+                            {l("Số lượng tin nhắn hội thoại Copilot trước đó được gửi kèm để duy trì mạch đàm thoại.", "Number of previous Copilot turns included to maintain dialog flow.")}
                           </p>
                         </div>
                         <select
@@ -432,11 +541,10 @@ export default function AIHubPage() {
                           onChange={(e) => handleUpdateSetting("ai_copilot_context_turns", parseInt(e.target.value))}
                           className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none shadow-xs"
                         >
-                          <option value="5">{l("5 tin nhắn gần nhất", "5 recent messages")}</option>
-                          <option value="10">{l("10 tin nhắn (Mặc định)", "10 messages (Default)")}</option>
-                          <option value="20">{l("20 tin nhắn", "20 messages")}</option>
-                          <option value="50">{l("50 tin nhắn", "50 messages")}</option>
-                          <option value="0">{l("Toàn bộ cuộc trò chuyện", "Entire conversation")}</option>
+                          <option value="5">{l("5 lượt hội thoại", "5 turns")}</option>
+                          <option value="10">{l("10 lượt hội thoại (Mặc định)", "10 turns (Default)")}</option>
+                          <option value="20">{l("20 lượt hội thoại", "20 turns")}</option>
+                          <option value="50">{l("50 lượt hội thoại", "50 turns")}</option>
                         </select>
                       </div>
 

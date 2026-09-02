@@ -212,13 +212,13 @@ export function ChatWindow() {
 
         {/* Header Action Buttons */}
         <div className="flex items-center gap-1.5">
-          {features.copilot && (
+          {features.chat_copilot !== false && features.copilot !== false && (
             <Button
               variant="ghost"
               type="button"
               onClick={toggleCopilot}
               className="h-9 w-9 p-0 rounded-xl text-blue-600 hover:bg-blue-50 cursor-pointer"
-              title={t("openCopilot")}
+              title="Mở AI Copilot cho đoạn chat này"
             >
               <Sparkles size={17} />
             </Button>

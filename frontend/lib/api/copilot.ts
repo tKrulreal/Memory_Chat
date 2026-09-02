@@ -22,6 +22,7 @@ export type CopilotMessageItem = {
   tools_used?: string[];
   sources?: string[];
   intent?: string | null;
+  conversation_id?: string | null;
   created_at?: string;
 };
 
@@ -39,8 +40,15 @@ export async function askCopilot(req: CopilotRequest): Promise<CopilotResponse> 
   return res.json();
 }
 
-export async function getCopilotMessages(limit: number = 100): Promise<CopilotMessageItem[]> {
-  const res = await fetch(`/api/proxy/api/v1/copilot/messages?limit=${limit}`, {
+export async function getCopilotMessages(
+  limit: number = 100,
+  conversationId?: string | null
+): Promise<CopilotMessageItem[]> {
+  const url = conversationId
+    ? `/api/proxy/api/v1/copilot/messages?limit=${limit}&conversation_id=${encodeURIComponent(conversationId)}`
+    : `/api/proxy/api/v1/copilot/messages?limit=${limit}`;
+
+  const res = await fetch(url, {
     method: "GET",
   });
 
@@ -51,8 +59,14 @@ export async function getCopilotMessages(limit: number = 100): Promise<CopilotMe
   return res.json();
 }
 
-export async function clearCopilotMessages(): Promise<{ status: string; deleted_count: number }> {
-  const res = await fetch("/api/proxy/api/v1/copilot/messages", {
+export async function clearCopilotMessages(
+  conversationId?: string | null
+): Promise<{ status: string; deleted_count: number }> {
+  const url = conversationId
+    ? `/api/proxy/api/v1/copilot/messages?conversation_id=${encodeURIComponent(conversationId)}`
+    : `/api/proxy/api/v1/copilot/messages`;
+
+  const res = await fetch(url, {
     method: "DELETE",
   });
 

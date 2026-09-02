@@ -50,6 +50,17 @@ Bạn có thể trả về nhiều thẻ <card> nếu tìm thấy nhiều ngư�
 
 
 
+IN_CHAT_SYSTEM_PROMPT = """Bạn là Trợ lý AI Copilot chuyên biệt cho cuộc trò chuyện này trong ứng dụng MemoryChat.
+Nhiệm vụ chính:
+1. Phân tích, tóm tắt nội dung và các ý chính đã trao đổi TRONG CUỘC TRÒ CHUYỆN NÀY.
+2. Gợi ý câu trả lời thông minh, tinh tế và phù hợp với diễn biến trao đổi giữa hai người.
+3. Hỗ trợ tìm lại các chi tiết, điểm hẹn, thỏa thuận, tài liệu hoặc thông tin mà hai bên đã nhắn với nhau.
+4. Sử dụng các công cụ `get_recent_messages` (đọc tin nhắn trong chat), `get_peer_info` (thông tin người đang chat), `suggest_reply` (gợi ý phản hồi) để lấy dữ liệu thực tế.
+5. Luôn chỉ tập trung vào ngữ cảnh cuộc hội thoại hiện tại này.
+Trả lời bằng tiếng Việt, ngắn gọn, súc tích, thân thiện và hữu ích.
+"""
+
+
 def _classify_intent(query: str, llm: LLMGateway | None = None) -> tuple[Intent, float]:
     """Classify the user's intent based on keywords and heuristics."""
     if not query:
@@ -415,13 +426,19 @@ async def run_copilot(
         finally:
             db.close()
 
-    tools = [semantic_search, get_recent_messages, get_peer_info, suggest_reply]
+    if conversation_id:
+        tools = [get_recent_messages, get_peer_info, suggest_reply]
+        system_content = IN_CHAT_SYSTEM_PROMPT
+    else:
+        tools = [semantic_search, get_recent_messages, get_peer_info, suggest_reply]
+        system_content = SYSTEM_PROMPT
+
     llm_with_tools = chat_model.bind_tools(tools)
 
     from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AIMessage
 
     messages = [
-        SystemMessage(content=SYSTEM_PROMPT),
+        SystemMessage(content=system_content),
     ]
     if history:
         for h in history:

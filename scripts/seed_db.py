@@ -391,10 +391,15 @@ def seed_db():
             ai_config_val = {
                 "features": {
                     "copilot": True,
+                    "chat_copilot": True,
                     "recommendation": True,
                     "memory": True,
                     "tagging": True,
+                    "reply_suggestions": True,
                 },
+                "chat_copilot_context_mode": "scoped_chat",
+                "chat_copilot_message_limit": 20,
+                "chat_copilot_quick_actions": True,
                 "model_name": "gpt-4o-mini",
                 "temperature": 0.7,
                 "tag_limit": 3,
@@ -418,6 +423,8 @@ def seed_db():
                     name=tag_name,
                     category=tag_cat,
                     is_active=True,
+                    created_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(timezone.utc)
                 )
                 db.add(tag)
 
@@ -425,36 +432,36 @@ def seed_db():
             db.refresh(user)
             created_users.append(user)
             logger.info(f"Created user: {user.email}")
+        
+        logger.info(f"Seeded {len(created_users)} users with profiles, AI configs, and tags.")
 
-        # 4. Seed conversations and messages for User 1 (index 0) with other users:
-        # User 1 chats with: User 2, User 3, User 6, User 7, User 10, User 11
+        # 4. Create Direct Conversations & Messages for User 1 (Nguyễn Văn Một)
         u1 = created_users[0]
+        
         targets = [
             (created_users[1], "Trần Thị Hai", [
-                "Hi, Trần Thị Hai! Mình đang tìm kiếm Backend Developer để hợp tác phát triển dự án AI Chat.",
-                "Chào anh Một! Em là Backend Developer chuyên Python/FastAPI đây. Dự án của anh yêu cầu những gì thế?",
-                "Dự án cần xây dựng API và tích hợp với LLMs, có sử dụng PostgreSQL làm database chính.",
-                "Đúng thế mạnh của em rồi. Em có thể tham gia thiết kế database và API. Hôm nào mình gặp trao đổi thêm nhé!",
-                "Tuyệt vời, để anh chuẩn bị tài liệu rồi nhắn em nhé."
+                "Chào Hai, mình đang lên kế hoạch xây dựng ứng dụng AI Chat thế hệ mới.",
+                "Chào Một, dự án nghe hấp dẫn đấy! Bạn dự định dùng stack công nghệ nào?",
+                "Mình định dùng FastAPI + Next.js 15 và PostgreSQL với Qdrant vector DB.",
+                "Stack này rất tối ưu cho real-time và RAG. Khi nào bạn bắt đầu triển khai kiến trúc?"
             ]),
             (created_users[2], "Lê Văn Ba", [
-                "Chào Lê Văn Ba! Mình có xem qua profile thấy bạn làm Frontend.",
-                "Chào anh! Dạ đúng rồi, em chuyên làm React và TailwindCSS.",
-                "Bên mình đang triển khai UI cho ứng dụng Chat mới, giao diện cần responsive và tối ưu hiệu năng.",
-                "Em có nhiều kinh nghiệm làm giao diện chat thời gian thực rồi. Anh gửi cho em xem thiết kế Figma nhé.",
-                "Ok Ba, anh sẽ gửi sớm."
+                "Chào Ba, bạn có kinh nghiệm tối ưu hiệu năng React/Next.js không?",
+                "Chào bạn. Mình thường dùng React Query và tối ưu re-render qua Zustand.",
+                "Tuyệt vời, dự án chat của mình đang cần một frontend lead có kinh nghiệm như bạn.",
+                "Rất sẵn lòng hợp tác, gửi mình xem qua wireframe nhé!"
+            ]),
+            (created_users[4], "Hoàng Văn Năm", [
+                "Chào Năm, bạn đã từng deploy mô hình LLM trên Kubernetes chưa?",
+                "Chào Một, mình từng dựng cluster K8s với vLLM và GPU orchestration rồi.",
+                "Hay quá, lúc nào rảnh mình trao đổi kỹ hơn về infra cho AI agents nhé.",
+                "OK bạn, cứ ping mình bất cứ lúc nào."
             ]),
             (created_users[5], "Đỗ Hoàng Sáu", [
-                "Hi Sáu, mình thấy bạn đang muốn làm side project iOS đúng không?",
-                "Dạ đúng rồi anh Một. Em đang muốn làm một app mobile để port phần chat AI lên di động.",
-                "Hay quá, anh đang có sẵn API backend đây rồi. Để anh gửi tài liệu API cho em tham khảo.",
-                "Tuyệt quá anh! Có gì anh gửi em nhé, cuối tuần em bắt tay vào code giao diện thử."
-            ]),
-            (created_users[6], "Bùi Quang Bảy", [
-                "Chào Bảy! Anh thấy thiết kế Design System của em rất đẹp.",
-                "Em cảm ơn anh Một. Em đang muốn tìm dự án thực tế để áp dụng thử.",
-                "Dự án AI Chat của anh đang thiếu phần UI/UX cho mobile app, em có hứng thú thiết kế không?",
-                "Dạ có chứ anh, để tối em gửi anh portfolio các dự án trước đây của em nhé."
+                "Chào Sáu, hiện tại bên bạn có nhận dự án outsource app mobile Flutter không?",
+                "Chào Một. Bên mình có team 5 devs Flutter sẵn sàng onboard trong tháng tới.",
+                "Để mình gửi tài liệu specs và yêu cầu tính năng qua email nhé.",
+                "Đã nhận thông tin, team mình sẽ ước lượng timeline và báo lại bạn sớm."
             ]),
             (created_users[9], "Vũ Đức Mười", [
                 "Chào Mười, bạn có kinh nghiệm phân tích nghiệp vụ các hệ thống chat không?",
@@ -470,6 +477,7 @@ def seed_db():
             ])
         ]
         
+        seeded_convs = []
         for idx, (target_user, target_name, msgs) in enumerate(targets):
             ua_id, ub_id = sorted([u1.id, target_user.id])
             conv = Conversation(
@@ -483,6 +491,7 @@ def seed_db():
             db.add(conv)
             db.commit()
             db.refresh(conv)
+            seeded_convs.append(conv)
             
             db.add(ConversationUserState(id=uuid.uuid4(), conversation_id=conv.id, user_id=u1.id))
             db.add(ConversationUserState(id=uuid.uuid4(), conversation_id=conv.id, user_id=target_user.id))
@@ -504,17 +513,19 @@ def seed_db():
         db.commit()
         logger.info("Seeded 6 conversations and messages for User 1 successfully.")
 
-        # 5. Seed Copilot Messages for User 1
-        copilot_msgs = [
+        # 5. Seed Copilot Messages for User 1 (both Global Copilot & In-Chat Copilot)
+        # Global Copilot Messages (conversation_id = None)
+        global_copilot_msgs = [
             ("user", "Chào bạn, hãy tóm tắt các cuộc trò chuyện gần đây của tôi?", [], []),
             ("assistant", "Chào bạn! Gần đây bạn đã trao đổi với Trần Thị Hai về việc thiết kế API Backend cho dự án AI Chat, trao đổi với Lê Văn Ba về giao diện React/TailwindCSS, và bàn bạc với Đỗ Hoàng Sáu về dự án app di động iOS.", [], ["messages"]),
             ("user", "Trong mạng lưới của tôi có ai có kinh nghiệm về DevOps không?", [], []),
             ("assistant", "Trong mạng lưới của bạn có Hoàng Văn Năm (DevOps Engineer tại Viettel chuyên Docker/K8s) và Phạm Văn Mười Một (Cloud Architect chuyên AWS/Terraform). Bạn có thể kết nối với họ để nhận tư vấn hạ tầng.", [], ["contacts", "user_profile"]),
         ]
-        for c_idx, (c_role, c_content, c_tools, c_sources) in enumerate(copilot_msgs):
+        for c_idx, (c_role, c_content, c_tools, c_sources) in enumerate(global_copilot_msgs):
             c_msg = CopilotMessage(
                 id=uuid.uuid4(),
                 user_id=u1.id,
+                conversation_id=None,
                 role=c_role,
                 content=c_content,
                 tools_used=c_tools,
@@ -524,7 +535,30 @@ def seed_db():
             )
             db.add(c_msg)
         db.commit()
-        logger.info("Seeded Copilot messages history for User 1.")
+
+        # In-Chat Copilot Messages for Conversation with Trần Thị Hai (conversation_id = seeded_convs[0].id)
+        first_conv = seeded_convs[0]
+        in_chat_msgs = [
+            ("user", "Tóm tắt giúp tôi những gì tôi và Trần Thị Hai đã trao đổi?", ["get_recent_messages"]),
+            ("assistant", "Trong cuộc trò chuyện này, bạn và Trần Thị Hai đã thảo luận về việc xây dựng ứng dụng AI Chat thế hệ mới sử dụng FastAPI, Next.js 15, PostgreSQL và Qdrant vector DB cho kiến trúc RAG real-time. Hai đã đánh giá stack này rất tối ưu và đang chờ bạn bắt đầu triển khai kiến trúc.", ["get_recent_messages", "get_peer_info"]),
+        ]
+        for ic_idx, (ic_role, ic_content, ic_tools) in enumerate(in_chat_msgs):
+            ic_msg = CopilotMessage(
+                id=uuid.uuid4(),
+                user_id=u1.id,
+                conversation_id=first_conv.id,
+                role=ic_role,
+                content=ic_content,
+                tools_used=ic_tools,
+                sources=["conversation_messages"],
+                intent="SEARCH" if ic_role == "assistant" else None,
+                created_at=datetime.now(timezone.utc) - timedelta(minutes=15 - ic_idx * 5),
+                updated_at=datetime.now(timezone.utc) - timedelta(minutes=15 - ic_idx * 5),
+            )
+            db.add(ic_msg)
+
+        db.commit()
+        logger.info("Seeded Global & In-Chat Copilot messages history for User 1.")
 
         # 6. Seed AI Matchmaker Recommendation & Synchronized Notification for User 1 matching User 4 (Phạm Thị Bốn)
         u4 = created_users[3] # Phạm Thị Bốn - AI Researcher at VinAI
