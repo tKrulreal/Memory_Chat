@@ -111,6 +111,11 @@ export default function AIHubPage() {
     mutationFn: (data: any) => updateSettings(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["system-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
       showToast(l("Cập nhật cài đặt AI thành công!", "AI settings updated successfully!"));
     },
     onError: () => {
@@ -123,6 +128,11 @@ export default function AIHubPage() {
       updateAiConfig(data.key, data.value, data.desc),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["system-configs"] });
+      queryClient.invalidateQueries({ queryKey: ["my-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["connection-recommendations"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["connection-requests"] });
       showToast(l("Cập nhật cấu hình hệ thống AI thành công!", "AI system configuration updated successfully!"));
     },
   });
@@ -683,7 +693,10 @@ export default function AIHubPage() {
                         type="checkbox"
                         className="sr-only peer"
                         checked={currentConfigs.features.recommendation}
-                        onChange={(e) => updateConfigSetting("recommendation", e.target.checked, true)}
+                        onChange={(e) => {
+                          updateConfigSetting("recommendation", e.target.checked, true);
+                          handleUpdateSetting("ai_enabled", e.target.checked);
+                        }}
                       />
                       <div className="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
                     </label>
@@ -722,8 +735,16 @@ export default function AIHubPage() {
                           <p className="text-xs text-slate-500">{l("Chỉ gửi thông báo kết nối khi độ tương thích đạt từ mức này.", "Only notify you when compatibility meets this threshold.")}</p>
                         </div>
                         <select
-                          value={currentConfigs.min_matching_score || 50}
-                          onChange={(e) => updateConfigSetting("min_matching_score", parseInt(e.target.value))}
+                          value={
+                            currentConfigs.min_matching_score <= 1.0
+                              ? Math.round(currentConfigs.min_matching_score * 100)
+                              : currentConfigs.min_matching_score || 50
+                          }
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            updateConfigSetting("min_matching_score", val);
+                            handleUpdateSetting("ai_matching_threshold", val);
+                          }}
                           className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-xs font-semibold text-slate-700 focus:border-blue-500 focus:outline-none shadow-xs"
                         >
                           <option value="50">{l("50% (Tiêu chuẩn)", "50% (Standard)")}</option>

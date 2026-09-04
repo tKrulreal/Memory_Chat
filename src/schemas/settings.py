@@ -22,6 +22,7 @@ class SettingBase(BaseModel):
     ai_memory_window: str = "unlimited"
     ai_recommendation_interval: str = "24h"
     ai_copilot_context_turns: int = 10
+    ai_matching_threshold: int = 50
 
 
 class SettingUpdate(BaseModel):
@@ -44,6 +45,7 @@ class SettingUpdate(BaseModel):
     ai_memory_window: Optional[str] = None
     ai_recommendation_interval: Optional[str] = None
     ai_copilot_context_turns: Optional[int] = None
+    ai_matching_threshold: Optional[int] = None
 
 
 class SettingResponse(SettingBase):

@@ -367,7 +367,8 @@ def seed_db():
                 ai_enabled=True,
                 ai_read_profile=True,
                 ai_extract_chat=True,
-                notification=True
+                notification=True,
+                ai_matching_threshold=50,
             )
             db.add(setting)
             

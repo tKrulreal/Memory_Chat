@@ -224,3 +224,144 @@ async def test_generate_connections_syncs_notifications_and_scores(db_session: S
     assert notif.data["match_score"] == 85
     assert notif.data["recommendation_id"] == str(mock_rec.id)
 
+
+def test_ai_hub_settings_two_way_sync(db_session: Session):
+    """Test that Setting and AISystemConfig stay in sync in both directions."""
+    user = User(
+        id=uuid.uuid4(),
+        email=f"sync_user_{uuid.uuid4().hex[:6]}@example.com",
+        full_name="Sync User",
+        password_hash="hash",
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    # Direction 1: update_settings updates AISystemConfig
+    from src.api.v1.settings import update_settings
+    from src.schemas.settings import SettingUpdate
+    from src.models.tag import AISystemConfig
+
+    # Seed AISystemConfig
+    cfg = AISystemConfig(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        key="ai_settings",
+        value={"features": {"recommendation": True}, "min_matching_score": 50, "notification_interval": "24h"},
+    )
+    db_session.add(cfg)
+    db_session.commit()
+
+    update_settings(
+        req=SettingUpdate(ai_matching_threshold=70, ai_recommendation_interval="6h"),
+        current_user=user,
+        db=db_session,
+    )
+
+    db_session.refresh(cfg)
+    assert cfg.value["min_matching_score"] == 70
+    assert cfg.value["notification_interval"] == "6h"
+
+    # Direction 2: update_ai_config updates Setting
+    from src.api.v1.tags import update_ai_config
+    from src.schemas.tag import AISystemConfigUpdate
+    from src.models.user import Setting
+
+    update_ai_config(
+        key="ai_settings",
+        req=AISystemConfigUpdate(
+            value={"features": {"recommendation": True}, "min_matching_score": 80, "notification_interval": "12h"}
+        ),
+        db=db_session,
+        current_user=user,
+    )
+
+    setting = db_session.query(Setting).filter(Setting.user_id == user.id).first()
+    assert setting is not None
+    assert setting.ai_matching_threshold == 80
+    assert setting.ai_recommendation_interval == "12h"
+
+
+def test_notifications_filtered_by_ai_hub_threshold(db_session: Session):
+    """Test that list_notifications and get_unread_count filter matching notifications by min_matching_score."""
+    user = User(
+        id=uuid.uuid4(),
+        email=f"thresh_user_{uuid.uuid4().hex[:6]}@example.com",
+        full_name="Threshold User",
+        password_hash="hash",
+    )
+    db_session.add(user)
+    db_session.commit()
+
+    from src.models.user import Setting, Notification
+    from src.models.tag import AISystemConfig
+    from src.api.v1.notifications import list_notifications, get_unread_count
+
+    setting = Setting(user_id=user.id, ai_enabled=True, ai_matching_threshold=70)
+    db_session.add(setting)
+
+    cfg = AISystemConfig(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        key="ai_settings",
+        value={"features": {"recommendation": True}, "min_matching_score": 70},
+    )
+    db_session.add(cfg)
+
+    # 1 notification with 55% match (should be hidden)
+    n_low = Notification(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        type="MATCH_SUGGESTION",
+        title="Match 55%",
+        content="Low match",
+        data={"match_score": 55},
+        status="UNREAD",
+    )
+    # 1 notification with 75% match (should be visible)
+    n_high = Notification(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        type="MATCH_SUGGESTION",
+        title="Match 75%",
+        content="High match",
+        data={"match_score": 75},
+        status="UNREAD",
+    )
+    # 1 general notification (always visible)
+    n_general = Notification(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        type="GENERAL",
+        title="Welcome",
+        content="Hello",
+        data={},
+        status="UNREAD",
+    )
+    db_session.add_all([n_low, n_high, n_general])
+    db_session.commit()
+
+    # Verify list_notifications
+    paginated = list_notifications(current_user=user, db=db_session)
+    visible_ids = {n.id for n in paginated.data}
+    assert n_high.id in visible_ids
+    assert n_general.id in visible_ids
+    assert n_low.id not in visible_ids
+
+    # Verify unread count
+    unread_res = get_unread_count(current_user=user, db=db_session)
+    assert unread_res["unread_count"] == 2  # n_high + n_general
+
+    # Now turn recommendation feature OFF
+    cfg.value = {"features": {"recommendation": False}, "min_matching_score": 70}
+    db_session.commit()
+
+    paginated_off = list_notifications(current_user=user, db=db_session)
+    visible_off_ids = {n.id for n in paginated_off.data}
+    assert n_general.id in visible_off_ids
+    assert n_high.id not in visible_off_ids
+    assert n_low.id not in visible_off_ids
+
+    unread_off = get_unread_count(current_user=user, db=db_session)
+    assert unread_off["unread_count"] == 1  # only n_general
+
+

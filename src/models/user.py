@@ -124,6 +124,7 @@ class Setting(Base):
     ai_memory_window: Mapped[str] = mapped_column(String(50), default="unlimited")
     ai_recommendation_interval: Mapped[str] = mapped_column(String(50), default="24h")
     ai_copilot_context_turns: Mapped[int] = mapped_column(Integer, default=10)
+    ai_matching_threshold: Mapped[int] = mapped_column(Integer, default=50)
 
     @property
     def notifications_enabled(self) -> bool:

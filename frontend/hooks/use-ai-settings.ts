@@ -30,10 +30,16 @@ export function useAISettings(enabled = true) {
     quickActions: aiConfig?.value?.chat_copilot_quick_actions !== false,
   };
 
+  const rawScore = aiConfig?.value?.min_matching_score ?? 50;
+  const minMatchingScore = rawScore <= 1.0 ? Math.round(rawScore * 100) : rawScore;
+  const notificationInterval = aiConfig?.value?.notification_interval ?? "24h";
+
   return {
     features,
     isLoading,
     rawConfig: aiConfig,
     chatCopilotSettings,
+    minMatchingScore,
+    notificationInterval,
   };
 }

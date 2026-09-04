@@ -398,13 +398,15 @@ INSERT INTO settings (
     ai_enabled, ai_read_profile, ai_extract_chat,
     sound_enabled, enter_is_send, read_receipts, online_status,
     media_auto_download, message_preview, accent_color, font_size,
-    ai_memory_refresh_interval, ai_memory_window, ai_recommendation_interval, ai_copilot_context_turns
+    ai_memory_refresh_interval, ai_memory_window, ai_recommendation_interval, ai_copilot_context_turns,
+    ai_matching_threshold
 ) VALUES (
     '{user["id"]}', true, true, 'system', 'vi', true,
     true, true, true,
     true, true, true, true,
     true, true, 'blue', 'medium',
-    'realtime', 'unlimited', '24h', 10
+    'realtime', 'unlimited', '24h', 10,
+    50
 ) ON CONFLICT (user_id) DO UPDATE SET
     auto_tag = EXCLUDED.auto_tag,
     auto_memory = EXCLUDED.auto_memory,
@@ -420,7 +422,8 @@ INSERT INTO settings (
     ai_memory_refresh_interval = EXCLUDED.ai_memory_refresh_interval,
     ai_memory_window = EXCLUDED.ai_memory_window,
     ai_recommendation_interval = EXCLUDED.ai_recommendation_interval,
-    ai_copilot_context_turns = EXCLUDED.ai_copilot_context_turns;
+    ai_copilot_context_turns = EXCLUDED.ai_copilot_context_turns,
+    ai_matching_threshold = EXCLUDED.ai_matching_threshold;
 """
         sql_statements.append(s_sql.strip())
 
@@ -448,13 +451,13 @@ INSERT INTO user_profiles (
     '{user.get("company", "")}',
     '{user.get("location", "")}',
     '{bio_escaped}',
-    '{user.get("gender", "")}',
+    '{user.get("gender", "Other")}',
     '{user.get("phone", "")}',
     '{skills_json}'::jsonb,
     '{interests_json}'::jsonb,
     '{looking_for_json}'::jsonb,
     '{offering_json}'::jsonb,
-    true,
+    {str(user.get("is_public", True)).lower()},
     {github_val},
     {linkedin_val},
     {website_val},
@@ -497,7 +500,7 @@ INSERT INTO user_profiles (
             "chat_copilot_quick_actions": True,
             "tag_whitelist": ["Python", "FastAPI", "Go", "Backend", "DevOps", "UI/UX", "Product", "AI/ML", "Kubernetes", "EdTech"],
             "max_tags_per_contact": 10,
-            "min_matching_score": 0.5
+            "min_matching_score": 50
         }).replace("'", "''")
 
         ai_cfg_sql = f"""

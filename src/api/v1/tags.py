@@ -153,6 +153,24 @@ def update_ai_config(
         config.value = req.value
         if req.description:
             config.description = req.description
+
+    # Synchronize to Setting model for two-way consistency
+    if key == "ai_settings" and isinstance(req.value, dict):
+        from src.models.user import Setting
+        setting = db.query(Setting).filter(Setting.user_id == current_user.id).first()
+        if not setting:
+            setting = Setting(user_id=current_user.id)
+            db.add(setting)
+
+        if "min_matching_score" in req.value:
+            try:
+                val = float(req.value["min_matching_score"])
+                setting.ai_matching_threshold = int(round(val * 100)) if val <= 1.0 else int(round(val))
+            except Exception:
+                pass
+        if "notification_interval" in req.value:
+            setting.ai_recommendation_interval = str(req.value["notification_interval"])
+
     db.commit()
     db.refresh(config)
     return config

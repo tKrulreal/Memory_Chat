@@ -56,6 +56,29 @@ def update_settings(
         if hasattr(setting, key):
             setattr(setting, key, value)
         
+    # Synchronize relevant settings to AISystemConfig (ai_settings)
+    from src.models.tag import AISystemConfig
+    ai_config = db.query(AISystemConfig).filter(
+        AISystemConfig.user_id == current_user.id,
+        AISystemConfig.key == "ai_settings"
+    ).first()
+
+    if ai_config and isinstance(ai_config.value, dict):
+        new_val = dict(ai_config.value)
+        updated_ai_cfg = False
+        if "ai_matching_threshold" in update_data:
+            new_val["min_matching_score"] = setting.ai_matching_threshold
+            updated_ai_cfg = True
+        if "ai_recommendation_interval" in update_data:
+            new_val["notification_interval"] = setting.ai_recommendation_interval
+            updated_ai_cfg = True
+        if "ai_enabled" in update_data and "features" in new_val and isinstance(new_val["features"], dict):
+            new_val["features"]["recommendation"] = setting.ai_enabled
+            updated_ai_cfg = True
+
+        if updated_ai_cfg:
+            ai_config.value = new_val
+
     db.commit()
     db.refresh(setting)
     return setting

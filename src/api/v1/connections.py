@@ -55,17 +55,28 @@ async def list_connections(
         AISystemConfig.key == "ai_settings"
     ).first()
 
-    min_score_percent = 50
+    raw_score = 50
+    notif_interval = "24h"
     can_generate = True
 
     if not current_user.setting or not current_user.setting.ai_enabled:
-        can_generate = False
+        return []
 
     if ai_config and isinstance(ai_config.value, dict):
         features = ai_config.value.get("features", {})
         if features.get("recommendation") is False:
-            can_generate = False
-        min_score_percent = int(ai_config.value.get("min_matching_score", 50))
+            return []
+        raw_score = ai_config.value.get("min_matching_score", 50)
+        notif_interval = ai_config.value.get("notification_interval", getattr(current_user.setting, "ai_recommendation_interval", "24h"))
+    elif current_user.setting:
+        raw_score = getattr(current_user.setting, "ai_matching_threshold", 50)
+        notif_interval = getattr(current_user.setting, "ai_recommendation_interval", "24h")
+
+    try:
+        val = float(raw_score)
+        min_score_percent = int(round(val * 100)) if val <= 1.0 else int(round(val))
+    except Exception:
+        min_score_percent = 50
 
     min_score = min_score_percent / 100.0
 
@@ -94,20 +105,22 @@ async def list_connections(
     if (status_filter == "PENDING" or status_filter == "ALL") and not recommendations and can_generate:
         try:
             new_recs = await agent.generate(current_user.id, min_score=min_score, limit=10)
-            from src.services.notifications import NotificationService
-            notification_service = NotificationService.get_instance()
-            for rec in new_recs:
-                if rec.target_user_id:
-                    target = db.get(User, rec.target_user_id)
-                    if target:
-                        match_score = int(round((rec.confidence or 0.5) * 100))
-                        notification_service.send_matching_notification(
-                            db=db,
-                            user_id=current_user.id,
-                            target_user=target,
-                            match_score=match_score,
-                            recommendation_id=rec.id,
-                        )
+            if notif_interval != "off":
+                from src.services.notifications import NotificationService
+                notification_service = NotificationService.get_instance()
+                for rec in new_recs:
+                    if rec.target_user_id:
+                        target = db.get(User, rec.target_user_id)
+                        if target:
+                            match_score = int(round((rec.confidence or 0.5) * 100))
+                            if match_score >= min_score_percent:
+                                notification_service.send_matching_notification(
+                                    db=db,
+                                    user_id=current_user.id,
+                                    target_user=target,
+                                    match_score=match_score,
+                                    recommendation_id=rec.id,
+                                )
             recommendations = (
                 query
                 .order_by(Recommendation.confidence.desc(), Recommendation.created_at.desc())
@@ -564,12 +577,23 @@ async def generate_connections(
             AISystemConfig.key == "ai_settings"
         ).first()
         
-        min_score_percent = 50
+        raw_score = 50
+        notif_interval = "24h"
         if ai_config and isinstance(ai_config.value, dict):
             features = ai_config.value.get("features", {})
             if features.get("recommendation") is False:
                 raise HTTPException(status_code=400, detail="Tính năng Gợi ý kết nối (AI Recommendation) đã bị tắt.")
-            min_score_percent = int(ai_config.value.get("min_matching_score", 50))
+            raw_score = ai_config.value.get("min_matching_score", 50)
+            notif_interval = ai_config.value.get("notification_interval", getattr(current_user.setting, "ai_recommendation_interval", "24h"))
+        elif current_user.setting:
+            raw_score = getattr(current_user.setting, "ai_matching_threshold", 50)
+            notif_interval = getattr(current_user.setting, "ai_recommendation_interval", "24h")
+
+        try:
+            val = float(raw_score)
+            min_score_percent = int(round(val * 100)) if val <= 1.0 else int(round(val))
+        except Exception:
+            min_score_percent = 50
 
         if force_refresh:
             old_pending = db.query(Recommendation).filter(
@@ -599,21 +623,23 @@ async def generate_connections(
             limit=10,
         )
 
-        # Tạo thông báo matching đồng bộ cho các gợi ý mới tìm thấy
-        from src.services.notifications import NotificationService
-        notification_service = NotificationService.get_instance()
-        for rec in recommendations:
-            if rec.target_user_id:
-                target = db.get(User, rec.target_user_id)
-                if target:
-                    match_score = int(round((rec.confidence or 0.5) * 100))
-                    notification_service.send_matching_notification(
-                        db=db,
-                        user_id=current_user.id,
-                        target_user=target,
-                        match_score=match_score,
-                        recommendation_id=rec.id,
-                    )
+        # Tạo thông báo matching đồng bộ cho các gợi ý mới tìm thấy nếu không tắt thông báo
+        if notif_interval != "off":
+            from src.services.notifications import NotificationService
+            notification_service = NotificationService.get_instance()
+            for rec in recommendations:
+                if rec.target_user_id:
+                    target = db.get(User, rec.target_user_id)
+                    if target:
+                        match_score = int(round((rec.confidence or 0.5) * 100))
+                        if match_score >= min_score_percent:
+                            notification_service.send_matching_notification(
+                                db=db,
+                                user_id=current_user.id,
+                                target_user=target,
+                                match_score=match_score,
+                                recommendation_id=rec.id,
+                            )
 
         total_pending = (
             db.query(Recommendation)

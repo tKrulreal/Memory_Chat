@@ -82,13 +82,51 @@ class ConnectionRecommendationWorker:
                 logger.debug(f"Task cancelled for user {user_id}")
                 return
 
+            db_check = SessionLocal()
+            min_score = 0.5
+            can_generate = True
+            try:
+                from src.models.tag import AISystemConfig
+                from src.models.user import User
+                user = db_check.get(User, user_id)
+                if not user or not user.setting or not user.setting.ai_enabled:
+                    can_generate = False
+
+                ai_config = db_check.query(AISystemConfig).filter(
+                    AISystemConfig.user_id == user_id,
+                    AISystemConfig.key == "ai_settings"
+                ).first()
+
+                if ai_config and isinstance(ai_config.value, dict):
+                    features = ai_config.value.get("features", {})
+                    if features.get("recommendation") is False:
+                        can_generate = False
+                    raw_score = ai_config.value.get("min_matching_score", 50)
+                elif user and user.setting:
+                    raw_score = getattr(user.setting, "ai_matching_threshold", 50)
+                else:
+                    raw_score = 50
+
+                try:
+                    val = float(raw_score)
+                    min_score_percent = int(round(val * 100)) if val <= 1.0 else int(round(val))
+                except Exception:
+                    min_score_percent = 50
+                min_score = min_score_percent / 100.0
+            finally:
+                db_check.close()
+
+            if not can_generate:
+                logger.info("Recommendation is disabled for user %s, skipping generation", user_id)
+                return
+
             with ai_job_duration_seconds.labels(worker_type="connection_worker").time():
                 logger.info(f"ConnectionRecommendationWorker processing for user {user_id}")
 
-                # Generate recommendations
+                # Generate recommendations with configured threshold
                 recommendations = await self._agent.generate(
                     user_id=user_id,
-                    min_score=0.5,
+                    min_score=min_score,
                     limit=5,
                 )
 
