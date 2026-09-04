@@ -1,0 +1,164 @@
+name: Preview Deployment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+  REGISTRY: ghcr.io
+
+jobs:
+  # ============================================================
+  # Build Preview Images
+  # ============================================================
+  build-preview:
+    name: Build Preview
+    runs-on: ubuntu-latest
+    outputs:
+      backend-image: ${{ steps.meta.outputs.backend-image }}
+      frontend-image: ${{ steps.meta.outputs.frontend-image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (Backend)
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/backend
+          tags: |
+            type=ref,event=pr
+            type=sha,prefix=pr-
+
+      - name: Extract metadata (Frontend)
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/frontend
+          tags: |
+            type=ref,event=pr
+            type=sha,prefix=pr-
+
+      - name: Build and push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://backend:8000
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================
+  # Deploy Preview
+  # ============================================================
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    needs: [build-preview]
+    permissions:
+      contents: read
+      deployments: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create preview environment file
+        run: |
+          cat > .env.preview << 'EOF'
+          APP_ENV=preview
+          DATABASE_URL=${{ secrets.PREVIEW_DATABASE_URL }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          QDRANT_URL=${{ secrets.QDRANT_URL }}
+          EOF
+
+      - name: Create preview docker-compose
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          cat > docker-compose.preview.yml << 'EOF'
+          version: '3.8'
+
+          services:
+            backend-preview-$PR_NUMBER:
+              image: ${{ needs.build-preview.outputs.backend-image }}
+              pull_policy: always
+              environment:
+                - APP_ENV=preview
+              ports:
+                - "8001:8000"
+              restart: unless-stopped
+
+            frontend-preview-$PR_NUMBER:
+              image: ${{ needs.build-preview.outputs.frontend-image }}
+              pull_policy: always
+              ports:
+                - "3001:3000"
+              restart: unless-stopped
+          EOF
+
+      - name: Deploy preview
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.preview.yml up -d
+        env:
+          DOCKER_HOST: tcp://${{ secrets.DOCKER_HOST }}
+
+      - name: Comment PR with preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const previewUrl = `http://localhost:3001`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Preview Deployment Available\n\nA preview environment has been deployed:\n- Frontend: ${previewUrl}\n- API: http://localhost:8001\n\n:rocket: Build #${context.runNumber} | Commit: \`${context.sha.slice(0, 7)}\``
+            })
+
+  # ============================================================
+  # Cleanup Preview
+  # ============================================================
+  cleanup-preview:
+    name: Cleanup Preview
+    runs-on: ubuntu-latest
+    needs: [deploy-preview]
+    permissions:
+      contents: read
+      deployments: write
+    if: ${{ github.event.action == 'closed' }}
+
+    steps:
+      - name: Remove preview images
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          docker rmi ${{ env.REGISTRY }}/${{ github.repository }}/backend:pr-${{ github.sha }} || true
+          docker rmi ${{ env.REGISTRY }}/${{ github.repository }}/frontend:pr-${{ github.sha }} || true

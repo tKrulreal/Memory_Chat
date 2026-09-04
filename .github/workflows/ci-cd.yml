@@ -1,16 +1,72 @@
-name: CI and Deploy
+name: CI/CD Pipeline
 
 on:
-  pull_request:
-    branches: [main]
   push:
+    branches: [main, develop]
+  pull_request:
     branches: [main]
 
 permissions:
   contents: read
+  packages: write
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/${{ github.repository }}/backend
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository }}/frontend
 
 jobs:
-  test:
+  # ============================================================
+  # Lint & Type Check
+  # ============================================================
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Python Lint
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run Ruff (Python Lint)
+        run: ruff check src/ tests/
+
+      # Frontend Lint
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependection-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run TypeScript check
+        working-directory: frontend
+        run: npm run typecheck
+
+  # ============================================================
+  # Backend Tests
+  # ============================================================
+  backend-test:
+    name: Backend Tests
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -26,21 +82,81 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/memorychat
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/memorychat
-      OPENAI_API_KEY: sk-test
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'sk-test' }}
       QDRANT_URL: http://localhost:6333
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -r requirements.txt
-      - run: python -m pytest tests/ -v --tb=short --cov=src --cov-report=term-missing --cov-report=xml
+      APP_ENV: test
 
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run migrations
+        run: alembic upgrade head
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short --cov=src --cov-report=term-missing
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: coverage.xml
+          retention-days: 7
+
+  # ============================================================
+  # Frontend Build & Test
+  # ============================================================
+  frontend-test:
+    name: Frontend Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/.next
+          retention-days: 1
+
+  # ============================================================
+  # Database Migrations Check
+  # ============================================================
   migrations:
+    name: Database Migrations
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -56,36 +172,223 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/memorychat
       OPENAI_API_KEY: sk-test
       QDRANT_URL: http://localhost:6333
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -r requirements.txt
-      - run: alembic upgrade head
-      - run: test "$(alembic current)" = "$(alembic heads)"
 
-  deploy:
-    needs: [test, migrations]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: production
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: 20
-      - run: npm install --global @railway/cli
-      - run: railway up --project "$RAILWAY_PROJECT_ID" --service ai-chat --environment production --detach
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run migrations
+        run: alembic upgrade head
+
+      - name: Verify migrations are up to date
+        run: |
+          alembic current
+          echo "---"
+          alembic heads
+
+  # ============================================================
+  # Build Docker Images
+  # ============================================================
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [lint, backend-test, frontend-test, migrations]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      backend-image: ${{ steps.meta.outputs.backend-image }}
+      frontend-image: ${{ steps.meta.outputs.frontend-image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (Backend)
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.BACKEND_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Extract metadata (Frontend)
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.FRONTEND_API_URL || 'https://api.memorychat.example.com' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================
+  # Deploy to Production (via Docker Compose)
+  # ============================================================
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Docker Compose files
+        run: |
+          # Create production docker-compose override
+          cat > docker-compose.prod.yml << 'EOF'
+          version: '3.8'
+
+          services:
+            backend:
+              image: ${{ env.BACKEND_IMAGE }}:main-${{ github.sha }}
+              pull_policy: always
+              environment:
+                - DATABASE_URL=${{ secrets.PRODUCTION_DATABASE_URL }}
+                - OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+                - QDRANT_URL=${{ secrets.QDRANT_URL }}
+                - APP_ENV=production
+              restart: always
+
+            frontend:
+              image: ${{ env.FRONTEND_IMAGE }}:main-${{ github.sha }}
+              pull_policy: always
+              restart: always
+
+            postgres:
+              image: postgres:16
+              environment:
+                - POSTGRES_USER=${{ secrets.POSTGRES_USER || 'postgres' }}
+                - POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+                - POSTGRES_DB=${{ secrets.POSTGRES_DB || 'memorychat' }}
+              volumes:
+                - pgdata_prod:/var/lib/postgresql/data
+              restart: always
+
+          volumes:
+            pgdata_prod:
+          EOF
+
+      - name: Deploy with Docker Compose
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
-      - run: railway up frontend --path-as-root --project "$RAILWAY_PROJECT_ID" --service frontend --environment production --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          DOCKER_HOST: tcp://${{ secrets.DOCKER_HOST }}
+
+      - name: Wait for health check
+        run: |
+          echo "Waiting for services to be healthy..."
+          sleep 30
+
+      - name: Verify deployment
+        run: |
+          curl -f http://localhost:8000/health/readiness || exit 1
+          curl -f http://localhost:3000 || exit 1
+
+  # ============================================================
+  # Security Scan
+  # ============================================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run dependency check (Python)
+        uses: PyUpIO/safety-action@master
+        with:
+          key: ${{ secrets.SAFETY_API_KEY }}
+          directory: '.'
+          args: '--file requirements.txt'
+
+  # ============================================================
+  # Notify on failure
+  # ============================================================
+  notify-failure:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    needs: [lint, backend-test, frontend-test, migrations, docker-build, deploy]
+    if: failure() && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Send failure notification
+        run: |
+          echo "CI/CD Pipeline failed on main branch"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
+          # Add your notification logic here (Slack, Discord, Email, etc.)

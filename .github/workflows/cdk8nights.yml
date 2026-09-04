@@ -1,0 +1,141 @@
+name: Nightly Build & Test
+
+on:
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  # ============================================================
+  # Full Integration Test
+  # ============================================================
+  integration-test:
+    name: Full Integration Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: memorychat_nightly
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d memorychat_nightly"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/memorychat_nightly
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/memorychat_nightly
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      QDRANT_URL: http://localhost:6333
+      APP_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run all migrations
+        run: |
+          alembic upgrade head
+
+      - name: Run full test suite
+        run: |
+          pytest tests/ -v --tb=long --cov=src --cov-report=xml --cov-report=html
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-coverage
+          path: htmlcov/
+          retention-days: 14
+
+  # ============================================================
+  # Docker Build Test
+  # ============================================================
+  docker-test:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: memorychat-backend:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          load: true
+          tags: memorychat-frontend:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify images exist
+        run: |
+          docker images memorychat-backend:test
+          docker images memorychat-frontend:test
+
+  # ============================================================
+  # Dependency Audit
+  # ============================================================
+  audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Check outdated Python packages
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt || true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Check outdated npm packages
+        working-directory: frontend
+        run: npm audit || true
