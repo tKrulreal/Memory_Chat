@@ -339,14 +339,16 @@ class ConnectionRecommendationAgent:
                 if not collected_offers and isinstance(m.facts.get("current_offers"), list):
                     collected_offers.extend([str(o) for o in m.facts["current_offers"]])
 
-        # 3. Tin nhắn do user gửi đi (chỉ trích xuất khi được cho phép ai_extract_chat)
+        # 3. Tin nhắn do user gửi đi (chỉ trích xuất khi được cho phép ai_extract_chat).
+        # Keep a wider window because profile extraction is global, while the
+        # previous limit could exclude useful messages from an older chat.
         recent_messages_text = "Chưa gửi tin nhắn nào"
         if not setting or getattr(setting, "ai_extract_chat", True) is not False:
             recent_msgs = (
                 db.query(Message)
                 .filter(Message.sender_user_id == user.id)
-                .order_by(Message.created_at.desc())
-                .limit(20)
+                .order_by(Message.created_at.desc(), Message.id.desc())
+                .limit(100)
                 .all()
             )
             recent_messages_text = "\n".join([f"- {msg.content}" for msg in recent_msgs if msg.content and msg.content.strip()]) or "Chưa gửi tin nhắn nào"

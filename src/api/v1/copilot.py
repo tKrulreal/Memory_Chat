@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from src.api.deps import get_db
 from src.core.security import get_current_user
+from src.core.time import parse_duration_days
 from src.models.chat import Conversation, Message
 from src.models.user import User
 
@@ -341,14 +342,7 @@ async def copilot_chat(
         if setting and setting.ai_copilot_context_turns:
             context_turns = setting.ai_copilot_context_turns
 
-        memory_window_days = None
-        if setting and setting.ai_memory_window and str(setting.ai_memory_window).lower() != "unlimited":
-            try:
-                match = re.search(r'\d+', str(setting.ai_memory_window))
-                if match:
-                    memory_window_days = int(match.group())
-            except Exception:
-                pass
+        memory_window_days = parse_duration_days(setting.ai_memory_window) if setting else None
 
         # Lấy lịch sử hội thoại Copilot tương ứng (cùng conversation_id hoặc cùng None)
         hist_query = db.query(CopilotMessage).filter(

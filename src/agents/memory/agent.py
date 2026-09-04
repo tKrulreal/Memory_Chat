@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from src.core.time import parse_duration_days
 from src.gateways.llm import LLMGateway
 
 logger = logging.getLogger(__name__)
@@ -455,13 +456,8 @@ class MemoryAgent:
         if db:
             from src.models.user import Setting
             setting = db.query(Setting).filter(Setting.user_id == user_id).first()
-            if setting and setting.ai_memory_window and str(setting.ai_memory_window).lower() != "unlimited":
-                try:
-                    match = re.search(r'\d+', str(setting.ai_memory_window))
-                    if match:
-                        memory_window_days = int(match.group())
-                except Exception:
-                    pass
+            if setting:
+                memory_window_days = parse_duration_days(setting.ai_memory_window)
                     
         # Filter messages by memory window
         if memory_window_days:

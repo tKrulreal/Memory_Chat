@@ -7,6 +7,24 @@ import uuid
 import pytest
 from unittest.mock import MagicMock, patch
 from src.agents.memory.agent import MemoryAgent, sanitize_peer_text, clean_interest_keyword
+from src.core.time import parse_duration_days
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("1d", 1),
+        ("1w", 7),
+        ("1m", 30),
+        ("3m", 90),
+        ("6m", 180),
+        ("1y", 365),
+        ("unlimited", None),
+        (None, None),
+    ],
+)
+def test_parse_duration_days(value, expected):
+    assert parse_duration_days(value) == expected
 
 
 class TestMemoryAgent:
