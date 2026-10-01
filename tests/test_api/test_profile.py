@@ -1,7 +1,6 @@
 import uuid
 import pytest
 from src.models.user import User, UserProfile
-from src.models.chat import Conversation
 
 
 @pytest.mark.asyncio

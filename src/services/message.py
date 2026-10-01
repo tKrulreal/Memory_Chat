@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
@@ -7,6 +8,9 @@ from src.models.chat import Conversation, Message
 from src.repositories.conversation import ConversationRepository
 from src.repositories.message import MessageRepository
 from src.schemas.message import MessageCreate
+
+if TYPE_CHECKING:
+    from src.events.bus import EventBus
 
 
 class MessageNotFoundError(Exception):
