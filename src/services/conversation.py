@@ -1,4 +1,5 @@
 import uuid
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
@@ -6,6 +7,9 @@ from src.models.chat import Conversation
 from src.repositories.conversation import ConversationRepository
 from src.schemas.conversation import ConversationCreate, ConversationUpdate
 from src.schemas.enums import ConversationStatus
+
+if TYPE_CHECKING:
+    from src.events.bus import EventBus
 
 
 class ConversationNotFoundError(Exception):
